@@ -18,11 +18,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Funções Auxiliares ---
     function populateDropdowns(selectElement, items) {
-        // ... (código existente sem alterações)
+        if (!selectElement) { console.warn("Elemento select não encontrado para popular:", selectElement); return; }
+        while (selectElement.options.length > 1) selectElement.remove(1);
+        if (items && Array.isArray(items)) {
+            items.forEach(item => { if (item) selectElement.add(new Option(item, item)); });
+        }
     }
 
     function generateAlphanumericCode(length = 5) {
-        // ... (código existente sem alterações)
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) result += characters.charAt(Math.floor(Math.random() * characters.length));
+        return result;
     }
 
     async function getCityFromZip(zipCode) {
@@ -67,7 +74,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const centralTechs = techCoverageData.filter(t => t.categoria && t.categoria.toLowerCase() === 'central');
             const techsInState = [];
             
-            // Usamos Promise.all para otimizar as buscas de CEP dos técnicos
             await Promise.all(centralTechs.map(async (tech) => {
                  if (tech.zip_code && tech.zip_code.length === 5) {
                     const loc = await getCityFromZip(tech.zip_code);
@@ -95,20 +101,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             suggestedTechDisplay.textContent = 'Erro ao buscar técnicos.';
         }
     }
-
-    // --- Lógica de Submissão e outros Event Listeners (sem alterações) ---
-    // ...
-
-    // --- Adiciona Event Listeners ---
     
-    // ** LÓGICA CORRIGIDA E CENTRALIZADA PARA O CAMPO DE CEP **
+    // --- Lógica de Submissão ---
+    async function handleFormSubmission(event) {
+        // ... (código existente sem alterações)
+    }
+    
+    // --- Adiciona Event Listeners ---
+    scheduleForm.addEventListener('submit', handleFormSubmission);
+
     zipCodeInputForm.addEventListener('input', async (event) => {
         const zipCode = event.target.value.trim();
-        // Limpa os campos dependentes
         cityInput.value = '';
         suggestedTechDisplay.innerHTML = '<div class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium">--/--/----</div>';
 
-        // A ação só acontece quando o CEP tem 5 dígitos
         if (zipCode.length === 5) {
             cityInput.placeholder = 'Buscando...';
             cityInput.disabled = true;
@@ -121,7 +127,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (locationData && locationData.city) {
                 console.log(`[FORM LOG] Cidade encontrada: ${locationData.city}. Preenchendo campo.`);
                 cityInput.value = locationData.city;
-                // Dispara a busca por técnicos APENAS APÓS encontrar a cidade
                 await updateSuggestedTechnician(locationData.state);
             } else {
                  console.warn("[FORM LOG] Nenhuma cidade encontrada para este CEP.");
@@ -130,6 +135,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
-    // (O restante do arquivo, com a criação de campos hidden e a função populateFormDropdowns, continua o mesmo)
-    // ...
+    customersInput.addEventListener('input', () => { /* ...código sem alterações... */ });
+    appointmentDateInput.addEventListener('input', (event) => { /* ...código sem alterações... */ });
+
+    // --- Popula os dropdowns na carga inicial ---
+    (async function populateFormDropdowns() {
+        console.log("[FORM LOG] Populando todos os dropdowns...");
+        try {
+            const [dataResponse, listsResponse] = await Promise.all([
+                fetch('/api/get-dashboard-data'),
+                fetch('/api/get-lists') 
+            ]);
+            
+            if (!dataResponse.ok) throw new Error('Falha ao carregar dados do dashboard (employees, franchises, sources).');
+            if (!listsResponse.ok) throw new Error('Falha ao carregar listas (pets).');
+            
+            const data = await dataResponse.json();
+            const lists = await listsResponse.json();
+            console.log("[FORM LOG] Dados recebidos para os dropdowns:", { data, lists });
+            
+            populateDropdowns(document.getElementById('closer1'), data.employees);
+            populateDropdowns(document.getElementById('closer2'), data.employees);
+            populateDropdowns(document.getElementById('franchise'), data.franchises);
+            populateDropdowns(document.getElementById('pets'), lists.pets);
+            populateDropdowns(document.getElementById('source'), data.sources); // <-- ALTERAÇÃO AQUI
+
+            console.log("[FORM LOG] Dropdowns populados com sucesso.");
+        } catch(error) {
+            console.error("[FORM ERROR] Erro ao popular dropdowns:", error);
+        }
+    })();
 });
