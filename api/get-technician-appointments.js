@@ -60,13 +60,15 @@ export default async function handler(req, res) {
                 customers: getCellValue('Customers'),
                 code: getCellValue('Code'),
                 verification: getCellValue('Verification') || 'Scheduled', 
-                pets: getCellValue('Pets'), // <-- CAMPO ADICIONADO AQUI
+                pets: getCellValue('Pets'),
                 petShowed: getCellValue('Pet Showed'),
                 serviceShowed: getCellValue('Service Showed'),
                 tips: getCellValue('Tips'),
                 percentage: getCellValue('Percentage'),
                 paymentMethod: getCellValue('Method'),
                 zipCode: getCellValue('Zip Code'),
+                // *** NOVA ALTERAÇÃO AQUI ***
+                duration: getCellValue('Duration') || 120, // Padrão de 120 minutos se não houver
             };
         }).filter(a => a !== null);
 
