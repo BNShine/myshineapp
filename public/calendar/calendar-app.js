@@ -196,7 +196,8 @@ createApp({
       openEditModal,
       closeEditModal,
       handleSaveAppointment,
-      parseSheetDate, // Expose helper for template
+      parseSheetDate, 
+      formatDateToYYYYMMDD, // <<-- CORREÇÃO APLICADA AQUI
       // Constants
       TIME_SLOTS: Array.from({ length: 15 }, (_, i) => `${(7 + i).toString().padStart(2, '0')}:00`),
       SLOT_HEIGHT_PX: 60,
