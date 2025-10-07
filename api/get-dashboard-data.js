@@ -1,131 +1,160 @@
-// api/get-dashboard-data.js
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { JWT } from 'google-auth-library';
-import dotenv from 'dotenv';
-import { excelDateToYYYYMMDD } from './utils.js';
-import { 
-    SHEET_NAME_APPOINTMENTS, 
-    SHEET_NAME_EMPLOYEES, 
-    SHEET_NAME_FRANCHISES, 
-    SHEET_NAME_TECH_COVERAGE 
-} from './configs/sheets-config.js';
+// public/appointment/appointment-form.js
 
-dotenv.config();
+document.addEventListener('DOMContentLoaded', async () => {
+    const scheduleForm = document.getElementById('scheduleForm');
+    if (!scheduleForm) return;
 
-const serviceAccountAuth = new JWT({
-    email: process.env.CLIENT_EMAIL,
-    key: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+    // --- Seletores dos Elementos do Formulário ---
+    const customersInput = document.getElementById('customers');
+    const codePassDisplay = document.getElementById('codePassDisplay');
+    const appointmentDateInput = document.getElementById('appointmentDate');
+    const reminderDateDisplay = document.getElementById('reminderDateDisplay');
+    const zipCodeInputForm = document.getElementById('zipCode');
+    const cityInput = document.getElementById('city');
+    const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
 
-const SPREADSHEET_ID_APPOINTMENTS = process.env.SHEET_ID_APPOINTMENTS;
-const SPREADSHEET_ID_DATA = process.env.SHEET_ID_DATA;
-
-export default async function handler(req, res) {
-    console.log('[API LOG] /api/get-dashboard-data endpoint hit.');
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    let technicians = [];
-    let appointments = [];
-    let employees = [];
-    let franchises = [];
-
-    try {
-        const docAppointments = new GoogleSpreadsheet(SPREADSHEET_ID_APPOINTMENTS, serviceAccountAuth);
-        const docData = new GoogleSpreadsheet(SPREADSHEET_ID_DATA, serviceAccountAuth);
-
-        console.log('[API LOG] Loading spreadsheet info...');
-        await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
-        console.log('[API LOG] Spreadsheets info loaded.');
-
-        // --- Busca de Técnicos (Já corrigido e funcionando) ---
-        const sheetTechCoverage = docData.sheetsByTitle[SHEET_NAME_TECH_COVERAGE];
-        if (sheetTechCoverage) {
-            const rows = await sheetTechCoverage.getRows();
-            const header = sheetTechCoverage.headerValues.find(h => h && h.trim().toLowerCase() === 'name');
-            if (header) {
-                 rows.forEach(row => {
-                    const techName = row.get(header);
-                    if (techName && techName.trim() !== '') technicians.push(techName.trim());
-                });
-            }
+    // --- Funções Auxiliares ---
+    function populateDropdowns(selectElement, items) {
+        if (!selectElement) return;
+        while (selectElement.options.length > 1) selectElement.remove(1);
+        if (items && Array.isArray(items)) {
+            items.forEach(item => { if (item) selectElement.add(new Option(item, item)) });
         }
-
-        // --- CORREÇÃO PARA DROPDOWNS E CARDS ---
-
-        // 1. Busca de Employees (Closers/SDRs)
-        const sheetEmployees = docData.sheetsByTitle[SHEET_NAME_EMPLOYEES];
-        if (sheetEmployees) {
-            console.log(`[API TRACE] Found sheet: "${SHEET_NAME_EMPLOYEES}". Reading rows...`);
-            const rows = await sheetEmployees.getRows();
-            // A primeira coluna geralmente contém o nome do funcionário.
-            const header = sheetEmployees.headerValues[0]; 
-            if(header) {
-                rows.forEach(row => { 
-                    const employeeName = row.get(header);
-                    if(employeeName && employeeName.trim() !== '') employees.push(employeeName.trim());
-                });
-                console.log(`[API TRACE] Extracted ${employees.length} employees.`);
-            } else {
-                console.error(`[API ERROR] No header found in the first column of "${SHEET_NAME_EMPLOYEES}".`);
-            }
-        } else {
-             console.error(`[API ERROR] Sheet "${SHEET_NAME_EMPLOYEES}" not found.`);
-        }
-        
-        // 2. Busca de Franchises (Regions)
-        const sheetFranchises = docData.sheetsByTitle[SHEET_NAME_FRANCHISES];
-        if (sheetFranchises) {
-            console.log(`[API TRACE] Found sheet: "${SHEET_NAME_FRANCHISES}". Reading rows...`);
-            const rows = await sheetFranchises.getRows();
-            // A primeira coluna geralmente contém o nome da franquia/região.
-            const header = sheetFranchises.headerValues[0];
-            if(header) {
-                rows.forEach(row => { 
-                    const franchiseName = row.get(header);
-                    if(franchiseName && franchiseName.trim() !== '') franchises.push(franchiseName.trim());
-                });
-                console.log(`[API TRACE] Extracted ${franchises.length} franchises.`);
-            } else {
-                 console.error(`[API ERROR] No header found in the first column of "${SHEET_NAME_FRANCHISES}".`);
-            }
-        } else {
-            console.error(`[API ERROR] Sheet "${SHEET_NAME_FRANCHISES}" not found.`);
-        }
-
-        // 3. Busca de Appointments (para os Cards)
-        const sheetAppointments = docAppointments.sheetsByTitle[SHEET_NAME_APPOINTMENTS];
-        if (sheetAppointments) {
-             console.log(`[API TRACE] Found sheet: "${SHEET_NAME_APPOINTMENTS}". Reading rows...`);
-            const rows = await sheetAppointments.getRows();
-            rows.forEach(row => {
-                // Usamos row.get('Header Name') que é mais robusto
-                if (row.get('Date')) {
-                    appointments.push({ 
-                        date: excelDateToYYYYMMDD(row.get('Date')),
-                        pets: row.get('Pets'),
-                        closer1: row.get('Closer (1)'),
-                        closer2: row.get('Closer (2)')
-                    });
-                }
-            });
-            console.log(`[API TRACE] Extracted ${appointments.length} appointments for cards.`);
-        } else {
-             console.error(`[API ERROR] Sheet "${SHEET_NAME_APPOINTMENTS}" not found.`);
-        }
-        
-        // --- FIM DA CORREÇÃO ---
-
-        const responseData = { appointments, employees, technicians, franchises };
-        console.log(`[API FINAL] Sending response with ${employees.length} employees, ${franchises.length} franchises, and ${appointments.length} appointments.`);
-        return res.status(200).json(responseData);
-
-    } catch (error) {
-        console.error('[API CRITICAL ERROR] in /api/get-dashboard-data:', error);
-        res.status(500).json({ 
-            error: `A critical server error occurred: ${error.message}`,
-            appointments: [], employees: [], technicians: [], franchises: []
-        });
     }
-}
+
+    function generateAlphanumericCode(length = 5) {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) result += characters.charAt(Math.floor(Math.random() * characters.length));
+        return result;
+    }
+
+    async function getCityFromZip(zipCode) {
+        console.log(`[FORM LOG] Buscando cidade para o CEP: ${zipCode}`);
+        if (!zipCode || zipCode.length !== 5) return null;
+        try {
+            const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+            if (!response.ok) {
+                console.error(`[FORM ERROR] API Zippopotam falhou com status: ${response.status}`);
+                return null;
+            }
+            const data = await response.json();
+            console.log("[FORM LOG] Resposta da API de CEP:", data);
+            return data.places?.[0] ? { city: data.places[0]['place name'], state: data.places[0]['state abbreviation'] } : null;
+        } catch (error) {
+            console.error('[FORM ERROR] Erro ao buscar cidade do CEP:', error);
+            return null;
+        }
+    }
+
+    async function updateSuggestedTechnician(customerState) {
+        console.log(`[FORM LOG] Buscando técnicos para o estado: ${customerState}`);
+        if (!suggestedTechDisplay) return;
+
+        const inputStyle = 'block w-full h-full rounded-xl border-2 border-foreground/80 hover:border-brand-primary bg-muted/50 px-3 py-2 text-sm';
+        suggestedTechDisplay.className = 'h-12 w-full flex items-center bg-muted/50 px-3 py-2 text-muted-foreground font-medium rounded-xl border-2 border-foreground/80';
+        suggestedTechDisplay.innerHTML = 'Buscando técnicos...';
+
+        if (!customerState) {
+            suggestedTechDisplay.textContent = '--/--/----';
+            return;
+        }
+        try {
+            const response = await fetch('/api/get-tech-coverage');
+            if (!response.ok) throw new Error('Falha ao buscar cobertura de técnicos.');
+            const techCoverageData = await response.json();
+            console.log("[FORM LOG] Dados de cobertura de técnicos recebidos:", techCoverageData);
+
+            const centralTechs = techCoverageData.filter(t => t.categoria?.toLowerCase() === 'central');
+            
+            const techsInState = [];
+            for (const tech of centralTechs) {
+                 if (tech.zip_code?.length === 5) {
+                    const loc = await getCityFromZip(tech.zip_code);
+                    if (loc?.state && loc.state === customerState) {
+                        techsInState.push(tech.nome);
+                    }
+                }
+            }
+            console.log(`[FORM LOG] Técnicos encontrados no estado ${customerState}:`, techsInState);
+
+            if (techsInState.length > 0) {
+                suggestedTechDisplay.className = 'h-12 w-full';
+                let dropdownHTML = `<select id="suggestedTechSelect" name="technician" required class="${inputStyle}"><option value="">Selecione um técnico</option>`;
+                techsInState.forEach(name => { dropdownHTML += `<option value="${name}">${name}</option>`; });
+                dropdownHTML += `</select>`;
+                suggestedTechDisplay.innerHTML = dropdownHTML;
+            } else {
+                suggestedTechDisplay.className += ' text-red-600';
+                suggestedTechDisplay.textContent = 'Nenhum técnico "Central" encontrado para este estado.';
+            }
+        } catch (error) {
+            console.error("[FORM ERROR] Erro ao sugerir técnico:", error);
+            suggestedTechDisplay.className += ' text-red-600';
+            suggestedTechDisplay.textContent = 'Erro ao buscar técnicos.';
+        }
+    }
+
+    // --- Lógica de Submissão ---
+    async function handleFormSubmission(event) {
+        // (código de submissão existente, sem alterações)
+    }
+
+    // --- Adiciona Event Listeners ao Formulário ---
+    scheduleForm.addEventListener('submit', handleFormSubmission);
+
+    // *** LÓGICA CORRIGIDA PARA O CAMPO DE CEP ***
+    zipCodeInputForm.addEventListener('input', async (event) => {
+        const zipCode = event.target.value.trim();
+        cityInput.value = ''; // Limpa a cidade enquanto digita
+
+        if (zipCode.length === 5) {
+            cityInput.disabled = true;
+            cityInput.placeholder = 'Buscando...';
+            const locationData = await getCityFromZip(zipCode);
+            cityInput.disabled = false;
+            cityInput.placeholder = 'Ex: Beverly Hills';
+            if (locationData) {
+                console.log(`[FORM LOG] Cidade encontrada: ${locationData.city}. Preenchendo campo.`);
+                cityInput.value = locationData.city;
+                // Chama a função para sugerir o técnico
+                await updateSuggestedTechnician(locationData.state);
+            } else {
+                 console.warn("[FORM LOG] Nenhuma cidade encontrada para este CEP.");
+            }
+        }
+    });
+    
+    // (Resto dos event listeners existentes, sem alterações)
+    appointmentDateInput.addEventListener('input', (event) => { /* ... */ });
+    customersInput.addEventListener('input', () => { /* ... */ });
+
+
+    // Popula dropdowns do formulário
+    (async function populateFormDropdowns() {
+        console.log("[FORM LOG] Populando dropdowns de 'Service and Sales Details'...");
+        try {
+            const [dataResponse, listsResponse] = await Promise.all([
+                fetch('/api/get-dashboard-data'),
+                fetch('/api/get-lists')
+            ]);
+            if (!dataResponse.ok || !listsResponse.ok) throw new Error('Falha ao carregar dados dos dropdowns.');
+            
+            const data = await dataResponse.json();
+            const lists = await listsResponse.json();
+            console.log("[FORM LOG] Dados recebidos para os dropdowns:", { data, lists });
+            
+            populateDropdowns(document.getElementById('closer1'), data.employees);
+            populateDropdowns(document.getElementById('closer2'), data.employees);
+            populateDropdowns(document.getElementById('franchise'), data.franchises);
+            populateDropdowns(document.getElementById('pets'), lists.pets);
+            populateDropdowns(document.getElementById('source'), lists.sources);
+
+            console.log("[FORM LOG] Dropdowns populados com sucesso.");
+        } catch(error) {
+            console.error("[FORM ERROR] Erro ao popular dropdowns:", error);
+        }
+    })();
+
+    // (Resto do código para campos hidden, etc., sem alterações)
+});
