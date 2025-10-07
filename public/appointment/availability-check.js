@@ -2,13 +2,9 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Seletores dos Elementos ---
-    const smartCheckToggle = document.getElementById('smart-check-toggle');
-    const smartCheckStatusBadge = document.getElementById('smart-check-status-badge');
-    const smartCheckDescription = document.getElementById('smart-check-description');
-    
     const availabilitySection = document.getElementById('availability-checker-section');
     const mainFormSection = document.getElementById('main-appointment-form');
-    
+    const skipBtn = document.getElementById('skip-to-manual-btn');
     const zipCodeInputCheck = document.getElementById('customer-zip-code');
     const numPetsInput = document.getElementById('num-pets');
     const marginSelect = document.getElementById('appointment-margin');
@@ -19,29 +15,19 @@ document.addEventListener('DOMContentLoaded', () => {
     let availabilityData = [];
     let currentOptionIndex = 0;
     
-    // --- Lógica do Switch ---
-    const handleToggleChange = () => {
-        const isSmartCheckOn = smartCheckToggle.checked;
-
-        if (isSmartCheckOn) {
-            smartCheckStatusBadge.textContent = 'ON';
-            smartCheckStatusBadge.classList.remove('bg-gray-500');
-            smartCheckStatusBadge.classList.add('bg-green-600');
-            smartCheckDescription.textContent = 'O modo inteligente está ATIVADO. O sistema calculará o tempo de viagem e encontrará os melhores horários.';
-            availabilitySection.classList.remove('hidden');
-            mainFormSection.classList.add('hidden');
-        } else {
-            smartCheckStatusBadge.textContent = 'OFF';
-            smartCheckStatusBadge.classList.remove('bg-green-600');
-            smartCheckStatusBadge.classList.add('bg-gray-500');
-            smartCheckDescription.textContent = 'O modo inteligente está DESATIVADO. O agendamento será manual com duração fixa (60 min/pet + 60 min margem).';
-            availabilitySection.classList.add('hidden');
-            mainFormSection.classList.remove('hidden');
-            mainFormSection.scrollIntoView({ behavior: 'smooth' });
+    // --- Lógica do Botão Skip ---
+    skipBtn.addEventListener('click', () => {
+        mainFormSection.classList.remove('hidden');
+        mainFormSection.scrollIntoView({ behavior: 'smooth' });
+        
+        // Garante que o modo manual esteja DESLIGADO por padrão ao pular
+        const manualToggle = document.getElementById('manual-mode-toggle');
+        if (manualToggle) {
+            manualToggle.checked = false;
+            // Dispara o evento 'change' para atualizar o label e a lógica
+            manualToggle.dispatchEvent(new Event('change'));
         }
-    };
-    
-    smartCheckToggle.addEventListener('change', handleToggleChange);
+    });
 
     // --- Funções da Checagem de Disponibilidade ---
     verifyBtn.addEventListener('click', handleVerifyAvailability);
@@ -104,9 +90,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleSlotSelection(event) {
         const { slot, date, tech, zip, pets, travelTime, margin } = event.currentTarget.dataset;
         
-        availabilitySection.classList.add('hidden');
         mainFormSection.classList.remove('hidden');
         
+        // Garante que o modo manual esteja DESLIGADO ao vir do Smart Check
+        const manualToggle = document.getElementById('manual-mode-toggle');
+        if (manualToggle) {
+            manualToggle.checked = false;
+            manualToggle.dispatchEvent(new Event('change'));
+        }
+
+        // Preenche os campos
         document.getElementById('appointmentDate').value = `${date}T${slot}`;
         document.getElementById('zipCode').value = zip;
         document.getElementById('pets').value = pets;
@@ -121,7 +114,4 @@ document.addEventListener('DOMContentLoaded', () => {
         mainFormSection.scrollIntoView({ behavior: 'smooth' });
         document.getElementById('appointmentDate').dispatchEvent(new Event('input', { bubbles: true }));
     }
-
-    // Inicializa o estado do switch na carga da página
-    handleToggleChange();
 });
