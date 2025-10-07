@@ -3,7 +3,12 @@ import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import dotenv from 'dotenv';
 import { excelDateToYYYYMMDD } from './utils.js';
-import { SHEET_NAME_APPOINTMENTS, SHEET_NAME_EMPLOYEES, SHEET_NAME_FRANCHISES, SHEET_NAME_TECHNICIANS } from './configs/sheets-config.js';
+import { 
+    SHEET_NAME_APPOINTMENTS, 
+    SHEET_NAME_EMPLOYEES, 
+    SHEET_NAME_FRANCHISES, 
+    SHEET_NAME_TECH_COVERAGE // Alterado de TECHNICIANS para TECH_COVERAGE
+} from './configs/sheets-config.js';
 
 dotenv.config();
 
@@ -34,17 +39,18 @@ export default async function handler(req, res) {
         await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
         console.log('[API LOG] Spreadsheets info loaded.');
 
-        // --- Busca de Técnicos (com logs detalhados) ---
-        console.log(`[API LOG] Attempting to find sheet: "${SHEET_NAME_TECHNICIANS}"`);
-        const sheetTechnicians = docData.sheetsByTitle[SHEET_NAME_TECHNICIANS];
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Busca de Técnicos a partir da planilha de cobertura (TechCoverageData)
+        console.log(`[API LOG] Attempting to find sheet: "${SHEET_NAME_TECH_COVERAGE}" for technicians list.`);
+        const sheetTechCoverage = docData.sheetsByTitle[SHEET_NAME_TECH_COVERAGE];
         
-        if (sheetTechnicians) {
-            console.log(`[API LOG] SUCCESS: Found sheet "${SHEET_NAME_TECHNICIANS}". Reading rows...`);
-            const rows = await sheetTechnicians.getRows();
-            console.log(`[API LOG] Found ${rows.length} rows in Technicians sheet.`);
+        if (sheetTechCoverage) {
+            console.log(`[API LOG] SUCCESS: Found sheet "${SHEET_NAME_TECH_COVERAGE}". Reading rows...`);
+            const rows = await sheetTechCoverage.getRows();
+            console.log(`[API LOG] Found ${rows.length} rows in TechCoverageData sheet.`);
             
-            // Supondo que o nome do técnico está na primeira coluna (cabeçalho deve existir)
-            const header = sheetTechnicians.headerValues[0];
+            // O cabeçalho esperado é 'Name'
+            const header = sheetTechCoverage.headerValues.find(h => h.toLowerCase() === 'name');
             if (header) {
                  rows.forEach(row => {
                     const techName = row.get(header);
@@ -52,13 +58,14 @@ export default async function handler(req, res) {
                         technicians.push(techName);
                     }
                 });
-                console.log(`[API LOG] Extracted ${technicians.length} technicians.`);
+                console.log(`[API LOG] Extracted ${technicians.length} technicians from TechCoverageData.`);
             } else {
-                 console.error(`[API ERROR] No header found in the first column of "${SHEET_NAME_TECHNICIANS}" sheet.`);
+                 console.error(`[API ERROR] 'Name' header not found in the "${SHEET_NAME_TECH_COVERAGE}" sheet.`);
             }
         } else {
-            console.error(`[API ERROR] FAILED to find sheet "${SHEET_NAME_TECHNICIANS}". Please check the sheet name in your Google Sheets and in 'api/configs/sheets-config.js'.`);
+            console.error(`[API ERROR] FAILED to find sheet "${SHEET_NAME_TECH_COVERAGE}". Please check the sheet name.`);
         }
+        // --- FIM DA CORREÇÃO ---
 
         // --- Buscas Resilientes (sem alterações) ---
         const sheetEmployees = docData.sheetsByTitle[SHEET_NAME_EMPLOYEES];
