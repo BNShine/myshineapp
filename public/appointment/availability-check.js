@@ -1,27 +1,51 @@
 // public/appointment/availability-check.js
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Seletores dos Elementos ---
+    const smartCheckToggle = document.getElementById('smart-check-toggle');
+    const smartCheckStatusBadge = document.getElementById('smart-check-status-badge');
+    const smartCheckDescription = document.getElementById('smart-check-description');
+    
     const availabilitySection = document.getElementById('availability-checker-section');
-    if (!availabilitySection) return;
-
     const mainFormSection = document.getElementById('main-appointment-form');
+    
     const zipCodeInputCheck = document.getElementById('customer-zip-code');
     const numPetsInput = document.getElementById('num-pets');
     const marginSelect = document.getElementById('appointment-margin');
     const verifyBtn = document.getElementById('verify-availability-btn');
-    const skipBtn = document.getElementById('skip-to-manual-btn');
     const resultsDiv = document.getElementById('availability-results');
 
+    // --- Estado Inicial ---
     let availabilityData = [];
     let currentOptionIndex = 0;
+    
+    // --- Lógica do Switch ---
+    const handleToggleChange = () => {
+        const isSmartCheckOn = smartCheckToggle.checked;
 
+        if (isSmartCheckOn) {
+            smartCheckStatusBadge.textContent = 'ON';
+            smartCheckStatusBadge.classList.remove('bg-gray-500');
+            smartCheckStatusBadge.classList.add('bg-green-600');
+            smartCheckDescription.textContent = 'O modo inteligente está ATIVADO. O sistema calculará o tempo de viagem e encontrará os melhores horários.';
+            availabilitySection.classList.remove('hidden');
+            mainFormSection.classList.add('hidden');
+        } else {
+            smartCheckStatusBadge.textContent = 'OFF';
+            smartCheckStatusBadge.classList.remove('bg-green-600');
+            smartCheckStatusBadge.classList.add('bg-gray-500');
+            smartCheckDescription.textContent = 'O modo inteligente está DESATIVADO. O agendamento será manual com duração fixa (60 min/pet + 60 min margem).';
+            availabilitySection.classList.add('hidden');
+            mainFormSection.classList.remove('hidden');
+            mainFormSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+    
+    smartCheckToggle.addEventListener('change', handleToggleChange);
+
+    // --- Funções da Checagem de Disponibilidade ---
     verifyBtn.addEventListener('click', handleVerifyAvailability);
-    skipBtn.addEventListener('click', () => {
-        availabilitySection.style.display = 'none';
-        mainFormSection.classList.remove('hidden');
-        mainFormSection.scrollIntoView({ behavior: 'smooth' });
-    });
-
+    
     async function handleVerifyAvailability() {
         const zipCode = zipCodeInputCheck.value.trim();
         const numPets = numPetsInput.value;
@@ -43,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error(result.message || 'An unknown error occurred.');
             availabilityData = result.options;
             currentOptionIndex = 0;
-            displayCurrentOption(zipCode, numPets, margin); // Passa a margem
+            displayCurrentOption(zipCode, numPets, margin);
         } catch (error) {
             resultsDiv.innerHTML = `<p class="text-red-600 font-semibold">Error: ${error.message}</p>`;
         } finally {
@@ -61,16 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const { technician, restrictions, date, availableSlots } = data;
         const friendlyDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         
-        // *** NOVA ALTERAÇÃO AQUI ***
         const slotsHtml = availableSlots.map(slot => 
             `<button type="button" class="slot-btn bg-brand-primary/10 text-brand-primary font-semibold py-2 px-4 rounded-lg hover:bg-brand-primary hover:text-white transition-colors" 
-                data-slot="${slot.time}" 
-                data-date="${date}" 
-                data-tech="${technician}" 
-                data-zip="${originalZip}" 
-                data-pets="${numPets}"
-                data-travel-time="${slot.travelTime}"
-                data-margin="${margin}">
+                data-slot="${slot.time}" data-date="${date}" data-tech="${technician}" data-zip="${originalZip}" data-pets="${numPets}"
+                data-travel-time="${slot.travelTime}" data-margin="${margin}">
                 ${slot.time} (+${slot.travelTime} min travel)
             </button>`
         ).join('');
@@ -84,29 +102,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleSlotSelection(event) {
-        // *** NOVA ALTERAÇÃO AQUI ***
         const { slot, date, tech, zip, pets, travelTime, margin } = event.currentTarget.dataset;
         
-        availabilitySection.style.display = 'none';
+        availabilitySection.classList.add('hidden');
         mainFormSection.classList.remove('hidden');
         
-        // Preenche os campos visíveis e os novos campos ocultos
         document.getElementById('appointmentDate').value = `${date}T${slot}`;
         document.getElementById('zipCode').value = zip;
         document.getElementById('pets').value = pets;
-        document.getElementById('travelTime').value = travelTime; // Preenche o campo oculto
-        document.getElementById('margin').value = margin; // Preenche o campo oculto
+        document.getElementById('travelTime').value = travelTime;
+        document.getElementById('margin').value = margin;
 
         document.getElementById('zipCode').dispatchEvent(new Event('input', { bubbles: true }));
         setTimeout(() => {
             const techSelect = document.getElementById('suggestedTechSelect');
-            if (techSelect) {
-                techSelect.value = tech;
-            } else if (document.getElementById('suggestedTechDisplay')) {
-                document.getElementById('suggestedTechDisplay').textContent = tech;
-            }
+            if (techSelect) techSelect.value = tech;
         }, 1500);
         mainFormSection.scrollIntoView({ behavior: 'smooth' });
         document.getElementById('appointmentDate').dispatchEvent(new Event('input', { bubbles: true }));
     }
+
+    // Inicializa o estado do switch na carga da página
+    handleToggleChange();
 });
