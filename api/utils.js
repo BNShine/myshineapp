@@ -107,9 +107,5 @@ export const dynamicLists = {
     weeks: Array.from({ length: 5 }, (_, i) => i + 1),
     months: Array.from({ length: 12 }, (_, i) => i + 1),
     years: Array.from({ length: 17 }, (_, i) => 2024 + i),
-    sources: [
-        "Facebook", "Kommo", "Social Traffic", "SMS", "Call", "Friends", 
-        "Family Member", "Neighbors", "Reminder", "Email", "Google", 
-        "Website", "Grooming / Referral P", "Instagram", "Technician", "WhatsApp", "Other"
-    ]
+    // A lista de 'sources' foi removida para ser carregada da planilha
 };
