@@ -21,21 +21,22 @@ const serviceAccountAuth = new JWT({
 const SPREADSHEET_ID_APPOINTMENTS = process.env.SHEET_ID_APPOINTMENTS;
 const SPREADSHEET_ID_DATA = process.env.SHEET_ID_DATA;
 
-// Função auxiliar para extrair dados de uma planilha de forma segura
+// Função auxiliar para extrair dados de forma segura
 async function safelyExtractData(doc, sheetName, headerName) {
     const data = [];
     const sheet = doc.sheetsByTitle[sheetName];
     if (!sheet) {
         console.error(`[API ERROR] Planilha "${sheetName}" não encontrada.`);
-        return data; // Retorna array vazio se a planilha não existir
+        return data;
     }
     
     console.log(`[API TRACE] Lendo planilha: "${sheetName}"`);
     const rows = await sheet.getRows();
+    // Procura pelo cabeçalho exato, ignorando maiúsculas/minúsculas e espaços
     const header = sheet.headerValues.find(h => h && h.trim().toLowerCase() === headerName.toLowerCase());
 
     if (!header) {
-        console.error(`[API ERROR] Cabeçalho "${headerName}" não encontrado na planilha "${sheetName}".`);
+        console.error(`[API ERROR] Cabeçalho "${headerName}" não encontrado na planilha "${sheetName}". Verifique a ortografia.`);
         return data;
     }
 
@@ -49,7 +50,6 @@ async function safelyExtractData(doc, sheetName, headerName) {
     return data;
 }
 
-
 export default async function handler(req, res) {
     console.log('[API LOG] /api/get-dashboard-data endpoint hit.');
     res.setHeader('Content-Type', 'application/json');
@@ -59,20 +59,17 @@ export default async function handler(req, res) {
         const docAppointments = new GoogleSpreadsheet(SPREADSHEET_ID_APPOINTMENTS, serviceAccountAuth);
         const docData = new GoogleSpreadsheet(SPREADSHEET_ID_DATA, serviceAccountAuth);
 
-        console.log('[API LOG] Carregando informações das planilhas...');
         await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
-        console.log('[API LOG] Informações carregadas com sucesso.');
 
-        // --- Busca de dados usando a função auxiliar segura ---
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Usando a função segura para buscar todos os dados necessários
         const technicians = await safelyExtractData(docData, SHEET_NAME_TECH_COVERAGE, 'Name');
-        const employees = await safelyExtractData(docData, SHEET_NAME_EMPLOYEES, 'Name'); // Assumindo que o cabeçalho é 'Name'
-        const franchises = await safelyExtractData(docData, SHEET_NAME_FRANCHISES, 'Franchise'); // Assumindo que o cabeçalho é 'Franchise'
-
-        // --- Busca de Appointments (para os Cards) ---
+        const employees = await safelyExtractData(docData, SHEET_NAME_EMPLOYEES, 'Name'); // Busca explicitamente por "Name"
+        const franchises = await safelyExtractData(docData, SHEET_NAME_FRANCHISES, 'Franchise'); // Busca explicitamente por "Franchise"
+        
         let appointments = [];
         const sheetAppointments = docAppointments.sheetsByTitle[SHEET_NAME_APPOINTMENTS];
         if (sheetAppointments) {
-            console.log(`[API TRACE] Lendo planilha: "${SHEET_NAME_APPOINTMENTS}"`);
             const rows = await sheetAppointments.getRows();
             rows.forEach(row => {
                 if (row.get('Date')) {
@@ -84,13 +81,10 @@ export default async function handler(req, res) {
                     });
                 }
             });
-            console.log(`[API TRACE] Extraídos ${appointments.length} agendamentos para os cards.`);
-        } else {
-            console.error(`[API ERROR] Planilha "${SHEET_NAME_APPOINTMENTS}" não encontrada.`);
         }
 
         const responseData = { appointments, employees, technicians, franchises };
-        console.log(`[API FINAL] Enviando resposta com ${technicians.length} técnicos, ${employees.length} funcionários, ${franchises.length} franquias.`);
+        console.log(`[API FINAL] Enviando resposta com ${employees.length} funcionários.`);
         return res.status(200).json(responseData);
 
     } catch (error) {
