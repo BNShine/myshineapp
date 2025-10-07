@@ -7,8 +7,7 @@ import {
     SHEET_NAME_APPOINTMENTS, 
     SHEET_NAME_EMPLOYEES, 
     SHEET_NAME_FRANCHISES, 
-    SHEET_NAME_TECH_COVERAGE,
-    SHEET_NAME_SOURCE // <-- CORRIGIDO: Importa a constante correta
+    SHEET_NAME_TECH_COVERAGE
 } from './configs/sheets-config.js';
 
 dotenv.config();
@@ -22,7 +21,7 @@ const serviceAccountAuth = new JWT({
 const SPREADSHEET_ID_APPOINTMENTS = process.env.SHEET_ID_APPOINTMENTS;
 const SPREADSHEET_ID_DATA = process.env.SHEET_ID_DATA;
 
-// Função auxiliar robusta para extrair dados
+// Função auxiliar robusta para extrair dados de uma coluna específica
 async function safelyExtractColumnData(doc, sheetName, expectedHeaderName) {
     const data = [];
     const sheet = doc.sheetsByTitle[sheetName];
@@ -34,7 +33,6 @@ async function safelyExtractColumnData(doc, sheetName, expectedHeaderName) {
     const header = sheet.headerValues.find(h => h && h.trim().toLowerCase() === expectedHeaderName.toLowerCase());
     if (!header) {
         console.error(`[API ERROR] O cabeçalho "${expectedHeaderName}" não foi encontrado na planilha "${sheetName}".`);
-        console.log(`[API INFO] Cabeçalhos encontrados nesta planilha: [${sheet.headerValues.join(', ')}]`);
         return data;
     }
     rows.forEach(row => {
@@ -52,10 +50,9 @@ export default async function handler(req, res) {
 
         await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
 
-        // --- Busca de dados para os dropdowns ---
+        // --- Busca de dados das planilhas ---
         const employees = await safelyExtractColumnData(docData, SHEET_NAME_EMPLOYEES, 'Name'); 
         const franchises = await safelyExtractColumnData(docData, SHEET_NAME_FRANCHISES, 'Franchise');
-        const sources = await safelyExtractColumnData(docData, SHEET_NAME_SOURCE, 'Source'); // <-- CORRIGIDO: Usa a constante correta
         const technicians = await safelyExtractColumnData(docData, SHEET_NAME_TECH_COVERAGE, 'Name');
         
         let appointments = [];
@@ -74,14 +71,15 @@ export default async function handler(req, res) {
             });
         }
 
-        const responseData = { appointments, employees, technicians, franchises, sources };
+        // REMOVEMOS 'sources' da resposta desta API
+        const responseData = { appointments, employees, technicians, franchises };
         return res.status(200).json(responseData);
 
     } catch (error) {
         console.error('[API CRITICAL ERROR] em /api/get-dashboard-data:', error);
         return res.status(500).json({ 
             error: `Erro crítico no servidor: ${error.message}`,
-            appointments: [], employees: [], technicians: [], franchises: [], sources: []
+            appointments: [], employees: [], technicians: [], franchises: []
         });
     }
 }
