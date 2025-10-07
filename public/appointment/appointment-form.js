@@ -177,10 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (customersInput.value.trim()) {
             const generatedCode = generateAlphanumericCode(5);
             codePassDisplay.textContent = generatedCode;
-            document.getElementById('codePass').value = generatedCode;
+            document.getElementById('code').value = generatedCode; // CORREÇÃO AQUI
         } else {
             codePassDisplay.textContent = '--/--/----';
-            document.getElementById('codePass').value = '';
+            document.getElementById('code').value = ''; // CORREÇÃO AQUI
         }
     });
 
@@ -250,13 +250,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
                 Register Appointment`;
         }
     });
     
     // --- Criação de Campos Hidden (se não existirem) ---
-    ['codePass', 'reminderDate', 'travelTime', 'margin', 'data', 'month', 'year', 'type'].forEach(id => {
+    ['code', 'reminderDate', 'travelTime', 'margin', 'data', 'month', 'year', 'type'].forEach(id => { // CORREÇÃO AQUI
         if (!document.getElementById(id)) {
             const input = document.createElement('input');
             input.type = 'hidden';
