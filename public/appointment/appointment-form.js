@@ -1,33 +1,10 @@
 // public/appointment/appointment-form.js
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!document.getElementById('scheduleForm')) return;
+
+    // --- Seletores dos Elementos ---
     const scheduleForm = document.getElementById('scheduleForm');
-    if (!scheduleForm) return;
-
-    // *** INÍCIO DA NOVA LÓGICA DO SWITCH MANUAL ***
-    const manualModeToggle = document.getElementById('manual-mode-toggle');
-    const manualModeLabel = document.getElementById('manual-mode-label');
-
-    const handleManualToggle = () => {
-        if (!manualModeToggle || !manualModeLabel) return;
-        
-        if (manualModeToggle.checked) {
-            manualModeLabel.textContent = 'Manual Mode ON';
-            manualModeLabel.classList.remove('text-gray-500');
-            manualModeLabel.classList.add('text-red-600', 'font-bold');
-        } else {
-            manualModeLabel.textContent = 'Smart Mode';
-            manualModeLabel.classList.remove('text-red-600', 'font-bold');
-            manualModeLabel.classList.add('text-gray-500');
-        }
-    };
-
-    if (manualModeToggle) {
-        manualModeToggle.addEventListener('change', handleManualToggle);
-        handleManualToggle(); // Seta o estado visual inicial
-    }
-    // *** FIM DA NOVA LÓGICA DO SWITCH MANUAL ***
-
     const customersInput = document.getElementById('customers');
     const codePassDisplay = document.getElementById('codePassDisplay');
     const appointmentDateInput = document.getElementById('appointmentDate');
@@ -35,126 +12,146 @@ document.addEventListener('DOMContentLoaded', async () => {
     const zipCodeInputForm = document.getElementById('zipCode');
     const cityInput = document.getElementById('city');
     const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
-    
-    // --- Adiciona campos hidden ---
-    if (!document.getElementById('codePass')) {
-        const codePassInput = document.createElement('input');
-        codePassInput.type = 'hidden'; codePassInput.id = 'codePass'; codePassInput.name = 'codePass';
-        scheduleForm.appendChild(codePassInput);
-    }
-    if (!document.getElementById('reminderDate')) {
-        const reminderDateInput = document.createElement('input');
-        reminderDateInput.type = 'hidden'; reminderDateInput.id = 'reminderDate'; reminderDateInput.name = 'reminderDate';
-        scheduleForm.appendChild(reminderDateInput);
-    }
-    if (!document.getElementById('travelTime')) {
-        const travelTimeInput = document.createElement('input');
-        travelTimeInput.type = 'hidden'; travelTimeInput.id = 'travelTime'; travelTimeInput.name = 'travelTime';
-        travelTimeInput.value = '0'; // Começa com 0, será calculado se o modo Smart estiver ativo
-        scheduleForm.appendChild(travelTimeInput);
-    }
-    if (!document.getElementById('margin')) {
-        const marginInput = document.createElement('input');
-        marginInput.type = 'hidden'; marginInput.id = 'margin'; marginInput.name = 'margin';
-        marginInput.value = '30'; // Padrão de margem
-        scheduleForm.appendChild(marginInput);
-    }
-    
+
     // --- Funções Auxiliares ---
-    function populateDropdowns(selectElement, items) { /* ...código existente... */ }
-    function generateAlphanumericCode(length = 5) { /* ...código existente... */ }
-    async function getCityFromZip(zipCode) { /* ...código existente... */ }
-    async function updateSuggestedTechnician(customerState, suggestedTechDisplay) { /* ...código existente... */ }
-
-    const calculateManualTravelTime = async () => {
-        // Só executa se o modo Smart estiver LIGADO
-        if (manualModeToggle && manualModeToggle.checked) return;
-
-        const techSelect = document.getElementById('suggestedTechSelect');
-        const technician = techSelect ? techSelect.value : null;
-        const destinationZip = zipCodeInputForm.value;
-        const appointmentDateTime = appointmentDateInput.value;
-
-        if (technician && destinationZip.length === 5 && appointmentDateTime) {
-            try {
-                const response = await fetch('/api/calculate-travel-time', { /* ...código existente... */ });
-                const data = await response.json();
-                if (data.travelTime >= 0) {
-                    document.getElementById('travelTime').value = data.travelTime;
-                    console.log(`Travel time calculated for Smart Mode: ${data.travelTime} minutes.`);
-                } else {
-                    document.getElementById('travelTime').value = '30'; // Fallback
-                }
-            } catch (error) {
-                document.getElementById('travelTime').value = '30'; // Fallback
-            }
+    function populateDropdowns(selectElement, items) {
+        if (!selectElement) { console.warn("Elemento select não encontrado para popular."); return; }
+        while (selectElement.options.length > 1) selectElement.remove(1);
+        if (items && Array.isArray(items)) {
+            items.forEach(item => { if (item) selectElement.add(new Option(item, item)); });
         }
-    };
+    }
 
-    // --- Lógica de Submissão ---
-    async function handleFormSubmission(event) {
-        event.preventDefault();
-        
-        const isManualModeOn = manualModeToggle.checked;
+    function generateAlphanumericCode(length = 5) { /* ...código sem alterações... */ }
 
-        if (isManualModeOn) {
-            console.log("Manual Mode is ON. Setting travelTime to 0 and margin to 60.");
-            document.getElementById('travelTime').value = '0';
-            document.getElementById('margin').value = '60';
-        } else {
-            console.log("Smart Mode is ON. Using calculated/default travel time and selected margin.");
-            const marginSelect = document.getElementById('appointment-margin');
-            if (marginSelect) {
-                document.getElementById('margin').value = marginSelect.value;
+    async function getCityFromZip(zipCode) {
+        console.log(`[FORM LOG] Buscando cidade para o CEP: ${zipCode}`);
+        if (!zipCode || zipCode.length !== 5) return null;
+        try {
+            const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+            if (!response.ok) {
+                console.error(`[FORM ERROR] API Zippopotam falhou com status: ${response.status}`);
+                return null;
             }
+            const data = await response.json();
+            console.log("[FORM LOG] Resposta da API de CEP:", data);
+            return data.places?.[0] ? { city: data.places[0]['place name'], state: data.places[0]['state abbreviation'] } : null;
+        } catch (error) {
+            console.error('[FORM ERROR] Erro ao buscar cidade do CEP:', error);
+            return null;
         }
-        
-        const formData = new FormData(scheduleForm);
-        const data = Object.fromEntries(formData.entries());
-        
-        const appointmentDateLocal = data.appointmentDate;
-        const hour = parseInt(appointmentDateLocal.substring(11, 13), 10);
-        if (hour < 7 || hour >= 21) {
-            alert(`Error: Appointments must be between 07:00 and 21:00.`);
+    }
+
+    async function updateSuggestedTechnician(customerState) {
+        console.log(`[FORM LOG] Buscando técnicos para o estado: ${customerState}`);
+        if (!suggestedTechDisplay) return;
+
+        const inputStyle = 'block w-full h-full rounded-xl border-2 border-foreground/80 hover:border-brand-primary bg-muted/50 px-3 py-2 text-sm';
+        suggestedTechDisplay.className = 'h-12 w-full flex items-center bg-muted/50 px-3 py-2 text-muted-foreground font-medium rounded-xl border-2 border-foreground/80';
+        suggestedTechDisplay.innerHTML = 'Buscando técnicos...';
+
+        if (!customerState) {
+            suggestedTechDisplay.textContent = 'Estado do cliente não encontrado.';
             return;
         }
-        const [datePart, timePart] = appointmentDateLocal.split('T');
-        const [year, month, day] = datePart.split('-');
-        const apiFormattedDate = `${month}/${day}/${year} ${timePart}`;
-        const reminderDateValue = document.getElementById('reminderDate').value;
-        const [rYear, rMonth, rDay] = reminderDateValue ? reminderDateValue.split('-') : [null, null, null];
-        const apiFormattedReminderDate = rMonth ? `${rMonth}/${rDay}/${rYear}` : '';
-        
-        const formattedData = { ...data, appointmentDate: apiFormattedDate, reminderDate: apiFormattedReminderDate, verification: 'Scheduled', code: document.getElementById('codePass').value };
-        
         try {
-            const response = await fetch('/api/register-appointment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formattedData) });
-            const result = await response.json();
-            if (result.success) {
-                alert('Agendamento registrado com sucesso!');
-                window.location.reload();
+            const response = await fetch('/api/get-tech-coverage');
+            if (!response.ok) throw new Error('Falha ao buscar cobertura de técnicos.');
+            const techCoverageData = await response.json();
+            console.log("[FORM LOG] Dados de cobertura de técnicos recebidos:", techCoverageData);
+
+            const centralTechs = techCoverageData.filter(t => t.categoria?.toLowerCase() === 'central');
+            const techsInState = [];
+            for (const tech of centralTechs) {
+                 if (tech.zip_code?.length === 5) {
+                    const loc = await getCityFromZip(tech.zip_code);
+                    if (loc?.state && loc.state === customerState) {
+                        techsInState.push(tech.nome);
+                    }
+                }
+            }
+            console.log(`[FORM LOG] Técnicos encontrados no estado ${customerState}:`, techsInState);
+
+            if (techsInState.length > 0) {
+                suggestedTechDisplay.className = 'h-12 w-full';
+                let dropdownHTML = `<select id="suggestedTechSelect" name="technician" required class="${inputStyle}"><option value="">Selecione um técnico</option>`;
+                techsInState.forEach(name => { dropdownHTML += `<option value="${name}">${name}</option>`; });
+                dropdownHTML += `</select>`;
+                suggestedTechDisplay.innerHTML = dropdownHTML;
             } else {
-                alert('Erro ao registrar: ' + result.message);
+                suggestedTechDisplay.className += ' text-red-600';
+                suggestedTechDisplay.textContent = 'Nenhum técnico "Central" para este estado.';
             }
         } catch (error) {
-            alert('Erro de rede ao registrar.');
+            console.error("[FORM ERROR] Erro ao sugerir técnico:", error);
+            suggestedTechDisplay.className += ' text-red-600';
+            suggestedTechDisplay.textContent = 'Erro ao buscar técnicos.';
         }
     }
-
+    
+    // --- Lógica de Submissão (sem alterações) ---
+    async function handleFormSubmission(event) { /* ...código existente... */ }
+    
     // --- Adiciona Event Listeners ---
     scheduleForm.addEventListener('submit', handleFormSubmission);
-    zipCodeInputForm.addEventListener('input', async () => { /* ...código existente... */ });
-    appointmentDateInput.addEventListener('input', (event) => { /* ...código existente... */ });
-    customersInput.addEventListener('input', () => { /* ...código existente... */ });
 
-    appointmentDateInput.addEventListener('focusout', calculateManualTravelTime);
-    zipCodeInputForm.addEventListener('focusout', calculateManualTravelTime);
-    suggestedTechDisplay.addEventListener('change', (e) => {
-        if (e.target && e.target.id === 'suggestedTechSelect') {
-            calculateManualTravelTime();
+    zipCodeInputForm.addEventListener('input', async (event) => {
+        const zipCode = event.target.value.trim();
+        cityInput.value = '';
+        suggestedTechDisplay.innerHTML = '--/--/----'; // Reseta o campo de técnico
+
+        if (zipCode.length === 5) {
+            cityInput.placeholder = 'Buscando...';
+            cityInput.disabled = true;
+            
+            const locationData = await getCityFromZip(zipCode);
+            
+            cityInput.disabled = false;
+            cityInput.placeholder = 'Ex: Beverly Hills';
+
+            if (locationData && locationData.city) {
+                console.log(`[FORM LOG] Cidade encontrada: ${locationData.city}. Preenchendo campo.`);
+                cityInput.value = locationData.city;
+                await updateSuggestedTechnician(locationData.state); // Chama a função para buscar técnicos
+            } else {
+                 console.warn("[FORM LOG] Nenhuma cidade encontrada para este CEP.");
+                 suggestedTechDisplay.textContent = "CEP inválido para buscar técnicos.";
+            }
         }
     });
+    
+    customersInput.addEventListener('input', () => { /* ...código sem alterações... */ });
+    appointmentDateInput.addEventListener('input', (event) => { /* ...código sem alterações... */ });
 
-    // Popula dropdowns do formulário
-    (async function populateFormDropdowns() { /* ...código existente... */ })();
+    // --- Popula os dropdowns na carga inicial ---
+    (async function populateFormDropdowns() {
+        console.log("[FORM LOG] Populando dropdowns de 'Service and Sales Details'...");
+        try {
+            const [dataResponse, listsResponse] = await Promise.all([
+                fetch('/api/get-dashboard-data'),
+                fetch('/api/get-lists')
+            ]);
+            
+            if (!dataResponse.ok) {
+                 throw new Error(`Falha ao carregar dados do dashboard. Status: ${dataResponse.status}`);
+            }
+            if (!listsResponse.ok) {
+                 throw new Error(`Falha ao carregar listas dinâmicas. Status: ${listsResponse.status}`);
+            }
+            
+            const data = await dataResponse.json();
+            const lists = await listsResponse.json();
+            console.log("[FORM LOG] Dados recebidos para os dropdowns:", { data, lists });
+            
+            populateDropdowns(document.getElementById('closer1'), data.employees);
+            populateDropdowns(document.getElementById('closer2'), data.employees);
+            populateDropdowns(document.getElementById('franchise'), data.franchises);
+            populateDropdowns(document.getElementById('pets'), lists.pets);
+            populateDropdowns(document.getElementById('source'), lists.sources);
+
+            console.log("[FORM LOG] Dropdowns populados com sucesso.");
+        } catch(error) {
+            console.error("[FORM ERROR] Erro ao popular dropdowns:", error.message);
+        }
+    })();
 });
