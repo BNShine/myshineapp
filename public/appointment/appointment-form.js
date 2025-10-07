@@ -1,40 +1,117 @@
 // public/appointment/appointment-form.js
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- Seletores e Configurações (a maioria sem alterações) ---
     const scheduleForm = document.getElementById('scheduleForm');
     if (!scheduleForm) return;
 
-    // --- Funções Auxiliares (sem alterações) ---
+    // *** INÍCIO DA NOVA LÓGICA DO SWITCH MANUAL ***
+    const manualModeToggle = document.getElementById('manual-mode-toggle');
+    const manualModeLabel = document.getElementById('manual-mode-label');
+
+    const handleManualToggle = () => {
+        if (!manualModeToggle || !manualModeLabel) return;
+        
+        if (manualModeToggle.checked) {
+            manualModeLabel.textContent = 'Manual Mode ON';
+            manualModeLabel.classList.remove('text-gray-500');
+            manualModeLabel.classList.add('text-red-600', 'font-bold');
+        } else {
+            manualModeLabel.textContent = 'Smart Mode';
+            manualModeLabel.classList.remove('text-red-600', 'font-bold');
+            manualModeLabel.classList.add('text-gray-500');
+        }
+    };
+
+    if (manualModeToggle) {
+        manualModeToggle.addEventListener('change', handleManualToggle);
+        handleManualToggle(); // Seta o estado visual inicial
+    }
+    // *** FIM DA NOVA LÓGICA DO SWITCH MANUAL ***
+
+    const customersInput = document.getElementById('customers');
+    const codePassDisplay = document.getElementById('codePassDisplay');
+    const appointmentDateInput = document.getElementById('appointmentDate');
+    const reminderDateDisplay = document.getElementById('reminderDateDisplay');
+    const zipCodeInputForm = document.getElementById('zipCode');
+    const cityInput = document.getElementById('city');
+    const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
+    
+    // --- Adiciona campos hidden ---
+    if (!document.getElementById('codePass')) {
+        const codePassInput = document.createElement('input');
+        codePassInput.type = 'hidden'; codePassInput.id = 'codePass'; codePassInput.name = 'codePass';
+        scheduleForm.appendChild(codePassInput);
+    }
+    if (!document.getElementById('reminderDate')) {
+        const reminderDateInput = document.createElement('input');
+        reminderDateInput.type = 'hidden'; reminderDateInput.id = 'reminderDate'; reminderDateInput.name = 'reminderDate';
+        scheduleForm.appendChild(reminderDateInput);
+    }
+    if (!document.getElementById('travelTime')) {
+        const travelTimeInput = document.createElement('input');
+        travelTimeInput.type = 'hidden'; travelTimeInput.id = 'travelTime'; travelTimeInput.name = 'travelTime';
+        travelTimeInput.value = '0'; // Começa com 0, será calculado se o modo Smart estiver ativo
+        scheduleForm.appendChild(travelTimeInput);
+    }
+    if (!document.getElementById('margin')) {
+        const marginInput = document.createElement('input');
+        marginInput.type = 'hidden'; marginInput.id = 'margin'; marginInput.name = 'margin';
+        marginInput.value = '30'; // Padrão de margem
+        scheduleForm.appendChild(marginInput);
+    }
+    
+    // --- Funções Auxiliares ---
     function populateDropdowns(selectElement, items) { /* ...código existente... */ }
     function generateAlphanumericCode(length = 5) { /* ...código existente... */ }
     async function getCityFromZip(zipCode) { /* ...código existente... */ }
     async function updateSuggestedTechnician(customerState, suggestedTechDisplay) { /* ...código existente... */ }
-    
-    // --- Lógica de Submissão (COM A NOVA VERIFICAÇÃO) ---
+
+    const calculateManualTravelTime = async () => {
+        // Só executa se o modo Smart estiver LIGADO
+        if (manualModeToggle && manualModeToggle.checked) return;
+
+        const techSelect = document.getElementById('suggestedTechSelect');
+        const technician = techSelect ? techSelect.value : null;
+        const destinationZip = zipCodeInputForm.value;
+        const appointmentDateTime = appointmentDateInput.value;
+
+        if (technician && destinationZip.length === 5 && appointmentDateTime) {
+            try {
+                const response = await fetch('/api/calculate-travel-time', { /* ...código existente... */ });
+                const data = await response.json();
+                if (data.travelTime >= 0) {
+                    document.getElementById('travelTime').value = data.travelTime;
+                    console.log(`Travel time calculated for Smart Mode: ${data.travelTime} minutes.`);
+                } else {
+                    document.getElementById('travelTime').value = '30'; // Fallback
+                }
+            } catch (error) {
+                document.getElementById('travelTime').value = '30'; // Fallback
+            }
+        }
+    };
+
+    // --- Lógica de Submissão ---
     async function handleFormSubmission(event) {
         event.preventDefault();
         
-        const smartCheckToggle = document.getElementById('smart-check-toggle');
-        const isSmartCheckOff = !smartCheckToggle.checked;
+        const isManualModeOn = manualModeToggle.checked;
 
-        // Se o modo inteligente estiver DESLIGADO, ajusta os valores
-        if (isSmartCheckOff) {
-            console.log("Smart Check is OFF. Setting travelTime to 0 and margin to 60.");
+        if (isManualModeOn) {
+            console.log("Manual Mode is ON. Setting travelTime to 0 and margin to 60.");
             document.getElementById('travelTime').value = '0';
             document.getElementById('margin').value = '60';
         } else {
-            // Garante que a margem do select seja usada se o modo inteligente estiver LIGADO
+            console.log("Smart Mode is ON. Using calculated/default travel time and selected margin.");
             const marginSelect = document.getElementById('appointment-margin');
-            if(marginSelect) {
-                 document.getElementById('margin').value = marginSelect.value;
+            if (marginSelect) {
+                document.getElementById('margin').value = marginSelect.value;
             }
         }
         
         const formData = new FormData(scheduleForm);
         const data = Object.fromEntries(formData.entries());
-
-        // O restante da lógica de submissão continua igual...
+        
         const appointmentDateLocal = data.appointmentDate;
         const hour = parseInt(appointmentDateLocal.substring(11, 13), 10);
         if (hour < 7 || hour >= 21) {
@@ -64,13 +141,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- Adiciona Event Listeners e Popula Dropdowns (sem alterações) ---
-    // ... (todo o restante do arquivo permanece o mesmo) ...
-    // ... (incluindo a criação dos campos hidden e os event listeners) ...
-    
-    // Garante que o event listener principal seja o novo handleFormSubmission
+    // --- Adiciona Event Listeners ---
     scheduleForm.addEventListener('submit', handleFormSubmission);
-    
-    // O resto do arquivo (criação de campos hidden, outros listeners, etc.) continua igual
-    // ...
+    zipCodeInputForm.addEventListener('input', async () => { /* ...código existente... */ });
+    appointmentDateInput.addEventListener('input', (event) => { /* ...código existente... */ });
+    customersInput.addEventListener('input', () => { /* ...código existente... */ });
+
+    appointmentDateInput.addEventListener('focusout', calculateManualTravelTime);
+    zipCodeInputForm.addEventListener('focusout', calculateManualTravelTime);
+    suggestedTechDisplay.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'suggestedTechSelect') {
+            calculateManualTravelTime();
+        }
+    });
+
+    // Popula dropdowns do formulário
+    (async function populateFormDropdowns() { /* ...código existente... */ })();
 });
