@@ -128,11 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const lists = await listsResponse.json();
             console.log("[FORM LOG] Dados recebidos para os dropdowns:", { data, lists });
 
-            populateDropdowns(document.getElementById('closer1'), data.employees, 'Select Closer');
-            populateDropdowns(document.getElementById('closer2'), data.employees, 'Select SDR');
-            populateDropdowns(document.getElementById('franchise'), data.franchises, 'Select Franchise');
-            populateDropdowns(document.getElementById('pets'), lists.pets, 'Select Qty');
-            populateDropdowns(document.getElementById('source'), lists.sources, 'Select Source');
+            populateDropdown(document.getElementById('closer1'), data.employees, 'Select Closer');
+            populateDropdown(document.getElementById('closer2'), data.employees, 'Select SDR');
+            populateDropdown(document.getElementById('franchise'), data.franchises, 'Select Franchise');
+            populateDropdown(document.getElementById('pets'), lists.pets, 'Select Qty');
+            populateDropdown(document.getElementById('source'), lists.sources, 'Select Source');
 
             console.log("[FORM LOG] Dropdowns populados com sucesso.");
 
