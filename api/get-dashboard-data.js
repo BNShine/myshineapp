@@ -7,7 +7,7 @@ import {
     SHEET_NAME_APPOINTMENTS, 
     SHEET_NAME_EMPLOYEES, 
     SHEET_NAME_FRANCHISES, 
-    SHEET_NAME_TECH_COVERAGE // Alterado de TECHNICIANS para TECH_COVERAGE
+    SHEET_NAME_TECH_COVERAGE 
 } from './configs/sheets-config.js';
 
 dotenv.config();
@@ -39,8 +39,7 @@ export default async function handler(req, res) {
         await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
         console.log('[API LOG] Spreadsheets info loaded.');
 
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Busca de Técnicos a partir da planilha de cobertura (TechCoverageData)
+        // --- CORREÇÃO APLICADA AQUI (BUSCA PELO CABEÇALHO 'Name') ---
         console.log(`[API LOG] Attempting to find sheet: "${SHEET_NAME_TECH_COVERAGE}" for technicians list.`);
         const sheetTechCoverage = docData.sheetsByTitle[SHEET_NAME_TECH_COVERAGE];
         
@@ -49,18 +48,19 @@ export default async function handler(req, res) {
             const rows = await sheetTechCoverage.getRows();
             console.log(`[API LOG] Found ${rows.length} rows in TechCoverageData sheet.`);
             
-            // O cabeçalho esperado é 'Name'
-            const header = sheetTechCoverage.headerValues.find(h => h.toLowerCase() === 'name');
+            // Procura pelo cabeçalho 'Name' de forma explícita.
+            const header = sheetTechCoverage.headerValues.find(h => h.trim().toLowerCase() === 'name');
+            
             if (header) {
                  rows.forEach(row => {
                     const techName = row.get(header);
-                    if (techName) {
-                        technicians.push(techName);
+                    if (techName && techName.trim() !== '') {
+                        technicians.push(techName.trim());
                     }
                 });
-                console.log(`[API LOG] Extracted ${technicians.length} technicians from TechCoverageData.`);
+                console.log(`[API LOG] Extracted ${technicians.length} technicians using the 'Name' header.`);
             } else {
-                 console.error(`[API ERROR] 'Name' header not found in the "${SHEET_NAME_TECH_COVERAGE}" sheet.`);
+                 console.error(`[API ERROR] The specific header 'Name' was not found in the "${SHEET_NAME_TECH_COVERAGE}" sheet. Please ensure the first column header is exactly 'Name'.`);
             }
         } else {
             console.error(`[API ERROR] FAILED to find sheet "${SHEET_NAME_TECH_COVERAGE}". Please check the sheet name.`);
