@@ -1,3 +1,4 @@
+// api/get-tech-coverage.js
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import dotenv from 'dotenv';
@@ -5,7 +6,6 @@ import { SHEET_NAME_TECH_COVERAGE } from './configs/sheets-config.js';
 
 dotenv.config();
 
-// Permissão de leitura é suficiente
 const serviceAccountAuth = new JWT({
     email: process.env.CLIENT_EMAIL,
     key: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -28,28 +28,20 @@ export default async function handler(req, res) {
 
         const rows = await sheet.getRows();
         
-        // --- LOG DE DEBUG REMOVIDO NO CÓDIGO FINAL ---
-
         const techCoverageData = rows.map(row => {
-            
-            // ACESSO DIRETO VIA ÍNDICE DO ARRAY _rawData
-            const name = row._rawData[0]; 
-            const category = row._rawData[1]; 
-            const restrictions = row._rawData[2]; 
-            const zipCode = row._rawData[3]; 
-            const citiesRaw = row._rawData[4] || '[]'; // Cities é o 5º elemento (índice 4)
+            // Usando .get('Header Name') que é mais seguro
+            const name = row.get('Name');
+            const category = row.get('Category');
+            const restrictions = row.get('Restrictions');
+            const zipCode = row.get('OriginZipCode');
+            const citiesRaw = row.get('Cities') || '[]';
             
             let parsedCities = [];
-            
             try {
                 parsedCities = JSON.parse(citiesRaw);
-                // Garantir que é um array, mesmo que vazio
-                if (!Array.isArray(parsedCities)) {
-                    parsedCities = [];
-                }
+                if (!Array.isArray(parsedCities)) parsedCities = [];
             } catch (e) {
-                // Manter o log de erro para strings JSON inválidas
-                console.error(`[ERROR LOG] Falha ao converter Cities para JSON para o técnico: ${name || 'Sem Nome'} (Zip: ${zipCode || 'N/A'}). Raw Cities: ${citiesRaw}`, e); 
+                console.error(`Falha ao converter Cities para JSON para o técnico: ${name}`);
                 parsedCities = [];
             }
             
@@ -60,9 +52,7 @@ export default async function handler(req, res) {
                 zip_code: zipCode,
                 cidades: parsedCities,
             };
-        }).filter(t => t.nome); // O filtro agora usa 'name' (índice 0), que deve ser válido.
-
-        // --- LOG DE DEBUG REMOVIDO NO CÓDIGO FINAL ---
+        }).filter(t => t.nome); // Filtra linhas que não têm nome de técnico
 
         return res.status(200).json(techCoverageData);
 
