@@ -201,7 +201,58 @@ document.addEventListener('DOMContentLoaded', () => {
     // Lógica de submissão do formulário
     scheduleForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        // ... (código de submissão existente, sem alterações)
+
+        const submitButton = scheduleForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Registering...';
+
+        try {
+            const formData = new FormData(scheduleForm);
+            const formDataObject = Object.fromEntries(formData.entries());
+
+            // Calcula a semana do ano
+            const apptDate = new Date(formDataObject.appointmentDate);
+            const startOfYear = new Date(apptDate.getFullYear(), 0, 1);
+            const pastDaysOfYear = (apptDate - startOfYear) / 86400000;
+            formDataObject.week = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+
+            // Adiciona o status padrão
+            formDataObject.verification = 'Scheduled';
+            
+            // Pega o técnico selecionado, se houver
+            const techSelect = document.getElementById('suggestedTechSelect');
+            if(techSelect) {
+                formDataObject.technician = techSelect.value;
+            }
+
+            const response = await fetch('/api/register-appointment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formDataObject),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Appointment registered successfully!');
+                scheduleForm.reset();
+                // Reseta os displays customizados
+                codePassDisplay.textContent = '--/--/----';
+                reminderDateDisplay.textContent = '--/--/----';
+                suggestedTechDisplay.innerHTML = '<div class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium">--/--/----</div>';
+
+            } else {
+                alert(`Error: ${result.message}`);
+            }
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            alert('A critical error occurred. Please check the console and try again.');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
+                Register Appointment`;
+        }
     });
     
     // --- Criação de Campos Hidden (se não existirem) ---
