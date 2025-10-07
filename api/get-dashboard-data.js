@@ -7,7 +7,8 @@ import {
     SHEET_NAME_APPOINTMENTS, 
     SHEET_NAME_EMPLOYEES, 
     SHEET_NAME_FRANCHISES, 
-    SHEET_NAME_TECH_COVERAGE 
+    SHEET_NAME_TECH_COVERAGE,
+    SHEET_NAME_SOURCES // <-- NOVA IMPORTAÇÃO
 } from './configs/sheets-config.js';
 
 dotenv.config();
@@ -69,6 +70,7 @@ export default async function handler(req, res) {
         const technicians = await safelyExtractColumnData(docData, SHEET_NAME_TECH_COVERAGE, 'Name');
         const employees = await safelyExtractColumnData(docData, SHEET_NAME_EMPLOYEES, 'Name'); 
         const franchises = await safelyExtractColumnData(docData, SHEET_NAME_FRANCHISES, 'Franchise');
+        const sources = await safelyExtractColumnData(docData, SHEET_NAME_SOURCES, 'Source'); // <-- NOVA BUSCA
         
         // --- Busca de Appointments (para os Cards) ---
         let appointments = [];
@@ -90,7 +92,8 @@ export default async function handler(req, res) {
             console.error(`[API ERROR] Planilha "${SHEET_NAME_APPOINTMENTS}" não encontrada.`);
         }
 
-        const responseData = { appointments, employees, technicians, franchises };
+        // Adiciona a lista de sources à resposta
+        const responseData = { appointments, employees, technicians, franchises, sources };
         console.log(`[API FINAL] Enviando resposta ao cliente.`);
         return res.status(200).json(responseData);
 
@@ -99,7 +102,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ 
             error: `Erro crítico no servidor: ${error.message}`,
             // Envia arrays vazios para evitar que o frontend quebre
-            appointments: [], employees: [], technicians: [], franchises: []
+            appointments: [], employees: [], technicians: [], franchises: [], sources: []
         });
     }
 }
