@@ -21,7 +21,14 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { type, data, pets, closer1, closer2, customers, phone, oldNew, appointmentDate, serviceValue, franchise, city, source, week, month, year, code, reminderDate, verification, zipCode, technician } = req.body;
+        // *** NOVA ALTERAÇÃO AQUI: Recebe os novos campos ***
+        const { 
+            type, data, pets, closer1, closer2, customers, phone, oldNew, 
+            appointmentDate, serviceValue, franchise, city, source, week, 
+            month, year, code, reminderDate, verification, zipCode, technician,
+            travelTime, // NOVO
+            margin      // NOVO
+        } = req.body;
 
         // Validação de campos essenciais
         if (!type || !data || !customers || !phone || !appointmentDate || !serviceValue || !franchise || !city || !source || !code) {
@@ -42,15 +49,20 @@ export default async function handler(req, res) {
             return res.status(500).json({ success: false, message: `Planilha "${SHEET_NAME_APPOINTMENTS}" não encontrada.` });
         }
 
-        // --- NOVA LÓGICA DE VERIFICAÇÃO DE CÓDIGO ---
+        // --- LÓGICA DE VERIFICAÇÃO DE CÓDIGO ---
         const rows = await sheet.getRows();
         const codeExists = rows.some(row => row.get('Code') === code);
 
         if (codeExists) {
-            // Retorna um erro 409 Conflict se o código já existir
             return res.status(409).json({ success: false, message: `Erro: O código de confirmação "${code}" já existe. O agendamento pode ser um duplicado.` });
         }
-        // --- FIM DA NOVA LÓGICA ---
+        
+        // *** NOVA ALTERAÇÃO AQUI: Calcula a duração total ***
+        const travelTimeMinutes = parseInt(travelTime, 10) || 0;
+        const marginMinutes = parseInt(margin, 10) || 30; // Padrão de 30 minutos
+        const petsCount = parseInt(pets, 10) || 1;
+        const duration = travelTimeMinutes + (petsCount * 60) + marginMinutes;
+        // Fim da nova alteração
 
         const newRow = {
             'Type': type,
@@ -74,6 +86,10 @@ export default async function handler(req, res) {
             'Verification': verification, 
             'Zip Code': zipCode,
             'Technician': technician,
+            // *** NOVA ALTERAÇÃO AQUI: Adiciona os novos campos à linha ***
+            'Travel Time': travelTimeMinutes,
+            'Margin': marginMinutes,
+            'Duration': duration
         };
 
         await sheet.addRow(newRow);
