@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             populateDropdowns(document.getElementById('closer2'), data.employees);
             populateDropdowns(document.getElementById('franchise'), data.franchises);
             populateDropdowns(document.getElementById('pets'), lists.pets);
-            populateDropdowns(document.getElementById('source'), data.sources); // <-- ALTERAÇÃO AQUI
+            populateDropdowns(document.getElementById('source'), data.source); // <-- ALTERAÇÃO AQUI
 
             console.log("[FORM LOG] Dropdowns populados com sucesso.");
         } catch(error) {
