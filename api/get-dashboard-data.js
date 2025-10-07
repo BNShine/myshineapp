@@ -12,12 +12,6 @@ import {
 
 dotenv.config();
 
-// --- INÍCIO DOS LOGS DE DIAGNÓSTICO ---
-console.log("--- [API START] get-dashboard-data ---");
-console.log(`[API ENV CHECK] CLIENT_EMAIL loaded: ${!!process.env.CLIENT_EMAIL}`);
-console.log(`[API ENV CHECK] SPREADSHEET_ID_DATA loaded: ${!!process.env.SHEET_ID_DATA}`);
-// --- FIM DOS LOGS DE DIAGNÓSTICO ---
-
 const serviceAccountAuth = new JWT({
     email: process.env.CLIENT_EMAIL,
     key: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -28,7 +22,7 @@ const SPREADSHEET_ID_APPOINTMENTS = process.env.SHEET_ID_APPOINTMENTS;
 const SPREADSHEET_ID_DATA = process.env.SHEET_ID_DATA;
 
 export default async function handler(req, res) {
-    console.log("[API TRACE] /api/get-dashboard-data endpoint was hit.");
+    console.log('[API LOG] /api/get-dashboard-data endpoint hit.');
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -41,58 +35,97 @@ export default async function handler(req, res) {
         const docAppointments = new GoogleSpreadsheet(SPREADSHEET_ID_APPOINTMENTS, serviceAccountAuth);
         const docData = new GoogleSpreadsheet(SPREADSHEET_ID_DATA, serviceAccountAuth);
 
-        console.log("[API TRACE] Attempting to load spreadsheet info...");
+        console.log('[API LOG] Loading spreadsheet info...');
         await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
-        console.log("[API TRACE] Spreadsheets info loaded successfully.");
+        console.log('[API LOG] Spreadsheets info loaded.');
 
-        // --- Busca de Técnicos com Logs Detalhados ---
-        console.log(`[API TRACE] Targeting sheet for technicians: "${SHEET_NAME_TECH_COVERAGE}"`);
+        // --- Busca de Técnicos (Já corrigido e funcionando) ---
         const sheetTechCoverage = docData.sheetsByTitle[SHEET_NAME_TECH_COVERAGE];
-        
         if (sheetTechCoverage) {
-            console.log(`[API SUCCESS] Found sheet "${SHEET_NAME_TECH_COVERAGE}". Attempting to read rows...`);
             const rows = await sheetTechCoverage.getRows();
-            console.log(`[API TRACE] Found ${rows.length} total rows in the sheet.`);
-            
-            const headerValues = sheetTechCoverage.headerValues;
-            console.log("[API TRACE] Headers found in sheet:", headerValues);
-            
-            // Procura pelo cabeçalho 'Name' de forma explícita e insensível a maiúsculas/minúsculas.
-            const header = headerValues.find(h => h && h.trim().toLowerCase() === 'name');
-            
+            const header = sheetTechCoverage.headerValues.find(h => h && h.trim().toLowerCase() === 'name');
             if (header) {
-                 console.log(`[API SUCCESS] Found header '${header}'. Iterating through rows to extract technician names...`);
-                 rows.forEach((row, index) => {
+                 rows.forEach(row => {
                     const techName = row.get(header);
-                    if (techName && techName.trim() !== '') {
-                        technicians.push(techName.trim());
-                        console.log(`[API DATA] Row ${index + 2}: Found technician -> "${techName.trim()}"`);
-                    } else {
-                        console.log(`[API WARN] Row ${index + 2}: No technician name found or cell is empty.`);
-                    }
+                    if (techName && techName.trim() !== '') technicians.push(techName.trim());
                 });
-                console.log(`[API TRACE] Total technicians extracted: ${technicians.length}`);
+            }
+        }
+
+        // --- CORREÇÃO PARA DROPDOWNS E CARDS ---
+
+        // 1. Busca de Employees (Closers/SDRs)
+        const sheetEmployees = docData.sheetsByTitle[SHEET_NAME_EMPLOYEES];
+        if (sheetEmployees) {
+            console.log(`[API TRACE] Found sheet: "${SHEET_NAME_EMPLOYEES}". Reading rows...`);
+            const rows = await sheetEmployees.getRows();
+            // A primeira coluna geralmente contém o nome do funcionário.
+            const header = sheetEmployees.headerValues[0]; 
+            if(header) {
+                rows.forEach(row => { 
+                    const employeeName = row.get(header);
+                    if(employeeName && employeeName.trim() !== '') employees.push(employeeName.trim());
+                });
+                console.log(`[API TRACE] Extracted ${employees.length} employees.`);
             } else {
-                 console.error(`[API FATAL] The specific header 'Name' was NOT FOUND in the "${SHEET_NAME_TECH_COVERAGE}" sheet. Please check the spelling and ensure it exists.`);
+                console.error(`[API ERROR] No header found in the first column of "${SHEET_NAME_EMPLOYEES}".`);
             }
         } else {
-            console.error(`[API FATAL] FAILED to find sheet named "${SHEET_NAME_TECH_COVERAGE}".`);
+             console.error(`[API ERROR] Sheet "${SHEET_NAME_EMPLOYEES}" not found.`);
         }
         
-        // --- Outras buscas de dados (sem alterações) ---
-        // ... (código para employees, franchises, appointments)
+        // 2. Busca de Franchises (Regions)
+        const sheetFranchises = docData.sheetsByTitle[SHEET_NAME_FRANCHISES];
+        if (sheetFranchises) {
+            console.log(`[API TRACE] Found sheet: "${SHEET_NAME_FRANCHISES}". Reading rows...`);
+            const rows = await sheetFranchises.getRows();
+            // A primeira coluna geralmente contém o nome da franquia/região.
+            const header = sheetFranchises.headerValues[0];
+            if(header) {
+                rows.forEach(row => { 
+                    const franchiseName = row.get(header);
+                    if(franchiseName && franchiseName.trim() !== '') franchises.push(franchiseName.trim());
+                });
+                console.log(`[API TRACE] Extracted ${franchises.length} franchises.`);
+            } else {
+                 console.error(`[API ERROR] No header found in the first column of "${SHEET_NAME_FRANCHISES}".`);
+            }
+        } else {
+            console.error(`[API ERROR] Sheet "${SHEET_NAME_FRANCHISES}" not found.`);
+        }
+
+        // 3. Busca de Appointments (para os Cards)
+        const sheetAppointments = docAppointments.sheetsByTitle[SHEET_NAME_APPOINTMENTS];
+        if (sheetAppointments) {
+             console.log(`[API TRACE] Found sheet: "${SHEET_NAME_APPOINTMENTS}". Reading rows...`);
+            const rows = await sheetAppointments.getRows();
+            rows.forEach(row => {
+                // Usamos row.get('Header Name') que é mais robusto
+                if (row.get('Date')) {
+                    appointments.push({ 
+                        date: excelDateToYYYYMMDD(row.get('Date')),
+                        pets: row.get('Pets'),
+                        closer1: row.get('Closer (1)'),
+                        closer2: row.get('Closer (2)')
+                    });
+                }
+            });
+            console.log(`[API TRACE] Extracted ${appointments.length} appointments for cards.`);
+        } else {
+             console.error(`[API ERROR] Sheet "${SHEET_NAME_APPOINTMENTS}" not found.`);
+        }
+        
+        // --- FIM DA CORREÇÃO ---
 
         const responseData = { appointments, employees, technicians, franchises };
-        console.log("[API FINAL] Final technicians array being sent:", technicians);
-        console.log("[API FINAL] Sending final JSON response to the client.");
+        console.log(`[API FINAL] Sending response with ${employees.length} employees, ${franchises.length} franchises, and ${appointments.length} appointments.`);
         return res.status(200).json(responseData);
 
     } catch (error) {
-        console.error('[API CRITICAL ERROR] An error occurred in /api/get-dashboard-data:', error);
+        console.error('[API CRITICAL ERROR] in /api/get-dashboard-data:', error);
         res.status(500).json({ 
             error: `A critical server error occurred: ${error.message}`,
-            technicians: [], // Garante que um array vazio seja enviado em caso de erro
-            appointments: [], employees: [], franchises: []
+            appointments: [], employees: [], technicians: [], franchises: []
         });
     }
 }
