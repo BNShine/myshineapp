@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cityInput = document.getElementById('city');
     const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
     
-    // Adiciona campos hidden e valores padrão
+    // *** NOVA ALTERAÇÃO AQUI: Adiciona campos hidden para travelTime e margin ***
     if (!document.getElementById('codePass')) {
         const codePassInput = document.createElement('input');
         codePassInput.type = 'hidden';
@@ -95,6 +95,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         reminderDateInput.name = 'reminderDate';
         scheduleForm.appendChild(reminderDateInput);
     }
+    if (!document.getElementById('travelTime')) {
+        const travelTimeInput = document.createElement('input');
+        travelTimeInput.type = 'hidden';
+        travelTimeInput.id = 'travelTime';
+        travelTimeInput.name = 'travelTime';
+        travelTimeInput.value = '30'; // Valor padrão caso a checagem não seja usada
+        scheduleForm.appendChild(travelTimeInput);
+    }
+    if (!document.getElementById('margin')) {
+        const marginInput = document.createElement('input');
+        marginInput.type = 'hidden';
+        marginInput.id = 'margin';
+        marginInput.name = 'margin';
+        marginInput.value = '30'; // Valor padrão
+        scheduleForm.appendChild(marginInput);
+    }
+    // Fim da nova alteração
+
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
     document.getElementById('data').value = new Date().toISOString().slice(0, 10);
