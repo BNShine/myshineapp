@@ -177,10 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (customersInput.value.trim()) {
             const generatedCode = generateAlphanumericCode(5);
             codePassDisplay.textContent = generatedCode;
-            document.getElementById('code').value = generatedCode; // CORREÇÃO AQUI
+            document.getElementById('code').value = generatedCode;
         } else {
             codePassDisplay.textContent = '--/--/----';
-            document.getElementById('code').value = ''; // CORREÇÃO AQUI
+            document.getElementById('code').value = '';
         }
     });
 
@@ -201,6 +201,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Lógica de submissão do formulário
     scheduleForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+
+        // **NOVA ADIÇÃO: Validação de formulário**
+        if (!scheduleForm.checkValidity()) {
+            scheduleForm.reportValidity();
+            return;
+        }
 
         const submitButton = scheduleForm.querySelector('button[type="submit"]');
         submitButton.disabled = true;
@@ -250,13 +256,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
                 Register Appointment`;
         }
     });
     
     // --- Criação de Campos Hidden (se não existirem) ---
-    ['code', 'reminderDate', 'travelTime', 'margin', 'data', 'month', 'year', 'type'].forEach(id => { // CORREÇÃO AQUI
+    ['code', 'reminderDate', 'travelTime', 'margin', 'data', 'month', 'year', 'type'].forEach(id => {
         if (!document.getElementById(id)) {
             const input = document.createElement('input');
             input.type = 'hidden';
