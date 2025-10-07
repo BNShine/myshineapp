@@ -46,6 +46,10 @@ const getTravelTime = async (originZip, destinationZip) => {
     if (!GOOGLE_MAPS_API_KEY) {
         throw new Error("Google Maps API key is not configured on the server.");
     }
+    // Se origem e destino são iguais, o tempo de viagem é 0.
+    if (originZip === destinationZip) {
+        return 0;
+    }
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=zip%20${originZip}&destinations=zip%20${destinationZip}&key=${GOOGLE_MAPS_API_KEY}`;
     try {
         const response = await fetch(url);
@@ -198,7 +202,12 @@ export default async function handler(req, res) {
                             const slotHour = String(slotStart.getHours()).padStart(2, '0');
                             const slotMinute = String(slotStart.getMinutes()).padStart(2, '0');
                             
-                            allOptions.get(key).availableSlots.push(`${slotHour}:${slotMinute}`);
+                            // *** NOVA ALTERAÇÃO AQUI ***
+                            // Adiciona o tempo de viagem ao slot disponível
+                            allOptions.get(key).availableSlots.push({
+                                time: `${slotHour}:${slotMinute}`,
+                                travelTime: Math.round(travelFrom) // Arredonda para minutos inteiros
+                            });
                         }
                     }
                     
