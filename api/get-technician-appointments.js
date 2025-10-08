@@ -67,8 +67,9 @@ export default async function handler(req, res) {
                 percentage: getCellValue('Percentage'),
                 paymentMethod: getCellValue('Method'),
                 zipCode: getCellValue('Zip Code'),
-                // *** NOVA ALTERAÇÃO AQUI ***
-                duration: getCellValue('Duration') || 120, // Padrão de 120 minutos se não houver
+                duration: getCellValue('Duration') || 120,
+                travelTime: getCellValue('Travel Time') || 0,
+                margin: getCellValue('Margin') || 0,
             };
         }).filter(a => a !== null);
 
