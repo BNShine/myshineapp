@@ -386,14 +386,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function renderTimeBlocks() {
-        techAvailabilityBlocks.forEach(block => {
-            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(parseSheetDate(block.date))}"`);
-            if (!dayContainer) return;
-            // ... (resto da lógica)
-        });
-    }
-
+    function renderTimeBlocks() { /* ...código completo aqui... */ }
     function updateWeekDisplay() {
         if (!currentWeekDisplay || !(currentWeekStart instanceof Date)) return;
         const endOfWeek = new Date(currentWeekStart);
