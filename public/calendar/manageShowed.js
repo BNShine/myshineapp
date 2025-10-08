@@ -8,12 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let localSelectedTechnician = '';
     let localCurrentWeekStart = new Date();
 
-    // Funções auxiliares (parse, format, etc.)
+    // Funções auxiliares
     function parseSheetDate(dateStr) { /* ...código da versão anterior... */ }
     function formatDateTimeForInput(dateTimeStr) { /* ...código da versão anterior... */ }
 
     function renderShowedAppointmentsTable() {
-        if(!showedAppointmentsTableBody) return;
+        if (!showedAppointmentsTableBody) return;
         showedAppointmentsTableBody.innerHTML = '';
         const weekEnd = new Date(localCurrentWeekStart);
         weekEnd.setDate(weekEnd.getDate() + 7);
