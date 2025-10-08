@@ -161,17 +161,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const day = String(appointmentStart.getDate()).padStart(2, '0');
                         const hour = String(appointmentStart.getHours()).padStart(2, '0');
                         const minute = String(appointmentStart.getMinutes()).padStart(2, '0');
-                        const apiDateTime = `${year}-${month}-${day}T${hour}:${minute}`;
+                        const apiDateTime = `${month}/${day}/${year} ${hour}:${minute}`;
 
                         const dataToUpdate = {
                             rowIndex: appointmentToUpdate.id,
                             appointmentDate: apiDateTime,
                             technician: appointmentToUpdate.technician,
-                            petShowed: appointmentToUpdate.petShowed,
-                            serviceShowed: appointmentToUpdate.serviceShowed,
-                            tips: appointmentToUpdate.tips,
-                            percentage: appointmentToUpdate.percentage,
-                            paymentMethod: appointmentToUpdate.paymentMethod,
+                            pets: appointmentToUpdate.pets,
+                            margin: appointmentToUpdate.margin,
                             verification: appointmentToUpdate.verification,
                         };
                         
@@ -258,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             dayItineraryTableBody.appendChild(row);
         });
 
-        if (dayAppointments.some(appt => appt.zipCode)) {
+        if (dayAppointments.some(appt => appt.zipCode && appt.verification !== 'Confirmed')) {
             optimizeItineraryBtn.disabled = false;
             itineraryReverserBtn.disabled = false;
         }
@@ -289,14 +286,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const validAppointments = [];
         for (const appt of dayAppointments) {
-            if (appt.zipCode) {
+            if (appt.zipCode && appt.verification !== 'Confirmed') {
                 const [lat, lon] = await getLatLon(appt.zipCode);
                 if (lat !== null) validAppointments.push({ ...appt, lat, lon });
             }
         }
 
         if (validAppointments.length < 1) {
-            itineraryResultsList.innerHTML = '<p class="text-red-600">No appointments with valid Zip Codes to optimize.</p>';
+            itineraryResultsList.innerHTML = '<p class="text-red-600">No appointments with valid Zip Codes (and not Confirmed) to optimize.</p>';
             optimizeItineraryBtn.disabled = false;
             itineraryReverserBtn.disabled = false;
             return;
@@ -353,7 +350,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify({
                     originZip: originZip,
                     waypoints: waypointsForApi,
-                    // 'isReversed' agora controla a otimização do Google, não a nossa ordenação local
                     isReversed: !isReversed 
                 }),
             });
@@ -364,7 +360,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             itineraryResultsList.innerHTML = `<p class="font-bold text-lg">Optimized Route (${isReversed ? 'Farthest First' : 'Nearest First'}):</p>`;
             let totalDuration = 0, totalDistance = 0;
             
-            // A ordem final vem do Google se otimizada, senão é a nossa ordem calculada
             const finalOrder = route.waypoint_order ? route.waypoint_order.map(i => waypointsForApi[i]) : waypointsForApi;
             orderedClientStops = finalOrder;
             
