@@ -16,15 +16,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     let allAppointments = [];
     let dayAppointments = [];
     let techAvailabilityBlocks = [];
+    let allTechCoverage = []; // Armazena dados de cobertura dos técnicos
     let orderedClientStops = [];
     let currentWeekStart = getStartOfWeek(new Date());
     let selectedTechnician = '';
 
     const MIN_HOUR = 7;
     const MAX_HOUR = 21;
-    const APPOINTMENT_DURATION_HOURS = 2;
 
     // --- Funções Auxiliares ---
+
+    // Função para obter o início da semana (domingo)
     function getStartOfWeek(date) {
         const d = new Date(date);
         d.setHours(0, 0, 0, 0);
@@ -32,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return d;
     }
     
+    // Formata uma data para o formato YYYY/MM/DD
     function formatDateToYYYYMMDD(date) {
         const year = date.getFullYear();
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -39,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `${year}/${month}/${day}`;
     }
 
+    // Converte a data da planilha (MM/DD/YYYY HH:MM) para um objeto Date
     function parseSheetDate(dateStr) {
         if (!dateStr) return null;
         const [datePart, timePart] = dateStr.split(' ');
@@ -51,17 +55,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return new Date(year, month - 1, day, hour, minute);
     }
 
+    // Formata um objeto Date para HH:MM
     function getTimeHHMM(date) {
         if (!date) return '';
         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     }
     
+    // Obtém a data para um dia específico da semana
     function getDayOfWeekDate(startOfWeekDate, dayOfWeek) {
         const date = new Date(startOfWeekDate);
         date.setDate(startOfWeekDate.getDate() + dayOfWeek);
         return date;
     }
 
+    // Busca latitude e longitude de um CEP (EUA)
     async function getLatLon(zipCode) {
         if (!zipCode) return [null, null];
         try {
@@ -76,12 +83,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
+    // Calcula a distância euclidiana simples para ordenação
     function calculateDistance(lat1, lon1, lat2, lon2) {
         return Math.sqrt(Math.pow(lat1 - lat2, 2) + Math.pow(lon1 - lon2, 2));
+    }
+
+    // Busca o tempo de trajeto real usando a API do Google Maps (via backend)
+    async function getTravelTime(originZip, destinationZip) {
+        if (!originZip || !destinationZip || originZip === destinationZip) {
+            return 0;
+        }
+        try {
+            // Usando um endpoint de backend para fazer a chamada segura à API do Google
+            const response = await fetch('/api/get-travel-time', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ originZip, destinationZip }),
+            });
+            const result = await response.json();
+            if (result.success) {
+                return result.travelTimeInMinutes;
+            }
+            console.warn(`Could not get travel time between ${originZip} and ${destinationZip}.`);
+            return 0; // Retorna 0 se a API falhar, para não quebrar os cálculos
+        } catch (error) {
+            console.error("Failed to fetch travel time:", error);
+            return 0; // Retorna 0 em caso de erro de rede
+        }
     }
     
     // --- Lógica da Aplicação da Rota e Dropdown ---
 
+    // Popula o dropdown com os horários de início disponíveis
     function populateTimeSlotsDropdown() {
         if (!firstScheduleSelect) return;
         firstScheduleSelect.innerHTML = ''; 
@@ -97,6 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
+    // Aplica a rota otimizada aos agendamentos
     async function handleApplyRoute() {
         const selectedStartTime = firstScheduleSelect.value;
         const selectedDay = dayFilter.value;
@@ -109,79 +143,68 @@ document.addEventListener('DOMContentLoaded', async () => {
         applyRouteBtn.disabled = true;
         applyRouteBtn.textContent = "Applying...";
         
-        await fetchAvailabilityForSelectedTech(selectedTechnician);
         const targetDate = getDayOfWeekDate(currentWeekStart, parseInt(selectedDay, 10));
         
-        const dayBlocks = techAvailabilityBlocks.filter(block => {
-            const [bMonth, bDay, bYear] = block.date.split('/').map(Number);
-            const blockDate = new Date(bYear, bMonth - 1, bDay);
-            return blockDate.getTime() === targetDate.getTime();
-        }).map(block => {
-            const [startH, startM] = block.startHour.split(':').map(Number);
-            const [endH, endM] = block.endHour.split(':').map(Number);
-            const startDate = new Date(targetDate);
-            startDate.setHours(startH, startM, 0, 0);
-            const endDate = new Date(targetDate);
-            endDate.setHours(endH, endM, 0, 0);
-            return { start: startDate, end: endDate };
-        });
+        // Pega o CEP de origem do técnico
+        let techOriginZip = allTechCoverage.find(t => t.nome === selectedTechnician)?.zip_code;
+        if (!techOriginZip) {
+            alert('Technician origin zip code not found. Cannot calculate route.');
+            applyRouteBtn.disabled = false;
+            applyRouteBtn.textContent = "Apply Route";
+            return;
+        }
 
         const updatePromises = [];
-        let nextAvailableTime = new Date(targetDate);
+        let lastAppointmentEndTime = new Date(targetDate);
         const [startHour, startMinute] = selectedStartTime.split(':').map(Number);
-        nextAvailableTime.setHours(startHour, startMinute, 0, 0);
+        lastAppointmentEndTime.setHours(startHour, startMinute, 0, 0);
+        
+        let lastZipCode = techOriginZip;
 
         for (const stop of orderedClientStops) {
             const appointmentToUpdate = allAppointments.find(a => a.id === stop.id);
             if (appointmentToUpdate) {
                 
-                let isSlotFound = false;
-                while (!isSlotFound) {
-                    let appointmentStart = new Date(nextAvailableTime);
-                    let appointmentEnd = new Date(appointmentStart);
-                    appointmentEnd.setHours(appointmentStart.getHours() + APPOINTMENT_DURATION_HOURS);
+                // 1. Calcula o tempo de trajeto a partir do último ponto
+                const travelTime = await getTravelTime(lastZipCode, appointmentToUpdate.zipCode);
+                
+                // 2. O novo horário de início é o fim do último evento + tempo de trajeto
+                const newStartTime = new Date(lastAppointmentEndTime.getTime());
+                
+                // 3. Define a duração do serviço e da margem
+                const pets = parseInt(appointmentToUpdate.pets, 10) || 1;
+                const margin = parseInt(appointmentToUpdate.margin, 10) || 30;
+                const serviceDuration = pets * 60; // 60 minutos por pet
+                const totalDurationOnSite = serviceDuration + margin;
+                
+                // 4. O novo horário de término considera o tempo no local
+                const newEndTime = new Date(newStartTime.getTime() + totalDurationOnSite * 60000);
+                
+                // Formata a data para o formato esperado pela API (MM/DD/YYYY HH:MM)
+                const apiDateTime = `${String(newStartTime.getMonth() + 1).padStart(2, '0')}/${String(newStartTime.getDate()).padStart(2, '0')}/${newStartTime.getFullYear()} ${getTimeHHMM(newStartTime)}`;
 
-                    if (appointmentEnd.getHours() > MAX_HOUR || (appointmentEnd.getHours() === MAX_HOUR && appointmentEnd.getMinutes() > 0)) {
-                         alert(`Could not schedule all appointments. The schedule for "${appointmentToUpdate.customers}" would exceed the 21:00 limit.`);
-                         applyRouteBtn.disabled = false;
-                         applyRouteBtn.textContent = "Apply Route";
-                         return;
-                    }
-
-                    const conflictingBlock = dayBlocks.find(block => 
-                        (appointmentStart < block.end) && (appointmentEnd > block.start)
-                    );
-
-                    if (conflictingBlock) {
-                        nextAvailableTime = new Date(conflictingBlock.end);
-                    } else {
-                        isSlotFound = true;
-                        const year = appointmentStart.getFullYear();
-                        const month = String(appointmentStart.getMonth() + 1).padStart(2, '0');
-                        const day = String(appointmentStart.getDate()).padStart(2, '0');
-                        const hour = String(appointmentStart.getHours()).padStart(2, '0');
-                        const minute = String(appointmentStart.getMinutes()).padStart(2, '0');
-                        const apiDateTime = `${month}/${day}/${year} ${hour}:${minute}`;
-
-                        const dataToUpdate = {
-                            rowIndex: appointmentToUpdate.id,
-                            appointmentDate: apiDateTime,
-                            technician: appointmentToUpdate.technician,
-                            pets: appointmentToUpdate.pets,
-                            margin: appointmentToUpdate.margin,
-                            verification: appointmentToUpdate.verification,
-                        };
+                // Monta o objeto para a API
+                const dataToUpdate = {
+                    rowIndex: appointmentToUpdate.id,
+                    appointmentDate: apiDateTime,
+                    technician: appointmentToUpdate.technician,
+                    pets: pets,
+                    margin: margin,
+                    travelTime: travelTime, // Envia o tempo de trajeto calculado
+                    verification: appointmentToUpdate.verification,
+                };
                         
-                        const promise = fetch('/api/update-appointment-showed-data', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(dataToUpdate),
-                        }).then(res => res.json());
+                const promise = fetch('/api/update-appointment-showed-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToUpdate),
+                }).then(res => res.json());
 
-                        updatePromises.push(promise);
-                        nextAvailableTime = appointmentEnd;
-                    }
-                }
+                updatePromises.push(promise);
+                
+                // Atualiza as variáveis para a próxima iteração
+                lastAppointmentEndTime = newEndTime;
+                lastZipCode = appointmentToUpdate.zipCode;
             }
         }
 
@@ -307,23 +330,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // --- **LÓGICA DE ORDENAÇÃO CORRIGIDA** ---
         let orderedPath = [];
         let unvisited = [...validAppointments];
         let currentLat = originLat, currentLon = originLon;
 
         while (unvisited.length > 0) {
             let nextStop = null;
-
             if (isReversed) {
-                // Algoritmo "Farthest Neighbor"
                 nextStop = unvisited.reduce((farthest, current) => {
                     const dist = calculateDistance(currentLat, currentLon, current.lat, current.lon);
                     if (dist > farthest.maxDistance) return { maxDistance: dist, client: current };
                     return farthest;
                 }, { maxDistance: -1, client: null });
             } else {
-                // Algoritmo "Nearest Neighbor"
                 nextStop = unvisited.reduce((closest, current) => {
                     const dist = calculateDistance(currentLat, currentLon, current.lat, current.lon);
                     if (dist < closest.minDistance) return { minDistance: dist, client: current };
@@ -384,13 +403,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Inicialização e Event Listeners ---
     async function loadAppointmentData() {
         try {
-            const response = await fetch('/api/get-technician-appointments');
-            if (!response.ok) throw new Error('Failed to load appointments for itinerary.');
-            const data = await response.json();
+            const [appointmentsResponse, techCoverageResponse] = await Promise.all([
+                fetch('/api/get-technician-appointments'),
+                fetch('/api/get-tech-coverage')
+            ]);
+
+            if (!appointmentsResponse.ok) throw new Error('Failed to load appointments for itinerary.');
+            const data = await appointmentsResponse.json();
             allAppointments = (data.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
+            
+            if (techCoverageResponse.ok) {
+                allTechCoverage = await techCoverageResponse.json();
+            }
+
             renderDayItineraryTable();
         } catch (error) {
-            console.error('Error loading appointment data for itinerary:', error);
+            console.error('Error loading initial data for itinerary:', error);
         }
     }
     
@@ -414,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedTechnician = e.detail.technician;
         currentWeekStart = e.detail.weekStart;
         await fetchAvailabilityForSelectedTech(selectedTechnician);
-        renderDayItineraryTable();
+        await loadAppointmentData(); // Recarrega os dados para garantir que a cobertura do técnico esteja disponível
     });
 
     document.addEventListener('weekChanged', (e) => {
