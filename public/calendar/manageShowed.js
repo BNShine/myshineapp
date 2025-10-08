@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Ouve o evento unificado para receber todos os dados e se atualizar
     document.addEventListener('stateUpdated', (e) => {
         localAppointments = e.detail.allAppointments;
         localSelectedTechnician = e.detail.technician;
