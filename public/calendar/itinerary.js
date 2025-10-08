@@ -154,6 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!originZip) {
             itineraryResultsList.innerHTML = '<p class="text-red-600 font-bold">Technician origin Zip Code not found.</p>';
+            optimizeItineraryBtn.disabled = false;
+            itineraryReverserBtn.disabled = false;
             return;
         }
 
@@ -167,16 +169,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (validAppointments.length < 1) {
             itineraryResultsList.innerHTML = '<p class="text-red-600">No optimizable appointments found for this day.</p>';
+            optimizeItineraryBtn.disabled = false;
+            itineraryReverserBtn.disabled = false;
             return;
         }
         
         const [originLat, originLon] = await getLatLon(originZip);
         if (originLat === null) {
             itineraryResultsList.innerHTML = '<p class="text-red-600">Could not get coordinates for technician origin Zip Code.</p>';
+            optimizeItineraryBtn.disabled = false;
+            itineraryReverserBtn.disabled = false;
             return;
         }
-        
-        // ... (resto da lógica de otimização)
+
+        let orderedPath = [];
+        let unvisited = [...validAppointments];
+        let currentLat = originLat, currentLon = originLon;
+
+        while (unvisited.length > 0) {
+            let nextStop = unvisited.reduce((closest, current) => {
+                const dist = calculateDistance(currentLat, currentLon, current.lat, current.lon);
+                if (dist < closest.minDistance) return { minDistance: dist, client: current };
+                return closest;
+            }, { minDistance: Infinity, client: null });
+            
+            if (isReversed) {
+                 nextStop = unvisited.reduce((farthest, current) => {
+                    const dist = calculateDistance(currentLat, currentLon, current.lat, current.lon);
+                    if (dist > farthest.maxDistance) return { maxDistance: dist, client: current };
+                    return farthest;
+                }, { maxDistance: -1, client: null });
+            }
+            
+            orderedPath.push(nextStop.client);
+            currentLat = nextStop.client.lat;
+            currentLon = nextStop.client.lon;
+            unvisited = unvisited.filter(c => c.id !== nextStop.client.id);
+        }
+
+        const waypointsForApi = orderedPath.map(stop => ({
+            id: stop.id,
+            zipCode: stop.zipCode,
+            customerName: stop.customers
+        }));
+
+        try {
+            const response = await fetch('/api/optimize-route', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    originZip: originZip,
+                    waypoints: waypointsForApi,
+                    isReversed: !isReversed 
+                }),
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+
+            const route = result.routeData.routes[0];
+            itineraryResultsList.innerHTML = `<p class="font-bold text-lg">Optimized Route (${isReversed ? 'Farthest First' : 'Nearest First'}):</p>`;
+            let totalDuration = 0, totalDistance = 0;
+            
+            const finalOrder = route.waypoint_order ? route.waypoint_order.map(i => waypointsForApi[i]) : waypointsForApi;
+            orderedClientStops = finalOrder;
+            
+            route.legs.forEach((leg, i) => {
+                const clientName = (finalOrder[i] || { customerName: "Return to Origin" }).customerName;
+                itineraryResultsList.innerHTML += `<div class="border-b border-muted py-2"><p class="font-bold text-base">${i + 1}. Go to: ${leg.end_address} (${clientName})</p><p class="ml-4 text-sm">Travel: ${leg.duration.text} | ${leg.distance.text}</p></div>`;
+                totalDuration += leg.duration.value;
+                totalDistance += leg.distance.value;
+            });
+
+            itineraryResultsList.innerHTML += `<div class="mt-4 font-bold text-lg text-brand-primary">Total Travel: ${Math.round(totalDuration / 60)} min / ${(totalDistance / 1000 * 0.621371).toFixed(1)} mi</div>`;
+            schedulingControls.classList.remove('hidden');
+            applyRouteBtn.disabled = false;
+        } catch (error) {
+            itineraryResultsList.innerHTML = `<p class="text-red-600 font-bold">Error calculating route: ${error.message}</p>`;
+        } finally {
+            optimizeItineraryBtn.disabled = false;
+            itineraryReverserBtn.disabled = false;
+        }
     }
 
     async function handleApplyRoute() { /* ...código da versão anterior... */ }
