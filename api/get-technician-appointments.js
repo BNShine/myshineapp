@@ -34,14 +34,14 @@ export default async function handler(req, res) {
         const headerRow = sheetAppointments.headerValues;
         const headersToIndex = {};
         headerRow.forEach((header, index) => {
-            headersToIndex[header] = index;
+            headersToIndex[header.trim()] = index;
         });
 
         const appointments = rows.map(row => {
             const getCellValue = (header) => {
                 const index = headersToIndex[header];
                 if (index !== undefined && row._rawData.length > index) {
-                    return String(row._rawData[index] || '');
+                    return String(row._rawData[index] || '').trim();
                 }
                 return '';
             };
