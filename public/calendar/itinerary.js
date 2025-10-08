@@ -29,11 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getDayOfWeekDate(startOfWeekDate, dayOfWeek) {
         const date = new Date(startOfWeekDate);
-        date.setDate(date.getDate() + dayOfWeek);
+        date.setDate(date.getDate() + parseInt(dayOfWeek, 10));
         return date;
     }
 
     function formatDateToYYYYMMDD(date) {
+        if (!(date instanceof Date) || isNaN(date)) return '';
         const year = date.getFullYear();
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
         const day = date.getDate().toString().padStart(2, '0');
@@ -98,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!dayItineraryTableBody) return;
         dayItineraryTableBody.innerHTML = '';
         itineraryResultsList.innerHTML = 'No route calculated.';
-        schedulingControls.classList.add('hidden');
+        if (schedulingControls) schedulingControls.classList.add('hidden');
         
         const selectedDayOfWeek = dayFilter.value;
         optimizeItineraryBtn.disabled = true;
@@ -109,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const targetDate = getDayOfWeekDate(localCurrentWeekStart, parseInt(selectedDayOfWeek, 10));
+        const targetDate = getDayOfWeekDate(localCurrentWeekStart, selectedDayOfWeek);
         dayAppointments = (localAppointments || []).filter(appt => {
             const apptDate = parseSheetDate(appt.appointmentDate);
             return appt.technician === localSelectedTechnician && apptDate && apptDate.toDateString() === targetDate.toDateString();
@@ -142,7 +143,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function runItineraryOptimization(isReversed = false) { /* ...código da versão anterior... */ }
+    async function runItineraryOptimization(isReversed = false) {
+        if (!itineraryResultsList) return;
+        itineraryResultsList.innerHTML = 'Calculating route...';
+        optimizeItineraryBtn.disabled = true;
+        itineraryReverserBtn.disabled = true;
+        
+        const selectedTechObj = localTechCoverage.find(t => t.nome === localSelectedTechnician);
+        const originZip = selectedTechObj?.zip_code;
+
+        if (!originZip) {
+            itineraryResultsList.innerHTML = '<p class="text-red-600 font-bold">Technician origin Zip Code not found.</p>';
+            return;
+        }
+
+        const validAppointments = [];
+        for (const appt of dayAppointments) {
+            if (appt.zipCode && appt.verification !== 'Confirmed') {
+                const [lat, lon] = await getLatLon(appt.zipCode);
+                if (lat !== null) validAppointments.push({ ...appt, lat, lon });
+            }
+        }
+
+        if (validAppointments.length < 1) {
+            itineraryResultsList.innerHTML = '<p class="text-red-600">No optimizable appointments found for this day.</p>';
+            return;
+        }
+        
+        const [originLat, originLon] = await getLatLon(originZip);
+        if (originLat === null) {
+            itineraryResultsList.innerHTML = '<p class="text-red-600">Could not get coordinates for technician origin Zip Code.</p>';
+            return;
+        }
+        
+        // ... (resto da lógica de otimização)
+    }
+
     async function handleApplyRoute() { /* ...código da versão anterior... */ }
     function populateTimeSlotsDropdown() { /* ...código da versão anterior... */ }
 
