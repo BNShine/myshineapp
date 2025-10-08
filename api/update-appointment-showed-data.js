@@ -4,7 +4,6 @@ import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import dotenv from 'dotenv';
 import { SHEET_NAME_APPOINTMENTS } from './configs/sheets-config.js';
-import { formatToSheetDateTime } from './utils.js'; // Importa a nova função
 
 dotenv.config();
 
@@ -24,6 +23,10 @@ function parseToNumeric(value) {
     return isNaN(parsed) ? 0 : parsed;
 }
 
+function formatToSheetDate(dateTimeStr) {
+    return dateTimeStr;
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Método não permitido.' });
@@ -33,7 +36,7 @@ export default async function handler(req, res) {
         const { 
             rowIndex, technician, petShowed, serviceShowed, tips, 
             percentage, paymentMethod, verification, appointmentDate,
-            pets, margin, travelTime
+            pets, margin, travelTime // Novos campos recebidos
         } = req.body;
 
         if (rowIndex === undefined || rowIndex < 2) { 
@@ -46,6 +49,7 @@ export default async function handler(req, res) {
         const percentageValue = parseToNumeric(percentage) / 100;
         const toPayValue = (serviceValue * percentageValue) + tipsValue;
 
+        // Recalcula a Duração Total
         const travelTimeMinutes = parseInt(travelTime, 10) || 0;
         const marginMinutes = parseInt(margin, 10) || 30;
         const petsCount = parseInt(pets, 10) || 1;
@@ -66,7 +70,7 @@ export default async function handler(req, res) {
             return res.status(404).json({ success: false, message: 'Agendamento não encontrado para atualização.' });
         }
         
-        targetRow.set('Date (Appointment)', formatToSheetDateTime(appointmentDate)); // Formatação aplicada aqui
+        targetRow.set('Date (Appointment)', formatToSheetDate(appointmentDate));
         targetRow.set('Verification', verification);
         targetRow.set('Technician', technician);
         targetRow.set('Method', paymentMethod);
@@ -75,6 +79,8 @@ export default async function handler(req, res) {
         targetRow.set('Pet Showed', petShowedValue);
         targetRow.set('To Pay', toPayValue);
         targetRow.set('Percentage', percentageValue);
+        
+        // Salva os novos campos
         targetRow.set('Pets', petsCount);
         targetRow.set('Margin', marginMinutes);
         targetRow.set('Travel Time', travelTimeMinutes);
