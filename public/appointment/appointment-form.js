@@ -42,6 +42,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return Math.ceil((dayOfMonth + firstDayOfWeek) / 7);
     }
 
+    /**
+     * NOVA FUNÇÃO: Gera um código alfanumérico aleatório.
+     * @param {number} length - O comprimento do código a ser gerado.
+     * @returns {string} - O código aleatório.
+     */
+    function generateRandomCode(length = 6) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
     function populateDropdown(selectElement, items, defaultText) {
         if (!selectElement) return;
         selectElement.innerHTML = `<option value="">${defaultText}</option>`;
@@ -79,7 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             populateDropdown(franchiseSelect, dashboardData.franchises, 'Selecione a Franquia');
             populateDropdown(sourceSelect, listsData.sources, 'Selecione a Origem');
             
-            // Inicialmente, preenche com todos os técnicos
             populateDropdown(suggestedTechSelect, allTechniciansData.map(tech => tech.nome), 'Selecione um técnico');
 
         } catch (error) {
@@ -106,13 +119,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const zip = zipCodeInput.value;
         if (zip.length === 5) {
             const { city, state } = await getCityAndStateFromZip(zip);
-            cityInput.value = city || ''; // Preenche a cidade automaticamente
+            cityInput.value = city || '';
             
             if (state && allTechniciansData.length > 0) {
                 const techniciansInState = [];
-                
                 for(const tech of allTechniciansData) {
-                    // Assume que o técnico atende no estado do seu próprio CEP de origem
                     if(tech.zip_code) {
                         const techStateResponse = await getCityAndStateFromZip(tech.zip_code);
                         if(techStateResponse.state === state) {
@@ -120,29 +131,34 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }
                 }
-                
                 populateDropdown(suggestedTechSelect, techniciansInState, 'Selecione um técnico na região');
             }
         }
     }
 
-
     function updateDisplayFields() {
         const appointmentDateValue = appointmentDateInput.value;
         if (appointmentDateValue) {
             const date = new Date(appointmentDateValue);
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const year = date.getFullYear();
-            codePassDisplay.textContent = `${customersInput.value.substring(0, 3).toUpperCase()}${month}${day}`;
+            
+            // ALTERAÇÃO: Gera código aleatório em vez de usar o nome do cliente.
+            codePassDisplay.textContent = generateRandomCode();
+
             const reminderDate = new Date(date);
             reminderDate.setDate(date.getDate() - 2);
             reminderDateDisplay.textContent = `${String(reminderDate.getMonth() + 1).padStart(2, '0')}/${String(reminderDate.getDate()).padStart(2, '0')}/${reminderDate.getFullYear()}`;
-            dataInput.value = `${month}/${day}/${year}`;
         } else {
             codePassDisplay.textContent = '--/--/----';
             reminderDateDisplay.textContent = '--/--/----';
         }
+    }
+    
+    function setInitialDate() {
+        const today = new Date();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const year = today.getFullYear();
+        dataInput.value = `${month}/${day}/${year}`;
     }
 
     // --- Lógica de Eventos ---
@@ -218,7 +234,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 codePassDisplay.textContent = '--/--/----';
                 reminderDateDisplay.textContent = '--/--/----';
                 suggestedTechDisplay.textContent = '--/--/----';
-                manualModeToggle.checked = true; // Volta para o modo manual por padrão
+                setInitialDate(); // Redefine a data de hoje
+                manualModeToggle.checked = true;
                 manualModeToggle.dispatchEvent(new Event('change'));
             } else {
                 alert(`Erro: ${result.message}`);
@@ -231,5 +248,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Inicializa o formulário e o estado do switch
     fetchInitialData();
+    setInitialDate(); // Garante que o campo 'data' tenha um valor ao carregar
     manualModeToggle.dispatchEvent(new Event('change'));
 });
