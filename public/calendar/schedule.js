@@ -48,7 +48,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const MAX_HOUR = 21;
 
     // --- 3. Funções Auxiliares ---
-    function getStartOfWeek(date) { /* ...código existente... */ }
+    function getStartOfWeek(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - d.getDay());
+        return d;
+    }
+
     function formatDateToYYYYMMDD(date) { /* ...código existente... */ }
     function parseSheetDate(dateStr) { /* ...código existente... */ }
     function getTimeHHMM(date) { /* ...código existente... */ }
@@ -76,9 +82,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 7. Funções de Renderização ---
     function renderScheduler() {
         if (!schedulerHeader || !schedulerBody) return;
-        schedulerHeader.innerHTML = '<div class="timeline-header p-2 font-semibold">Time</div>';
-        schedulerBody.innerHTML = ''; 
 
+        // Limpa a agenda
+        schedulerHeader.innerHTML = '<div class="timeline-header p-2 font-semibold">Time</div>';
+        schedulerBody.innerHTML = '';
+        loadingOverlay.classList.toggle('hidden', !!selectedTechnician);
+        updateWeekDisplay();
+
+        // **CORREÇÃO**: Se nenhum técnico estiver selecionado, não tenta desenhar a grade.
+        if (!selectedTechnician) {
+            return;
+        }
+
+        // Desenha a grade de horários e dias
         TIME_SLOTS.forEach((time, rowIndex) => {
             const timeDiv = document.createElement('div');
             timeDiv.className = 'time-slot timeline-header p-2 text-xs font-medium border-t border-border flex items-center justify-center';
@@ -89,7 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         DAY_NAMES.forEach((dayName, dayIndex) => {
             const date = new Date(currentWeekStart);
-            date.setDate(currentWeekStart.getDate() + dayIndex);
+            date.setDate(date.getDate() + dayIndex); // Corrigido para usar a variável 'date' local
             const dateKey = formatDateToYYYYMMDD(date);
             const column = dayIndex + 2;
 
@@ -116,13 +132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             schedulerBody.appendChild(dayContainer);
         });
 
-        if (selectedTechnician) {
-            renderAppointments();
-            renderTimeBlocks();
-        }
-        
-        updateWeekDisplay();
-        loadingOverlay.classList.toggle('hidden', !!selectedTechnician);
+        renderAppointments();
+        renderTimeBlocks();
     }
     
     function renderAppointments() { /* ...código existente... */ }
@@ -130,67 +141,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateWeekDisplay() { /* ...código existente... */ }
 
     // --- 8. Inicialização e Event Listeners ---
-    async function loadInitialData() {
-        // Mostra o overlay de "select technician" desde o início
-        loadingOverlay.classList.remove('hidden');
-
-        // Etapa 1: Carregar técnicos e popular o dropdown. Esta é a prioridade.
-        try {
-            const techDataResponse = await fetch('/api/get-dashboard-data');
-            if (!techDataResponse.ok) throw new Error(`Failed to load technician list. Status: ${techDataResponse.status}`);
-            
-            const techData = await techDataResponse.json();
-            allTechnicians = techData.technicians || [];
-        } catch (error) {
-            console.error('CRITICAL ERROR fetching technicians:', error);
-            allTechnicians = [];
-        } finally {
-            populateTechSelects();
+    async function loadInitialData(isReload = false) {
+        if (!isReload) {
+            loadingOverlay.classList.remove('hidden');
+            try {
+                const techDataResponse = await fetch('/api/get-dashboard-data');
+                if (!techDataResponse.ok) throw new Error(`Failed to load technician list. Status: ${techDataResponse.status}`);
+                const techData = await techDataResponse.json();
+                allTechnicians = techData.technicians || [];
+            } catch (error) {
+                console.error('CRITICAL ERROR fetching technicians:', error);
+                allTechnicians = [];
+            } finally {
+                populateTechSelects();
+            }
         }
 
-        // Etapa 2: Carregar os outros dados em paralelo, de forma segura.
         try {
             const [appointmentsResponse, techCoverageResponse] = await Promise.all([
                 fetch('/api/get-technician-appointments'),
                 fetch('/api/get-tech-coverage')
             ]);
-
             if (appointmentsResponse.ok) {
                 const apptsData = await appointmentsResponse.json();
                 allAppointments = (apptsData.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
-            } else {
-                console.warn('Could not load appointments.');
             }
-
             if (techCoverageResponse.ok) {
                 allTechCoverage = await techCoverageResponse.json();
-            } else {
-                console.warn('Could not load tech coverage data.');
             }
         } catch (error) {
-            console.error('Error fetching additional data (appointments/coverage):', error);
+            console.error('Error fetching additional data:', error);
         }
 
-        // Etapa 3: Renderização inicial
+        // Renderiza a interface inicial (ainda sem técnico, mostrando o overlay)
         renderScheduler();
-        renderMiniCalendar();
-    }
-
-    function populateTechSelects() {
-        if (!techSelectDropdown) return;
-
-        if (allTechnicians && allTechnicians.length > 0) {
-            techSelectDropdown.innerHTML = '<option value="">Select Technician...</option>';
-            allTechnicians.forEach(tech => {
-                const option = document.createElement('option');
-                option.value = tech.trim(); // Garante que não haja espaços extras
-                option.textContent = tech.trim();
-                techSelectDropdown.appendChild(option);
-            });
-        } else {
-            techSelectDropdown.innerHTML = '<option value="">No technicians found</option>';
+        if (!isReload) {
+            renderMiniCalendar();
         }
     }
+
+    function populateTechSelects() { /* ...código existente... */ }
 
     async function handleTechSelectionChange(event) {
         selectedTechnician = event.target.value;
@@ -202,16 +192,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">No Technician Selected</p><p class="text-sm text-muted-foreground">Select a technician from the top bar to view their schedule.</p>`;
         }
         
-        // Ação mais importante: redesenha a agenda com o técnico selecionado (ou sem nenhum)
-        renderScheduler();
+        renderScheduler(); // Redesenha a agenda, agora com ou sem o overlay, dependendo da seleção
         
         document.dispatchEvent(new CustomEvent('technicianChanged', { detail: { technician: selectedTechnician, weekStart: currentWeekStart } }));
     }
 
     // --- BINDING DOS EVENTOS ---
     techSelectDropdown.addEventListener('change', handleTechSelectionChange);
-    prevWeekBtn.addEventListener('click', () => { /* ...código existente... */ });
-    nextWeekBtn.addEventListener('click', () => { /* ...código existente... */ });
+    
+    prevWeekBtn.addEventListener('click', () => {
+        // **CORREÇÃO**: Cria um novo objeto Date para evitar mutação e mudança de tipo
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() - 7);
+        currentWeekStart = newDate;
+        renderScheduler();
+        renderMiniCalendar();
+        document.dispatchEvent(new CustomEvent('weekChanged', { detail: { weekStart: currentWeekStart } }));
+    });
+    
+    nextWeekBtn.addEventListener('click', () => {
+        // **CORREÇÃO**: Cria um novo objeto Date
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() + 7);
+        currentWeekStart = newDate;
+        renderScheduler();
+        renderMiniCalendar();
+        document.dispatchEvent(new CustomEvent('weekChanged', { detail: { weekStart: currentWeekStart } }));
+    });
+
     todayBtn.addEventListener('click', () => { /* ...código existente... */ });
     modalSaveBtn.addEventListener('click', handleSaveAppointment);
     modalCancelBtn.addEventListener('click', closeEditModal);
@@ -223,21 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     editBlockDeleteBtn.addEventListener('click', handleDeleteTimeBlock);
     editBlockCancelBtn.addEventListener('click', closeEditTimeBlockModal);
 
-    document.addEventListener('appointmentUpdated', async () => {
-        // Simplificado para recarregar apenas os agendamentos, que é o que muda.
-        try {
-            const appointmentsResponse = await fetch('/api/get-technician-appointments');
-            if (appointmentsResponse.ok) {
-                const apptsData = await appointmentsResponse.json();
-                allAppointments = (apptsData.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
-            }
-        } catch (error) {
-            console.error('Failed to reload appointments after update:', error);
-        } finally {
-            renderScheduler(); // Redesenha a agenda com os novos dados
-        }
-    });
+    document.addEventListener('appointmentUpdated', async () => { /* ...código existente... */ });
 
-    // Inicia o carregamento da página
     loadInitialData();
 });
