@@ -1,87 +1,96 @@
-// api/utils.js
+// api/register-appointment.js
 
-export function excelDateToDateTime(excelSerialDate) {
-    if (!excelSerialDate) {
-        return '';
+import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { JWT } from 'google-auth-library';
+import dotenv from 'dotenv';
+import { SHEET_NAME_APPOINTMENTS } from './configs/sheets-config.js';
+
+dotenv.config();
+
+const serviceAccountAuth = new JWT({
+    email: process.env.CLIENT_EMAIL,
+    key: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+
+const doc = new GoogleSpreadsheet(process.env.SHEET_ID_APPOINTMENTS, serviceAccountAuth);
+
+export default async function handler(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ message: 'Método não permitido.' });
     }
-    const numericDate = Number(excelSerialDate);
-    if (!isNaN(numericDate) && numericDate > 0) {
-        const days = Math.floor(numericDate);
-        const timeFraction = numericDate - days;
-        const msInDay = 24 * 60 * 60 * 1000;
-        const dateObj = new Date(Date.UTC(1899, 11, 30 + days));
-        dateObj.setTime(dateObj.getTime() + (timeFraction * msInDay));
-        const year = dateObj.getUTCFullYear();
-        const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(dateObj.getUTCDate()).padStart(2, '0');
-        const hours = String(dateObj.getUTCHours()).padStart(2, '0');
-        const minutes = String(dateObj.getUTCMinutes()).padStart(2, '0');
-        return `${month}/${day}/${year} ${hours}:${minutes}`;
-    }
-    if (typeof excelSerialDate === 'string') {
-        const dateParts = excelSerialDate.split(' ');
-        if (dateParts.length === 2 && dateParts[0].includes('/') && dateParts[1].includes(':')) {
-             const parts = dateParts[0].split('/');
-             const timeParts = dateParts[1].split(':');
-             if (parts.length === 3 && parts[0].length === 4) { 
-                 const [Y, M, D] = parts;
-                 return `${M}/${D}/${Y} ${dateParts[1]}`;
-             }
-             if (parts.length === 3 && parts[0].length < 4) {
-                 const month = String(Number(parts[0])).padStart(2, '0');
-                 const day = String(Number(parts[1])).padStart(2, '0');
-                 const year = parts[2];
-                 const hour = String(Number(timeParts[0])).padStart(2, '0');
-                 const minute = String(Number(timeParts[1])).padStart(2, '0');
-                 return `${month}/${day}/${year} ${hour}:${minute}`;
-             }
+
+    try {
+        const { 
+            type, data, pets, closer1, closer2, customers, phone, oldNew, 
+            appointmentDate, serviceValue, franchise, city, source, week, 
+            month, year, code, reminderDate, verification, zipCode, technician,
+            travelTime,
+            margin
+        } = req.body;
+
+        if (!type || !data || !customers || !phone || !appointmentDate || !serviceValue || !franchise || !city || !source || !code) {
+            return res.status(400).json({ success: false, message: 'Todos os campos obrigatórios, incluindo o código, precisam ser preenchidos.' });
         }
-    }
-    return '';
-}
-
-export function excelDateToYYYYMMDD(excelSerialDate) {
-    if (!excelSerialDate) {
-        return '';
-    }
-    const numericDate = Number(excelSerialDate);
-    if (!isNaN(numericDate) && numericDate > 0) {
-        const date = new Date(Date.UTC(1900, 0, 1));
-        date.setDate(date.getDate() + numericDate - 2);
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        return `${month}/${day}/${year}`;
-    }
-    if (typeof excelSerialDate === 'string') {
-        const datePart = excelSerialDate.split(' ')[0];
-        const parts = datePart.split('/');
-        if (parts.length === 3) {
-             if (parts[0].length === 4) { // YYYY/MM/DD
-                 const [Y, M, D] = parts;
-                 return `${M}/${D}/${Y}`;
-             }
-             if (parts[0].length < 3) {
-                 const month = String(Number(parts[0])).padStart(2, '0');
-                 const day = String(Number(parts[1])).padStart(2, '0');
-                 const year = parts[2];
-                 return `${month}/${day}/${year}`;
-             }
+        
+        if (!verification) {
+             return res.status(400).json({ success: false, message: 'O campo de verificação está faltando.' });
         }
-        return datePart;
-    }
-    return '';
-}
+        
+        if (!technician) {
+            return res.status(400).json({ success: false, message: 'O campo Suggested Technician é obrigatório.' });
+        }
 
-export const dynamicLists = {
-    pets: Array.from({ length: 15 }, (_, i) => i + 1),
-    weeks: Array.from({ length: 5 }, (_, i) => i + 1),
-    months: Array.from({ length: 12 }, (_, i) => i + 1),
-    years: Array.from({ length: 17 }, (_, i) => 2024 + i),
-    // A LISTA DE SOURCES FOI RESTAURADA AQUI
-    sources: [
-        "Facebook", "Kommo", "Social Traffic", "SMS", "Call", "Friends", 
-        "Family Member", "Neighbors", "Reminder", "Email", "Google", 
-        "Website", "Grooming / Referral P", "Instagram", "Technician", "WhatsApp", "Other"
-    ]
-};
+        await doc.loadInfo();
+        const sheet = doc.sheetsByTitle[SHEET_NAME_APPOINTMENTS];
+        if (!sheet) {
+            return res.status(500).json({ success: false, message: `Planilha "${SHEET_NAME_APPOINTMENTS}" não encontrada.` });
+        }
+
+        const rows = await sheet.getRows();
+        const codeExists = rows.some(row => row.get('Code') === code);
+
+        if (codeExists) {
+            return res.status(409).json({ success: false, message: `Erro: O código de confirmação "${code}" já existe. O agendamento pode ser um duplicado.` });
+        }
+        
+        const travelTimeMinutes = parseInt(travelTime, 10) || 0;
+        const marginMinutes = parseInt(margin, 10) || 30;
+        const petsCount = parseInt(pets, 10) || 1;
+        const duration = travelTimeMinutes + (petsCount * 60) + marginMinutes;
+
+        const newRow = {
+            'Type': type,
+            'Date': data,
+            'Pets': pets,
+            'Closer (1)': closer1, 
+            'Closer (2)': closer2, 
+            'Customers': customers,
+            'Phone': phone,
+            'Old/New': oldNew,
+            'Date (Appointment)': appointmentDate, // Salva a data já formatada
+            'Service Value': serviceValue,
+            'Franchise': franchise,
+            'City': city,
+            'Source': source,
+            'Week': week,
+            'Month': month,
+            'Year': year,
+            'Code': code,
+            'Reminder Date': reminderDate,
+            'Verification': verification, 
+            'Zip Code': zipCode,
+            'Technician': technician,
+            'Travel Time': travelTimeMinutes,
+            'Margin': marginMinutes,
+            'Duration': duration
+        };
+
+        await sheet.addRow(newRow);
+
+        return res.status(201).json({ success: true, message: 'Agendamento registrado com sucesso!' });
+    } catch (error) {
+        console.error('Erro ao registrar agendamento:', error);
+        return res.status(500).json({ success: false, message: `Ocorreu um erro no servidor. Detalhes: ${error.message}` });
+    }
+}
