@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Helper Functions ---
 
-    // Função auxiliar para popular dropdowns
     function populateDropdowns(selectElement, items, defaultText) {
         selectElement.innerHTML = `<option value="">${defaultText}</option>`;
         if (items && Array.isArray(items)) {
@@ -36,29 +35,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // MODIFICATION 1: Function to format the API output (MM/DD/YYYY HH:MM) to DD/MM/YYYY HH:MM for display
-    function formatDateToDisplay(dateStr) {
-        if (!dateStr) return '';
-        const parts = dateStr.split(' '); // [MM/DD/YYYY, HH:MM]
-        const dateParts = parts[0].split('/'); // [MM, DD, YYYY]
-        if (dateParts.length === 3) {
-            // MM/DD/YYYY -> DD/MM/YYYY
-            return `${dateParts[1]}/${dateParts[0]}/${dateParts[2]}${parts.length > 1 ? ' ' + parts[1] : ''}`;
-        }
-        return dateStr;
-    }
-
-    // MODIFICATION 2: Correct parsing for MM/DD/YYYY (or MM/DD/YYYY HH:MM) from API for filtering
     function parseSheetDate(dateStr) {
-        // Converte MM/DD/YYYY [HH:MM] para objeto Date (apenas data)
         if (!dateStr) return null;
         const [datePart] = dateStr.split(' ');
         
-        const parts = datePart.split('/').map(Number); // [MM, DD, YYYY]
+        const parts = datePart.split('/').map(Number);
         
         if (parts.length === 3) {
             const [month, day, year] = parts;
-            // Month is 0-indexed in Date constructor (month - 1)
             return new Date(year, month - 1, day);
         }
         return null;
@@ -82,13 +66,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const row = document.createElement('tr');
                 row.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
                 
-                // Truncate name
                 const customerName = customer.customers || '';
                 const truncatedCustomers = customerName.length > 25 
                     ? customerName.substring(0, 22) + '...'
                     : customerName;
                 
-                // Color for Reminder Date
                 const reminderClass = customer.reminderDate && customer.reminderDate.toLowerCase() === 'send-reminder' ? 'text-red-600 font-bold' : 'text-foreground';
 
                 row.innerHTML = `
@@ -98,10 +80,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td class="p-4">${customer.closer1 || ''}</td>
                     <td class="p-4">${customer.closer2 || ''}</td>
                     <td class="p-4">${customer.phone || ''}</td>
-                    <td class="p-4">${formatDateToDisplay(customer.appointmentDate)}</td>
+                    <td class="p-4">${customer.appointmentDate}</td>
                     <td class="p-4">${customer.serviceValue || ''}</td>
                     <td class="p-4">${customer.franchise || ''}</td>
-                    <td class="p-4 ${reminderClass}">${customer.reminderDate ? formatDateToDisplay(customer.reminderDate) : 'N/A'}</td>
+                    <td class="p-4 ${reminderClass}">${customer.reminderDate || 'N/A'}</td>
                 `;
                 tableBody.appendChild(row);
             });
@@ -114,7 +96,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function applyFilters() {
         const searchTerm = searchInput.value.toLowerCase().trim();
         
-        // MODIFICATION 3: Date input values are YYYY-MM-DD. Need to convert to MM/DD/YYYY for parseSheetDate
         const convertInputDateToSheetFormat = (inputDate) => {
              if (!inputDate) return null;
              const [Y, M, D] = inputDate.split('-');
@@ -135,18 +116,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const filteredData = allCustomersData.filter(customer => {
             
-            // Search filter
             const matchesSearch = !searchTerm ||
                                   (customer.customers && customer.customers.toLowerCase().includes(searchTerm)) ||
                                   (customer.phone && customer.phone.toLowerCase().includes(searchTerm)) ||
                                   (customer.city && customer.city.toLowerCase().includes(searchTerm));
 
-            // Date Range Filter (using only the date part MM/DD/YYYY)
             const apptDate = parseSheetDate(customer.appointmentDate);
             const matchesDateRange = (!selectedStartDate || (apptDate && apptDate >= selectedStartDate)) &&
                                      (!selectedEndDate || (apptDate && apptDate <= selectedEndDate));
             
-            // Dropdown filters
             const matchesFranchise = !selectedFranchise || 
                                      (customer.franchise && customer.franchise.toLowerCase() === selectedFranchise);
             
@@ -157,7 +135,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const matchesMonth = !selectedMonth || (customer.month && customer.month.toString() === selectedMonth);
             const matchesYear = !selectedYear || (customer.year && customer.year.toString() === selectedYear);
             
-            // Reminder Filter
             const matchesReminder = !selectedReminder || (customer.reminderDate && customer.reminderDate.toLowerCase() === 'send-reminder');
 
             return matchesSearch && matchesDateRange && matchesFranchise && matchesCloser && matchesMonth && matchesYear && matchesReminder;
@@ -191,13 +168,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             allEmployees = dashboardData.employees || [];
             allLists = listsData;
 
-            // Populate filters
             populateDropdowns(franchiseFilter, allFranchises.sort(), 'All Franchises');
             populateDropdowns(closerFilter, allEmployees.sort(), 'All Closers');
             populateDropdowns(monthFilter, allLists.months, 'All Months');
             populateDropdowns(yearFilter, allLists.years, 'All Years');
             
-            // Initial render
             renderTable(allCustomersData);
 
         } catch (error) {
