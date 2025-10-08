@@ -46,7 +46,6 @@ const getTravelTime = async (originZip, destinationZip) => {
     if (!GOOGLE_MAPS_API_KEY) {
         throw new Error("Google Maps API key is not configured on the server.");
     }
-    // Se origem e destino são iguais, o tempo de viagem é 0.
     if (originZip === destinationZip) {
         return 0;
     }
@@ -56,7 +55,7 @@ const getTravelTime = async (originZip, destinationZip) => {
         const data = await response.json();
         if (data.status !== 'OK' || !data.rows[0].elements[0].duration) {
             console.warn(`Google Maps API could not calculate travel time between ${originZip} and ${destinationZip}. Status: ${data.status}`);
-            return Infinity; // Retorna infinito se a rota não for encontrada
+            return Infinity;
         }
         return data.rows[0].elements[0].duration.value / 60; // Retorna em minutos
     } catch (error) {
@@ -97,6 +96,7 @@ const getAllData = async () => {
         technician: row.get('Technician'),
         zipCode: row.get('Zip Code'),
         dateTime: parseSheetDate(row.get('Date (Appointment)')),
+        duration: parseInt(row.get('Duration'), 10) || 120,
     })).filter(a => a.technician && a.dateTime);
 
     return { technicians, availabilityBlocks, appointments };
@@ -111,7 +111,8 @@ export default async function handler(req, res) {
 
     try {
         const { zipCode, numPets, margin } = req.body;
-        const blockDuration = (60 * parseInt(numPets, 10)) + parseInt(margin, 10);
+        const appointmentDuration = (60 * parseInt(numPets, 10));
+        const marginDuration = parseInt(margin, 10);
 
         const [customerCity, { technicians, availabilityBlocks, appointments }] = await Promise.all([
             getCityFromZip(zipCode),
@@ -134,10 +135,10 @@ export default async function handler(req, res) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        for (let i = 0; i < 14; i++) {
+        // REGRA: A busca inicia 2 dias após o dia atual (D+2)
+        for (let i = 2; i < 16; i++) {
             const currentDate = new Date(today);
             currentDate.setDate(today.getDate() + i);
-            if (currentDate.getDay() === 0) continue; // Pula domingos
 
             for (const tech of qualifiedTechs) {
                 const techSchedule = [];
@@ -145,81 +146,108 @@ export default async function handler(req, res) {
                 // Adiciona agendamentos existentes
                 appointments.forEach(appt => {
                     if (appt.technician === tech.name && appt.dateTime.toDateString() === currentDate.toDateString()) {
-                        const endTime = new Date(appt.dateTime.getTime() + (120 * 60000)); // Duração fixa de 2h
+                        const endTime = new Date(appt.dateTime.getTime() + (appt.duration * 60000));
                         techSchedule.push({ start: appt.dateTime, end: endTime, zip: appt.zipCode, type: 'appointment' });
                     }
                 });
 
                 // Adiciona bloqueios de horário
                 availabilityBlocks.forEach(block => {
-                    const [bMonth, bDay, bYear] = block.date.split('/').map(Number);
-                    const blockDate = new Date(bYear, bMonth - 1, bDay);
-                    if (block.technician === tech.name && blockDate.toDateString() === currentDate.toDateString()) {
-                        const [sH, sM] = block.start.split(':').map(Number);
-                        const [eH, eM] = block.end.split(':').map(Number);
-                        const start = new Date(currentDate);
-                        start.setHours(sH, sM);
-                        const end = new Date(currentDate);
-                        end.setHours(eH, eM);
-                        techSchedule.push({ start, end, type: 'block' });
+                    if (block.technician === tech.name) {
+                        const [bMonth, bDay, bYear] = block.date.split('/').map(Number);
+                        const blockDate = new Date(bYear, bMonth - 1, bDay);
+                        if (blockDate.toDateString() === currentDate.toDateString()) {
+                            const [sH, sM] = block.start.split(':').map(Number);
+                            const [eH, eM] = block.end.split(':').map(Number);
+                            const start = new Date(currentDate);
+                            start.setHours(sH, sM, 0, 0);
+                            const end = new Date(currentDate);
+                            end.setHours(eH, eM, 0, 0);
+                            techSchedule.push({ start, end, type: 'block' });
+                        }
                     }
                 });
 
                 techSchedule.sort((a, b) => a.start - b.start);
-                
-                // Analisa as lacunas na agenda
-                let lastEventEnd = new Date(currentDate);
-                lastEventEnd.setHours(7, 0, 0, 0); // Início do dia de trabalho
-                let lastEventZip = tech.zipCode;
 
-                for (let j = 0; j <= techSchedule.length; j++) {
-                    const nextEvent = techSchedule[j];
-                    const gapStart = lastEventEnd;
-                    const gapEnd = nextEvent ? nextEvent.start : new Date(currentDate).setHours(21, 0, 0, 0);
-                    const gapDuration = (gapEnd - gapStart) / 60000;
+                // Adiciona início e fim do dia de trabalho como bloqueios para simplificar a lógica
+                const workDayStart = new Date(currentDate);
+                workDayStart.setHours(8, 0, 0, 0);
+                const workDayEnd = new Date(currentDate);
+                workDayEnd.setHours(17, 0, 0, 0);
 
-                    if (gapDuration >= blockDuration) {
-                        const travelFrom = await getTravelTime(lastEventZip, zipCode);
-                        if (travelFrom > 90) continue;
+                const fullSchedule = [
+                    { start: new Date(currentDate).setHours(0,0,0,0), end: workDayStart, type: 'block' }, // Bloqueio antes das 8h
+                    ...techSchedule,
+                    { start: workDayEnd, end: new Date(currentDate).setHours(23,59,59,999), type: 'block' } // Bloqueio após as 17h
+                ];
 
-                        const nextEventZip = nextEvent ? nextEvent.zip : tech.zipCode;
-                        const travelTo = await getTravelTime(zipCode, nextEventZip);
-                        
-                        if (travelFrom + blockDuration + travelTo <= gapDuration) {
-                            const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-                            const key = `${tech.name}|${dateStr}`;
-                            
-                            if (!allOptions.has(key)) {
-                                allOptions.set(key, {
-                                    technician: tech.name,
-                                    restrictions: tech.restrictions || 'N/A',
-                                    date: dateStr,
-                                    availableSlots: [],
-                                });
-                            }
-                            
-                            const slotStart = new Date(gapStart.getTime() + travelFrom * 60000);
-                            const slotHour = String(slotStart.getHours()).padStart(2, '0');
-                            const slotMinute = String(slotStart.getMinutes()).padStart(2, '0');
-                            
-                            // *** NOVA ALTERAÇÃO AQUI ***
-                            // Adiciona o tempo de viagem ao slot disponível
-                            allOptions.get(key).availableSlots.push({
-                                time: `${slotHour}:${slotMinute}`,
-                                travelTime: Math.round(travelFrom) // Arredonda para minutos inteiros
-                            });
+                // REGRA: Gera slots candidatos em intervalos de 1h, a partir das 09:00
+                for (let hour = 9; hour < 17; hour++) {
+                    const candidateStartTime = new Date(currentDate);
+                    candidateStartTime.setHours(hour, 0, 0, 0);
+
+                    // Encontra o evento anterior ao slot candidato
+                    let previousEvent = { end: workDayStart, zip: tech.zipCode };
+                    for(const event of fullSchedule) {
+                        if (event.end <= candidateStartTime) {
+                            previousEvent = event;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Calcula o tempo de viagem a partir do evento anterior
+                    const travelFrom = await getTravelTime(previousEvent.zip || tech.zipCode, zipCode);
+                    if (travelFrom === Infinity) continue; // Pula se não houver rota
+
+                    const proposedStartTime = new Date(candidateStartTime.getTime());
+                    if (proposedStartTime < new Date(previousEvent.end.getTime() + travelFrom * 60000)) {
+                        // O candidato não é válido pois o tempo de viagem a partir do evento anterior o empurra para depois do início do slot
+                        continue;
+                    }
+
+                    // Calcula a duração total necessária no local
+                    const totalRequiredDuration = travelFrom + appointmentDuration + marginDuration;
+                    const proposedEndTime = new Date(proposedStartTime.getTime() + totalRequiredDuration * 60000);
+
+                    // Verifica se o slot proposto conflita com algum evento
+                    let hasConflict = false;
+                    for(const event of fullSchedule) {
+                        if (proposedStartTime < event.end && proposedEndTime > event.start) {
+                            hasConflict = true;
+                            break;
                         }
                     }
                     
-                    if(nextEvent) {
-                        lastEventEnd = nextEvent.end;
-                        lastEventZip = nextEvent.zip || tech.zipCode;
+                    if (!hasConflict) {
+                        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+                        const key = `${tech.name}|${dateStr}`;
+                        
+                        if (!allOptions.has(key)) {
+                            allOptions.set(key, {
+                                technician: tech.name,
+                                restrictions: tech.restrictions || 'N/A',
+                                date: dateStr,
+                                availableSlots: [],
+                            });
+                        }
+                        
+                        const slotHour = String(proposedStartTime.getHours()).padStart(2, '0');
+                        const slotMinute = String(proposedStartTime.getMinutes()).padStart(2, '0');
+                        
+                        allOptions.get(key).availableSlots.push({
+                            time: `${slotHour}:${slotMinute}`,
+                            travelTime: Math.round(travelFrom)
+                        });
                     }
                 }
             }
         }
 
-        const sortedOptions = Array.from(allOptions.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const sortedOptions = Array.from(allOptions.values())
+            .filter(opt => opt.availableSlots.length > 0) // Garante que só mostramos opções com slots
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
         
         return res.status(200).json({ success: true, options: sortedOptions });
 
