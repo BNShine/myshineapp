@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!result.success) throw new Error(result.message);
 
             closeEditModal();
-            await loadInitialData(true); // Recarrega os dados para refletir as mudanças
+            await loadInitialData(true);
 
         } catch (error) {
             alert(`Error saving appointment: ${error.message}`);
@@ -294,62 +294,95 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function fetchAvailabilityForSelectedTech() { /* ...código existente... */ }
 
     // --- 7. Funções de Renderização ---
-    function renderScheduler() { /* ...código existente... */ }
+    function renderScheduler() {
+        schedulerHeader.innerHTML = '<div class="timeline-header p-2 font-semibold">Time</div>';
+        schedulerBody.innerHTML = ''; 
+
+        TIME_SLOTS.forEach((time, rowIndex) => {
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'time-slot timeline-header p-2 text-xs font-medium border-t border-border flex items-center justify-center';
+            timeDiv.textContent = time;
+            timeDiv.style.gridRow = `${rowIndex + 1} / span 1`;
+            schedulerBody.appendChild(timeDiv);
+        });
+        
+        DAY_NAMES.forEach((dayName, dayIndex) => {
+            const date = new Date(currentWeekStart);
+            date.setDate(currentWeekStart.getDate() + dayIndex);
+            const dateKey = formatDateToYYYYMMDD(date);
+            const column = dayIndex + 2;
+
+            const header = document.createElement('div');
+            header.className = 'day-column-header p-2 font-semibold border-l border-border';
+            header.style.gridColumn = column;
+            header.textContent = `${dayName} ${date.getDate()}`;
+            schedulerHeader.appendChild(header);
+
+            const dayContainer = document.createElement('div');
+            dayContainer.className = 'relative border-r border-border';
+            dayContainer.style.gridColumn = column;
+            dayContainer.style.gridRow = `1 / span ${TIME_SLOTS.length}`;
+            dayContainer.dataset.dateKey = dateKey;
+            
+            TIME_SLOTS.forEach((_, rowIndex) => {
+                 const line = document.createElement('div');
+                 line.className = 'absolute w-full border-t border-border/50';
+                 line.style.height = '1px';
+                 line.style.top = `${(rowIndex + 1) * SLOT_HEIGHT_PX}px`;
+                 dayContainer.appendChild(line);
+            });
+
+            schedulerBody.appendChild(dayContainer);
+        });
+
+        renderAppointments();
+        renderTimeBlocks();
+        updateWeekDisplay();
+        loadingOverlay.classList.toggle('hidden', !!selectedTechnician);
+    }
+    
     function renderAppointments() { /* ...código existente... */ }
     function renderTimeBlocks() { /* ...código existente... */ }
     function updateWeekDisplay() { /* ...código existente... */ }
 
     // --- 8. Inicialização e Event Listeners ---
     async function loadInitialData(isReload = false) {
-        if (!isReload) {
-            // Apenas na carga inicial, isolamos a busca de técnicos
-            try {
-                const techDataResponse = await fetch('/api/get-dashboard-data');
-                if (!techDataResponse.ok) {
-                    throw new Error(`Failed to load technician list. Status: ${techDataResponse.status}`);
-                }
-                const techData = await techDataResponse.json();
-                allTechnicians = techData.technicians || [];
-            } catch (error) {
-                console.error('CRITICAL ERROR fetching technicians:', error);
-                allTechnicians = [];
-            } finally {
-                populateTechSelects(); // Popula o dropdown, com sucesso ou com erro.
-            }
+        // Usa Promise.all com .catch para evitar que uma falha bloqueie tudo
+        const [techResult, apptResult, coverageResult] = await Promise.all([
+            fetch('/api/get-dashboard-data').then(res => res.json()).catch(e => ({ error: e })),
+            fetch('/api/get-technician-appointments').then(res => res.json()).catch(e => ({ error: e })),
+            fetch('/api/get-tech-coverage').then(res => res.json()).catch(e => ({ error: e }))
+        ]);
+
+        // Processa técnicos e popula o dropdown
+        if (techResult && !techResult.error) {
+            allTechnicians = techResult.technicians || [];
+        } else {
+            console.error('Failed to load technician list:', techResult ? techResult.error : 'Unknown error');
+            allTechnicians = [];
+        }
+        populateTechSelects();
+
+        // Processa agendamentos
+        if (apptResult && !apptResult.error) {
+            allAppointments = (apptResult.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
+        } else {
+            console.error('Failed to load appointments:', apptResult ? apptResult.error : 'Unknown error');
+            allAppointments = [];
         }
 
-        // Carrega os outros dados em paralelo
-        try {
-            const [appointmentsResponse, techCoverageResponse] = await Promise.all([
-                fetch('/api/get-technician-appointments'),
-                fetch('/api/get-tech-coverage')
-            ]);
-
-            if (appointmentsResponse.ok) {
-                const apptsData = await appointmentsResponse.json();
-                allAppointments = (apptsData.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
-            } else {
-                console.warn('Could not load appointments.');
-                allAppointments = [];
-            }
-
-            if (techCoverageResponse.ok) {
-                allTechCoverage = await techCoverageResponse.json();
-            } else {
-                console.warn('Could not load tech coverage data.');
-                allTechCoverage = [];
-            }
-
-        } catch (error) {
-            console.error('Error fetching additional data (appointments/coverage):', error);
-            allAppointments = [];
+        // Processa dados de cobertura
+        if (coverageResult && !coverageResult.error) {
+            allTechCoverage = coverageResult || [];
+        } else {
+            console.error('Failed to load tech coverage:', coverageResult ? coverageResult.error : 'Unknown error');
             allTechCoverage = [];
-        } finally {
-            // Renderiza a agenda
-            renderScheduler();
-            if (!isReload) {
-                renderMiniCalendar();
-            }
+        }
+
+        // Renderiza a interface
+        renderScheduler();
+        if (!isReload) {
+            renderMiniCalendar();
         }
     }
 
@@ -357,6 +390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!techSelectDropdown) return;
 
         if (allTechnicians && allTechnicians.length > 0) {
+            const currentSelection = techSelectDropdown.value;
             techSelectDropdown.innerHTML = '<option value="">Select Technician...</option>';
             allTechnicians.forEach(tech => {
                 const option = document.createElement('option');
@@ -364,6 +398,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 option.textContent = tech;
                 techSelectDropdown.appendChild(option);
             });
+            // Mantém a seleção se o técnico ainda existir na lista
+            if (allTechnicians.includes(currentSelection)) {
+                techSelectDropdown.value = currentSelection;
+            }
         } else {
             techSelectDropdown.innerHTML = '<option value="">No technicians found</option>';
         }
@@ -396,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     editBlockCancelBtn.addEventListener('click', closeEditTimeBlockModal);
 
     document.addEventListener('appointmentUpdated', async () => {
-        await loadInitialData(true); // Recarrega todos os dados
+        await loadInitialData(true);
     });
 
     loadInitialData();
