@@ -8,11 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        .scheduler-grid { display: grid; grid-template-columns: 80px repeat(7, minmax(150px, 1fr)); grid-auto-rows: minmax(60px, auto); }
-        .time-slot { height: 60px; position: relative; }
-        .appointment-block { width: 150px; position: absolute; left: 0; top: 0; box-sizing: border-box; z-index: 10; display: flex; flex-direction: column; }
+        .scheduler-grid { display: grid; grid-template-columns: 80px repeat(7, minmax(150px, 1fr)); }
         .timeline-header { grid-column: 1; position: sticky; left: 0; background-color: hsl(var(--card)); z-index: 20; }
         .day-column-header { text-align: center; }
+        .appointment-block { width: 150px; position: absolute; left: 0; top: 0; box-sizing: border-box; z-index: 10; display: flex; flex-direction: column; }
         .modal-overlay-fixed { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         body.modal-open { overflow: hidden !important; }
         .hidden { display: none !important; }
@@ -36,7 +35,7 @@
                     <div class="flex items-center gap-2">
                         <label for="tech-select-dropdown" class="text-sm font-medium">Technician:</label>
                         <select id="tech-select-dropdown" class="w-48 rounded-xl border-2 border-border bg-background px-3 py-2 text-sm">
-                             <option value="">Loading Technicians...</option>
+                             <option value="">Loading...</option>
                         </select>
                     </div>
                     <a href="appointments.html" class="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold h-10 px-4 bg-brand-primary text-white">New</a>
@@ -50,10 +49,8 @@
             <section class="rounded-lg border bg-card text-card-foreground shadow-large">
                 <div class="flex">
                     <div id="tech-filter-panel" class="w-64 border-r border-border p-4 space-y-4 flex-shrink-0">
-                        <div id="mini-calendar-container" class="mb-4"></div>
                         <h3 class="text-lg font-semibold">Technician Details</h3>
-                        <div id="selected-tech-display" class="p-3 border-l-4 border-brand-primary bg-brand-primary/10 rounded-r-lg">
-                            <p class="font-bold text-brand-primary">No Technician Selected</p>
+                        <div id="selected-tech-display" class="p-3">
                             <p class="text-sm text-muted-foreground">Select a technician to view their schedule.</p>
                         </div>
                     </div>
@@ -75,15 +72,32 @@
                 </div>
                 <div class="p-6 pt-0 overflow-x-auto">
                     <table class="w-full text-left">
-                        <thead class="bg-muted text-muted-foreground uppercase text-xs font-semibold">
-                           </thead>
+                        <thead id="showed-appointments-table-head" class="bg-muted text-muted-foreground uppercase text-xs font-semibold"></thead>
                         <tbody id="showed-appointments-table-body" class="text-foreground text-sm"></tbody>
                     </table>
                 </div>
             </section>
 
             <section id="day-itinerary-section" class="rounded-lg border bg-card text-card-foreground shadow-large p-6">
-                </section>
+                <h2 class="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-4">Daily Itinerary and Optimization</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div class="space-y-2">
+                        <label for="day-filter" class="block text-sm font-semibold text-foreground">Select Day</label>
+                        <select id="day-filter" class="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm"></select>
+                    </div>
+                </div>
+                <div class="flex gap-4 mt-4 mb-4">
+                    <button id="optimize-itinerary-btn" class="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold h-11 px-6 py-3 bg-brand-primary text-white" disabled>Optimizer</button>
+                    <button id="itinerary-reverser-btn" class="inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold h-11 px-6 py-3 border-2 border-brand-primary text-brand-primary" disabled>Reverser</button>
+                </div>
+                <h3 class="text-xl font-bold text-foreground mt-8 mb-4">Appointments for the Day</h3>
+                <div class="p-6 pt-0 overflow-x-auto">
+                    <table class="w-full text-left">
+                         <thead id="day-itinerary-table-head" class="bg-muted text-muted-foreground uppercase text-xs font-semibold whitespace-nowrap"></thead>
+                        <tbody id="day-itinerary-table-body" class="text-foreground text-sm"></tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </main>
     
