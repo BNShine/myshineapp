@@ -21,17 +21,16 @@ export default async function handler(req, res) {
     }
 
     try {
-        // *** NOVA ALTERAÇÃO AQUI: Recebe os novos campos ***
         const { 
-            type, data, pets, closer1, closer2, customers, phone, oldNew, 
+            type, pets, closer1, closer2, customers, phone, oldNew, 
             appointmentDate, serviceValue, franchise, city, source, week, 
             month, year, code, reminderDate, verification, zipCode, technician,
-            travelTime, // NOVO
-            margin      // NOVO
+            travelTime,
+            margin
         } = req.body;
 
-        // Validação de campos essenciais
-        if (!type || !data || !customers || !phone || !appointmentDate || !serviceValue || !franchise || !city || !source || !code) {
+        // Validação de campos essenciais (removido o campo 'data' da validação)
+        if (!type || !customers || !phone || !appointmentDate || !serviceValue || !franchise || !city || !source || !code) {
             return res.status(400).json({ success: false, message: 'Todos os campos obrigatórios, incluindo o código, precisam ser preenchidos.' });
         }
         
@@ -57,16 +56,17 @@ export default async function handler(req, res) {
             return res.status(409).json({ success: false, message: `Erro: O código de confirmação "${code}" já existe. O agendamento pode ser um duplicado.` });
         }
         
-        // *** NOVA ALTERAÇÃO AQUI: Calcula a duração total ***
         const travelTimeMinutes = parseInt(travelTime, 10) || 0;
-        const marginMinutes = parseInt(margin, 10) || 30; // Padrão de 30 minutos
+        const marginMinutes = parseInt(margin, 10) || 30;
         const petsCount = parseInt(pets, 10) || 1;
         const duration = travelTimeMinutes + (petsCount * 60) + marginMinutes;
-        // Fim da nova alteração
+
+        // O campo 'Date' agora usa a data atual do servidor se não for fornecido, mas o appointment-form.js irá fornecê-lo.
+        const registrationDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
         const newRow = {
             'Type': type,
-            'Date': data,
+            'Date': req.body.data || registrationDate, // Usa a data do form ou a data atual como fallback
             'Pets': pets,
             'Closer (1)': closer1, 
             'Closer (2)': closer2, 
@@ -86,7 +86,6 @@ export default async function handler(req, res) {
             'Verification': verification, 
             'Zip Code': zipCode,
             'Technician': technician,
-            // *** NOVA ALTERAÇÃO AQUI: Adiciona os novos campos à linha ***
             'Travel Time': travelTimeMinutes,
             'Margin': marginMinutes,
             'Duration': duration
