@@ -1,30 +1,28 @@
 // public/calendar/manageShowed.js
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const showedAppointmentsTableBody = document.getElementById('showed-appointments-table-body');
-    let allAppointments = [];
-    let selectedTechnician = '';
-    let currentWeekStart = getStartOfWeek(new Date());
-    let isSaving = {};
+    if (!showedAppointmentsTableBody) return;
 
-    // --- Funções Auxiliares ---
-    function getStartOfWeek(date) { /* ...código existente... */ }
-    function parseSheetDate(dateStr) { /* ...código existente... */ }
-    function formatDateTimeForInput(dateTimeStr) { /* ...código existente... */ }
+    let localAppointments = [];
+    let localSelectedTechnician = '';
+    let localCurrentWeekStart = new Date();
 
-    // --- Renderização da Tabela ---
+    // Funções auxiliares (parse, format, etc.)
+    function parseSheetDate(dateStr) { /* ...código da versão anterior... */ }
+    function formatDateTimeForInput(dateTimeStr) { /* ...código da versão anterior... */ }
+
     function renderShowedAppointmentsTable() {
-        if (!showedAppointmentsTableBody) return;
-
+        if(!showedAppointmentsTableBody) return;
         showedAppointmentsTableBody.innerHTML = '';
-        const weekEnd = new Date(currentWeekStart);
-        weekEnd.setDate(currentWeekStart.getDate() + 7);
+        const weekEnd = new Date(localCurrentWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 7);
 
-        const appointmentsForWeek = allAppointments.filter(appt => {
+        const appointmentsForWeek = localAppointments.filter(appt => {
             const apptDate = parseSheetDate(appt.appointmentDate);
-            return appt.technician === selectedTechnician && apptDate >= currentWeekStart && apptDate < weekEnd;
+            return appt.technician === localSelectedTechnician && apptDate && apptDate >= localCurrentWeekStart && apptDate < weekEnd;
         }).sort((a, b) => (parseSheetDate(a.appointmentDate)?.getTime() || 0) - (parseSheetDate(b.appointmentDate)?.getTime() || 0));
-
+        
         if (appointmentsForWeek.length === 0) {
             showedAppointmentsTableBody.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-muted-foreground">No appointments for this technician in the selected week.</td></tr>';
             return;
@@ -34,11 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const row = document.createElement('tr');
             row.className = 'border-b border-border hover:bg-muted/50';
             row.dataset.rowId = appointment.id;
-            
-            // **NOVA OPÇÃO ADICIONADA**
             const statusOptions = ["Scheduled", "Confirmed", "Showed", "Canceled"];
-            const verificationDropdown = statusOptions.map(opt => `<option value="${opt}" ${appointment.verification === opt ? 'selected' : ''}>${opt}</option>`).join('');
-
             row.innerHTML = `
                 <td class="p-4"><input type="datetime-local" value="${formatDateTimeForInput(appointment.appointmentDate)}" style="width: 160px;" class="bg-transparent border border-border rounded-md px-2" data-key="appointmentDate"></td>
                 <td class="p-4">${appointment.customers.length > 18 ? appointment.customers.substring(0, 15) + '...' : appointment.customers}</td>
@@ -49,16 +43,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4"><input type="text" value="${appointment.tips || ''}" style="width: 80px;" class="bg-transparent border border-border rounded-md px-2" data-key="tips"></td>
                 <td class="p-4"><select style="width: 80px;" class="bg-transparent border border-border rounded-md px-2" data-key="percentage"><option value="">%</option>${["20%", "25%"].map(opt => `<option value="${opt}" ${appointment.percentage === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
                 <td class="p-4"><select style="width: 120px;" class="bg-transparent border border-border rounded-md px-2" data-key="paymentMethod"><option value="">Select...</option>${["Check", "American Express", "Apple Pay", "Discover", "Master Card", "Visa", "Zelle", "Cash", "Invoice"].map(opt => `<option value="${opt}" ${appointment.paymentMethod === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
-                <td class="p-4"><select style="width: 100px;" class="bg-transparent border border-border rounded-md px-2" data-key="verification"><option value="">Select...</option>${verificationDropdown}</select></td>
+                <td class="p-4"><select style="width: 100px;" class="bg-transparent border border-border rounded-md px-2" data-key="verification">${statusOptions.map(opt => `<option value="${opt}" ${appointment.verification === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
             `;
             showedAppointmentsTableBody.appendChild(row);
         });
     }
 
-    // --- Lógica de Salvamento ---
-    async function handleTableCellChange(event) { /* ...código existente... */ }
-
-    // --- Inicialização e Event Listeners ---
-    async function loadAppointmentData() { /* ...código existente... */ }
-
+    // Ouve o evento unificado para receber todos os dados e se atualizar
+    document.addEventListener('stateUpdated', (e) => {
+        localAppointments = e.detail.allAppointments;
+        localSelectedTechnician = e.detail.technician;
+        localCurrentWeekStart = e.detail.weekStart;
+        renderShowedAppointmentsTable();
+    });
 });
