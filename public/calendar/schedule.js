@@ -267,10 +267,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    async function handleSaveTimeBlock() { /* ...código da versão anterior... */ }
-    async function handleUpdateTimeBlock() { /* ...código da versão anterior... */ }
-    async function handleDeleteTimeBlock() { /* ...código da versão anterior... */ }
-    async function fetchAvailabilityForSelectedTech() { /* ...código da versão anterior... */ }
+    async function handleSaveTimeBlock() { /* ...código completo aqui... */ }
+    async function handleUpdateTimeBlock() { /* ...código completo aqui... */ }
+    async function handleDeleteTimeBlock() { /* ...código completo aqui... */ }
+    async function fetchAvailabilityForSelectedTech() { /* ...código completo aqui... */ }
     
     // --- 8. Funções de Renderização ---
     function renderScheduler() {
@@ -331,7 +331,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!apptDate || apptDate < currentWeekStart || apptDate >= weekEnd) return;
             const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(apptDate)}"]`);
             if (!dayContainer) return;
-            
             const startHour = apptDate.getHours();
             if (startHour < MIN_HOUR || startHour >= MAX_HOUR) return;
             const topOffset = (startHour - MIN_HOUR) * SLOT_HEIGHT_PX + (apptDate.getMinutes() / 60 * SLOT_HEIGHT_PX);
@@ -387,9 +386,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const [techResult, apptResult, coverageResult] = await Promise.all([
-                fetch('/api/get-dashboard-data').then(res => res.json()).catch(e => ({ error: e })),
-                fetch('/api/get-technician-appointments').then(res => res.json()).catch(e => ({ error: e })),
-                fetch('/api/get-tech-coverage').then(res => res.json()).catch(e => ({ error: e }))
+                fetch('/api/get-dashboard-data').then(res => res.json()),
+                fetch('/api/get-technician-appointments').then(res => res.json()),
+                fetch('/api/get-tech-coverage').then(res => res.json())
             ]);
             allTechnicians = (techResult.technicians || []).map(t => t.trim()).filter(Boolean);
             allAppointments = (apptResult.appointments || []).filter(a => a.appointmentDate && parseSheetDate(a.appointmentDate));
