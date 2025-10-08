@@ -18,13 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Funções Auxiliares ---
 
-    // Popula um dropdown de forma segura
     function populateDropdown(selectElement, items, placeholder) {
         if (!selectElement) {
             console.warn(`Dropdown element com placeholder "${placeholder}" não foi encontrado.`);
             return;
         }
-        selectElement.innerHTML = `<option value="">${placeholder}</option>`; // Limpa e adiciona o placeholder
+        selectElement.innerHTML = `<option value="">${placeholder}</option>`;
         if (items && Array.isArray(items)) {
             items.forEach(item => {
                 if (item) {
@@ -34,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Gera um código alfanumérico
     function generateAlphanumericCode(length = 5) {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
@@ -44,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
-    // Busca cidade e estado a partir do CEP
     async function getCityFromZip(zipCode) {
         if (!zipCode || zipCode.length !== 5) return null;
         try {
@@ -58,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Busca e sugere técnicos com base no estado
     async function updateSuggestedTechnician(customerState) {
         console.log(`[FORM LOG] Buscando técnicos para o estado: ${customerState}`);
         if (!suggestedTechDisplay) return;
@@ -106,9 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Lógica Principal de Carregamento e Eventos ---
-
-    // Função principal para carregar todos os dados dos dropdowns
     async function initializeForm() {
         console.log("[FORM LOG] Inicializando o formulário e buscando dados...");
         try {
@@ -148,9 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Event Listeners ---
-
-    // Evento para o campo de CEP
     zipCodeInputForm.addEventListener('input', async (event) => {
         const zipCode = event.target.value.trim();
         cityInput.value = '';
@@ -172,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Outros event listeners
     customersInput.addEventListener('input', () => {
         if (customersInput.value.trim()) {
             const generatedCode = generateAlphanumericCode(5);
@@ -198,11 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Lógica de submissão do formulário
     scheduleForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
-        // **NOVA ADIÇÃO: Validação de formulário**
         if (!scheduleForm.checkValidity()) {
             scheduleForm.reportValidity();
             return;
@@ -216,16 +203,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(scheduleForm);
             const formDataObject = Object.fromEntries(formData.entries());
 
-            // Calcula a semana do ano
             const apptDate = new Date(formDataObject.appointmentDate);
             const startOfYear = new Date(apptDate.getFullYear(), 0, 1);
             const pastDaysOfYear = (apptDate - startOfYear) / 86400000;
             formDataObject.week = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
 
-            // Adiciona o status padrão
             formDataObject.verification = 'Scheduled';
             
-            // Pega o técnico selecionado, se houver
+            // **NOVA FORMATAÇÃO DE DATA**
+            const dateObj = new Date(formDataObject.appointmentDate);
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            let hours = dateObj.getHours();
+            const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // Hora 0 vira 12
+            const strHours = String(hours).padStart(2, '0');
+            
+            formDataObject.appointmentDate = `${month}/${day}/${year} ${strHours}:${minutes} ${ampm}`;
+
             const techSelect = document.getElementById('suggestedTechSelect');
             if(techSelect) {
                 formDataObject.technician = techSelect.value;
@@ -242,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success) {
                 alert('Appointment registered successfully!');
                 scheduleForm.reset();
-                // Reseta os displays customizados
                 codePassDisplay.textContent = '--/--/----';
                 reminderDateDisplay.textContent = '--/--/----';
                 suggestedTechDisplay.innerHTML = '<div class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium">--/--/----</div>';
@@ -256,12 +253,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
                 Register Appointment`;
         }
     });
     
-    // --- Criação de Campos Hidden (se não existirem) ---
     ['code', 'reminderDate', 'travelTime', 'margin', 'data', 'month', 'year', 'type'].forEach(id => {
         if (!document.getElementById(id)) {
             const input = document.createElement('input');
@@ -272,14 +268,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Valores Iniciais ---
     document.getElementById('data').value = new Date().toISOString().slice(0, 10);
     document.getElementById('month').value = new Date().getMonth() + 1;
     document.getElementById('year').value = new Date().getFullYear();
     document.getElementById('type').value = 'Central';
-    document.getElementById('travelTime').value = '0'; // Valor inicial
-    document.getElementById('margin').value = '30'; // Valor padrão
+    document.getElementById('travelTime').value = '0';
+    document.getElementById('margin').value = '30';
 
-    // Inicia o carregamento de todos os dados
     initializeForm();
 });
