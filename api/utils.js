@@ -1,5 +1,19 @@
 // api/utils.js
 
+export function formatToSheetDateTime(dateInput) {
+    if (!dateInput) return '';
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return '';
+
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const hour = date.getHours(); // Hora sem preenchimento de zero
+    const minute = String(date.getMinutes()).padStart(2, '0');
+
+    return `${month}/${day}/${year} ${hour}:${minute}`;
+}
+
 export function excelDateToDateTime(excelSerialDate) {
     if (!excelSerialDate) {
         return '';
@@ -78,7 +92,6 @@ export const dynamicLists = {
     weeks: Array.from({ length: 5 }, (_, i) => i + 1),
     months: Array.from({ length: 12 }, (_, i) => i + 1),
     years: Array.from({ length: 17 }, (_, i) => 2024 + i),
-    // A LISTA DE SOURCES FOI RESTAURADA AQUI
     sources: [
         "Facebook", "Kommo", "Social Traffic", "SMS", "Call", "Friends", 
         "Family Member", "Neighbors", "Reminder", "Email", "Google", 
