@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF--T">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Technician Scheduler</title>
     <link href="../output.css" rel="stylesheet">
@@ -329,18 +329,48 @@
     </main>
 
     <div id="edit-appointment-modal" class="modal-overlay-fixed hidden">
-        <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-md relative" style="z-index: 1001;">
+        <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-lg relative" style="z-index: 1001;">
+            <button type="button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800" id="modal-close-x-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
             <h3 class="text-xl font-bold text-foreground mb-4">Edit Appointment Details</h3>
             <form id="appointment-edit-form" class="space-y-4">
-                <input type="hidden" id="modal-appt-id" name="id">
+                <input type="hidden" id="modal-appt-id">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label for="modal-technician" class="block text-sm font-semibold text-foreground">Technician</label>
+                        <select id="modal-technician" name="technician" class="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label for="modal-pets" class="block text-sm font-semibold text-foreground">Number of Pets</label>
+                        <input type="number" id="modal-pets" name="pets" min="1" class="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm">
+                    </div>
+                </div>
+
                 <div class="space-y-2">
                     <label for="modal-date" class="block text-sm font-semibold text-foreground">Date and Time</label>
                     <input type="datetime-local" id="modal-date" name="appointmentDate" required class="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
                 </div>
-                <div class="space-y-2">
-                    <label for="modal-verification" class="block text-sm font-semibold text-foreground">Status</label>
-                    <select id="modal-verification" name="verification" class="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"></select>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label for="modal-verification" class="block text-sm font-semibold text-foreground">Status</label>
+                        <select id="modal-verification" name="verification" class="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"></select>
+                    </div>
+                     <div class="space-y-2">
+                        <label for="modal-margin" class="block text-sm font-semibold text-foreground">Scheduling Margin</label>
+                        <select id="modal-margin" name="margin" class="w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm">
+                            <option value="10">10 minutes</option>
+                            <option value="20">20 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="40">40 minutes</option>
+                            <option value="50">50 minutes</option>
+                            <option value="60">60 minutes</option>
+                        </select>
+                    </div>
                 </div>
+
             </form>
             <div class="mt-6 flex justify-end gap-3">
                 <button id="modal-save-btn" type="button" class="inline-flex items-center rounded-xl text-sm font-semibold h-11 px-6 py-3 bg-brand-primary text-white hover:shadow-brand">Save Changes</button>
@@ -348,6 +378,7 @@
             </div>
         </div>
     </div>
+
     <div id="time-block-modal" class="modal-overlay-fixed hidden">
         <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-md relative">
             <h3 class="text-xl font-bold text-foreground mb-4">Add New Time Block</h3>
