@@ -10,26 +10,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const marginSelect = document.getElementById('appointment-margin');
     const verifyBtn = document.getElementById('verify-availability-btn');
     const resultsDiv = document.getElementById('availability-results');
+    const manualToggle = document.getElementById('manual-mode-toggle');
 
     // --- Estado Inicial ---
     let availabilityData = [];
     let currentOptionIndex = 0;
-    
+
     // --- Lógica do Botão Skip ---
     skipBtn.addEventListener('click', () => {
+        // CORREÇÃO: Primeiro mostra, depois rola.
         mainFormSection.classList.remove('hidden');
         mainFormSection.scrollIntoView({ behavior: 'smooth' });
-        
-        const manualToggle = document.getElementById('manual-mode-toggle');
+
         if (manualToggle) {
-            manualToggle.checked = false;
+            manualToggle.checked = true; // Ativa o modo manual
             manualToggle.dispatchEvent(new Event('change'));
         }
     });
 
     // --- Funções da Checagem de Disponibilidade ---
 
-    // **NOVA FUNÇÃO HELPER** para formatar HH:mm para h:mm AM/PM
     function formatToAmPm(timeStr) {
         if (!timeStr) return '';
         const [hour, minute] = timeStr.split(':');
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     verifyBtn.addEventListener('click', handleVerifyAvailability);
-    
+
     async function handleVerifyAvailability() {
         const zipCode = zipCodeInputCheck.value.trim();
         const numPets = numPetsInput.value;
@@ -81,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const { technician, restrictions, date, availableSlots } = data;
         const friendlyDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         
-        // **ALTERAÇÃO AQUI**: Usa a função formatToAmPm para exibir o horário
         const slotsHtml = availableSlots.map(slot => 
             `<button type="button" class="slot-btn bg-brand-primary/10 text-brand-primary font-semibold py-2 px-4 rounded-lg hover:bg-brand-primary hover:text-white transition-colors" 
                 data-slot="${slot.time}" data-date="${date}" data-tech="${technician}" data-zip="${originalZip}" data-pets="${numPets}"
@@ -101,26 +100,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleSlotSelection(event) {
         const { slot, date, tech, zip, pets, travelTime, margin } = event.currentTarget.dataset;
         
+        // CORREÇÃO: Primeiro mostra a seção, depois rola a tela para ela.
         mainFormSection.classList.remove('hidden');
-        
-        const manualToggle = document.getElementById('manual-mode-toggle');
+        mainFormSection.scrollIntoView({ behavior: 'smooth' });
+
         if (manualToggle) {
-            manualToggle.checked = false;
+            manualToggle.checked = false; // Garante que está em Smart Mode
             manualToggle.dispatchEvent(new Event('change'));
         }
 
         document.getElementById('appointmentDate').value = `${date}T${slot}`;
         document.getElementById('zipCode').value = zip;
         document.getElementById('pets').value = pets;
-        document.getElementById('travelTime').value = travelTime;
-        document.getElementById('margin').value = margin;
+        
+        // Inputs ocultos para carregar os dados para a API
+        const travelTimeInput = document.getElementById('travelTime');
+        const marginInput = document.getElementById('margin');
+        if(travelTimeInput) travelTimeInput.value = travelTime;
+        if(marginInput) marginInput.value = margin;
 
+        // Preenche o campo de técnico sugerido
+        const techDisplay = document.getElementById('suggestedTechDisplay');
+        const techSelect = document.getElementById('suggestedTechSelect'); // O select real
+        if(techDisplay) techDisplay.textContent = tech;
+        if(techSelect) techSelect.value = tech; // Define o valor do select
+
+        // Dispara eventos para que outros scripts (appointment-form.js) possam reagir
         document.getElementById('zipCode').dispatchEvent(new Event('input', { bubbles: true }));
-        setTimeout(() => {
-            const techSelect = document.getElementById('suggestedTechSelect');
-            if (techSelect) techSelect.value = tech;
-        }, 1500);
-        mainFormSection.scrollIntoView({ behavior: 'smooth' });
         document.getElementById('appointmentDate').dispatchEvent(new Event('input', { bubbles: true }));
     }
 });
