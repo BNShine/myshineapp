@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function formatDateToYYYYMMDD(date) {
+        if (!(date instanceof Date) || isNaN(date)) return '';
         const year = date.getFullYear();
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
         const day = date.getDate().toString().padStart(2, '0');
@@ -330,29 +331,55 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!apptDate || apptDate < currentWeekStart || apptDate >= weekEnd) return;
             const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(apptDate)}"]`);
             if (!dayContainer) return;
+            
             const startHour = apptDate.getHours();
             if (startHour < MIN_HOUR || startHour >= MAX_HOUR) return;
             const topOffset = (startHour - MIN_HOUR) * SLOT_HEIGHT_PX + (apptDate.getMinutes() / 60 * SLOT_HEIGHT_PX);
             const totalDuration = parseInt(appt.duration, 10) || 120;
+            const travelTime = parseInt(appt.travelTime, 10) || 0;
+            const marginTime = parseInt(appt.margin, 10) || 0;
+            const appointmentTime = Math.max(0, totalDuration - travelTime - marginTime);
+            const travelPercent = totalDuration > 0 ? (travelTime / totalDuration) * 100 : 0;
+            const appointmentPercent = totalDuration > 0 ? (appointmentTime / totalDuration) * 100 : 0;
+            const marginPercent = totalDuration > 0 ? (marginTime / totalDuration) * 100 : 0;
             const blockHeight = (totalDuration / 60) * SLOT_HEIGHT_PX;
             const block = document.createElement('div');
             let appointmentBgColor = 'bg-custom-primary';
+            let textColor = 'text-white';
             if (appt.verification === 'Canceled') appointmentBgColor = 'bg-cherry-red';
             else if (appt.verification === 'Showed') appointmentBgColor = 'bg-green-600';
-            else if (appt.verification === 'Confirmed') { appointmentBgColor = 'bg-yellow-confirmed'; }
+            else if (appt.verification === 'Confirmed') { appointmentBgColor = 'bg-yellow-confirmed'; textColor = 'text-black'; }
             block.className = `appointment-block rounded-md shadow-soft cursor-pointer transition-colors hover:shadow-lg`;
             block.dataset.id = appt.id;
             block.style.top = `${topOffset}px`;
             block.style.height = `${blockHeight}px`;
             const endTime = new Date(apptDate.getTime() + totalDuration * 60 * 1000);
-            block.innerHTML = `...`; // Otimizado para não colar código muito longo aqui
+            
+            block.innerHTML = `
+                ${travelTime > 0 ? `<div class="bg-travel ${textColor}" style="height: ${travelPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Travel</span></div>` : ''}
+                <div class="${appointmentBgColor} ${textColor}" style="height: ${appointmentPercent}%; padding: 4px 8px; display: flex; justify-content: space-between; flex-grow: 1;">
+                    <div class="flex-grow overflow-hidden">
+                        <p class="text-xs font-semibold">${getTimeHHMM(apptDate)} - ${getTimeHHMM(endTime)}</p>
+                        <p class="text-sm font-bold truncate">${appt.customers}</p>
+                        <p class="text-xs font-medium opacity-80">${appt.verification}</p>
+                        <p class="text-xs font-medium opacity-80">Pets: ${appt.pets || 'N/A'}</p>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Appointment</span></div>
+                </div>
+                ${marginTime > 0 ? `<div class="bg-margin ${textColor}" style="height: ${marginPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Margin</span></div>` : ''}`;
+            
             block.addEventListener('click', () => openEditModal(appt));
             dayContainer.appendChild(block);
         });
     }
 
     function renderTimeBlocks() { /* ...código da versão anterior... */ }
-    function updateWeekDisplay() { /* ...código da versão anterior... */ }
+    function updateWeekDisplay() {
+        if (!currentWeekDisplay || !(currentWeekStart instanceof Date)) return;
+        const endOfWeek = new Date(currentWeekStart);
+        endOfWeek.setDate(endOfWeek.getDate() + 6);
+        currentWeekDisplay.textContent = `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+    }
 
     // --- 9. Inicialização e Lógica de Controle ---
     async function loadInitialData(isReload = false) {
@@ -360,9 +387,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const [techResult, apptResult, coverageResult] = await Promise.all([
-                fetch('/api/get-dashboard-data').then(res => res.json()),
-                fetch('/api/get-technician-appointments').then(res => res.json()),
-                fetch('/api/get-tech-coverage').then(res => res.json())
+                fetch('/api/get-dashboard-data').then(res => res.json()).catch(e => ({ error: e })),
+                fetch('/api/get-technician-appointments').then(res => res.json()).catch(e => ({ error: e })),
+                fetch('/api/get-tech-coverage').then(res => res.json()).catch(e => ({ error: e }))
             ]);
             allTechnicians = (techResult.technicians || []).map(t => t.trim()).filter(Boolean);
             allAppointments = (apptResult.appointments || []).filter(a => a.appointmentDate && parseSheetDate(a.appointmentDate));
@@ -393,7 +420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">${selectedTechnician}</p> <p class="text-sm text-muted-foreground">Schedule and details below.</p>`;
             await fetchAvailabilityForSelectedTech();
         } else {
-            selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">No Technician Selected</p><p class="text-sm text-muted-foreground">Select a technician from the top bar.</p>`;
+            selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">No Technician Selected</p><p class="text-sm text-muted-foreground">Select a technician from the top bar to view their schedule.</p>`;
         }
         updateAllComponents();
     }
@@ -406,9 +433,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- BINDING DOS EVENTOS ---
     techSelectDropdown.addEventListener('change', handleTechSelectionChange);
-    prevWeekBtn.addEventListener('click', () => { currentWeekStart.setDate(currentWeekStart.getDate() - 7); updateAllComponents(); renderMiniCalendar(); });
-    nextWeekBtn.addEventListener('click', () => { currentWeekStart.setDate(currentWeekStart.getDate() + 7); updateAllComponents(); renderMiniCalendar(); });
-    todayBtn.addEventListener('click', () => { currentWeekStart = getStartOfWeek(new Date()); miniCalDate = new Date(); updateAllComponents(); renderMiniCalendar(); });
+    
+    prevWeekBtn.addEventListener('click', () => {
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() - 7);
+        currentWeekStart = newDate;
+        updateAllComponents();
+        renderMiniCalendar();
+    });
+    
+    nextWeekBtn.addEventListener('click', () => {
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() + 7);
+        currentWeekStart = newDate;
+        updateAllComponents();
+        renderMiniCalendar();
+    });
+
+    todayBtn.addEventListener('click', () => {
+        currentWeekStart = getStartOfWeek(new Date());
+        miniCalDate = new Date();
+        updateAllComponents();
+        renderMiniCalendar();
+    });
+    
     modalSaveBtn.addEventListener('click', handleSaveAppointment);
     modalCancelBtn.addEventListener('click', closeEditModal);
     modalCloseXBtn.addEventListener('click', closeEditModal);
@@ -418,6 +466,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     editBlockSaveBtn.addEventListener('click', handleUpdateTimeBlock);
     editBlockDeleteBtn.addEventListener('click', handleDeleteTimeBlock);
     editBlockCancelBtn.addEventListener('click', closeEditTimeBlockModal);
+
     document.addEventListener('appointmentUpdated', () => loadInitialData(true));
+
     loadInitialData();
 });
