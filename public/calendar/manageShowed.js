@@ -61,5 +61,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Inicialização e Event Listeners ---
     async function loadAppointmentData() { /* ...código existente... */ }
 
-    // ... (todos os outros event listeners permanecem os mesmos) ...
 });
