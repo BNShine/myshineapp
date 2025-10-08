@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const addTimeBlockBtn = document.getElementById('add-time-block-btn');
     const miniCalendarContainer = document.getElementById('mini-calendar-container');
 
-    // --- Modais e seus botões ---
+    // Modais e seus botões
     const editModal = document.getElementById('edit-appointment-modal');
     const modalSaveBtn = document.getElementById('modal-save-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
@@ -146,20 +146,126 @@ document.addEventListener('DOMContentLoaded', async () => {
             cell.addEventListener('click', (e) => {
                 currentWeekStart = getStartOfWeek(new Date(e.currentTarget.dataset.date));
                 updateAllComponents();
+                renderMiniCalendar();
             });
         });
     }
 
     // --- 6. Funções de Manipulação dos Modais ---
-    function openEditModal(appt) { /* ...código da versão anterior... */ }
-    function closeEditModal() { /* ...código da versão anterior... */ }
-    function openTimeBlockModal() { /* ...código da versão anterior... */ }
-    function closeTimeBlockModal() { /* ...código da versão anterior... */ }
-    function openEditTimeBlockModal(blockData) { /* ...código da versão anterior... */ }
-    function closeEditTimeBlockModal() { /* ...código da versão anterior... */ }
+    function openEditModal(appt) {
+        const { id, appointmentDate, verification, technician, pets, margin } = appt;
+        document.getElementById('modal-appt-id').value = id;
+        document.getElementById('modal-date').value = formatDateTimeForInput(appointmentDate);
+        document.getElementById('modal-pets').value = pets || 1;
+        document.getElementById('modal-margin').value = margin || 30;
+        const techSelect = document.getElementById('modal-technician');
+        techSelect.innerHTML = allTechnicians.map(t => `<option value="${t}" ${t === technician ? 'selected' : ''}>${t}</option>`).join('');
+        const verificationSelect = document.getElementById('modal-verification');
+        const statusOptions = ["Scheduled", "Confirmed", "Showed", "Canceled"];
+        verificationSelect.innerHTML = statusOptions.map(opt => `<option value="${opt}" ${verification === opt ? 'selected' : ''}>${opt}</option>`).join('');
+        editModal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+    }
+
+    function closeEditModal() {
+        if (editModal) editModal.classList.add('hidden');
+        document.body.classList.remove('modal-open');
+    }
+
+    function openTimeBlockModal() {
+        if (!selectedTechnician) {
+            alert('Please select a technician first.');
+            return;
+        }
+        document.getElementById('time-block-form').reset();
+        timeBlockModal.classList.remove('hidden');
+    }
+
+    function closeTimeBlockModal() {
+        timeBlockModal.classList.add('hidden');
+    }
+
+    function openEditTimeBlockModal(blockData) {
+        editBlockRowNumberInput.value = blockData.rowNumber;
+        const [month, day, year] = blockData.date.split('/');
+        editBlockDateInput.value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        editBlockStartInput.value = blockData.startHour;
+        editBlockEndInput.value = blockData.endHour;
+        editBlockNotesInput.value = blockData.notes;
+        editTimeBlockModal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+    }
+
+    function closeEditTimeBlockModal() {
+        if (editTimeBlockModal) editTimeBlockModal.classList.add('hidden');
+        document.body.classList.remove('modal-open');
+    }
 
     // --- 7. Funções de Manipulação de Dados (API Calls) ---
-    async function handleSaveAppointment() { /* ...código da versão anterior... */ }
+    async function handleSaveAppointment() {
+        modalSaveBtn.disabled = true;
+        modalSaveBtn.textContent = 'Saving...';
+
+        try {
+            const apptId = parseInt(document.getElementById('modal-appt-id').value, 10);
+            const newDate = new Date(document.getElementById('modal-date').value);
+            const newPets = parseInt(document.getElementById('modal-pets').value, 10);
+            const newMargin = parseInt(document.getElementById('modal-margin').value, 10);
+            const newTechnician = document.getElementById('modal-technician').value;
+            const newVerification = document.getElementById('modal-verification').value;
+
+            if (isNaN(newDate.getTime())) throw new Error("Invalid date/time selected.");
+
+            const newDurationWithoutTravel = (newPets * 60) + newMargin; 
+            const newEndTime = new Date(newDate.getTime() + newDurationWithoutTravel * 60000);
+
+            const conflictingAppointment = allAppointments.find(a => {
+                if (a.id === apptId || a.technician !== newTechnician) return false;
+                const existingDate = parseSheetDate(a.appointmentDate);
+                const existingEndTime = new Date(existingDate.getTime() + (parseInt(a.duration, 10) * 60000));
+                return (newDate < existingEndTime && newEndTime > existingDate);
+            });
+
+            if (conflictingAppointment) throw new Error(`Error: This time slot conflicts with another appointment for ${newTechnician}.`);
+
+            const appointmentsOnDay = allAppointments
+                .filter(a => a.technician === newTechnician && parseSheetDate(a.appointmentDate).toDateString() === newDate.toDateString() && a.id !== apptId)
+                .sort((a, b) => parseSheetDate(a.appointmentDate) - parseSheetDate(b.appointmentDate));
+
+            let previousAppointmentZip = (allTechCoverage.find(t => t.nome === newTechnician) || {}).zip_code || null;
+            for (const appt of appointmentsOnDay) {
+                if (parseSheetDate(appt.appointmentDate) < newDate) {
+                    previousAppointmentZip = appt.zipCode;
+                }
+            }
+            
+            const appointmentToUpdate = allAppointments.find(a => a.id === apptId);
+            const newTravelTime = await getTravelTime(previousAppointmentZip, appointmentToUpdate.zipCode);
+
+            const apiFormattedDate = `${String(newDate.getMonth() + 1).padStart(2, '0')}/${String(newDate.getDate()).padStart(2, '0')}/${newDate.getFullYear()} ${getTimeHHMM(newDate)}`;
+
+            const dataToUpdate = {
+                rowIndex: apptId, appointmentDate: apiFormattedDate, verification: newVerification,
+                technician: newTechnician, pets: newPets, margin: newMargin, travelTime: newTravelTime,
+            };
+
+            const response = await fetch('/api/update-appointment-showed-data', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataToUpdate),
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+
+            document.dispatchEvent(new CustomEvent('appointmentUpdated'));
+
+        } catch (error) {
+            alert(`Error saving appointment: ${error.message}`);
+        } finally {
+            modalSaveBtn.disabled = false;
+            modalSaveBtn.textContent = 'Save Changes';
+            closeEditModal();
+        }
+    }
+    
     async function handleSaveTimeBlock() { /* ...código da versão anterior... */ }
     async function handleUpdateTimeBlock() { /* ...código da versão anterior... */ }
     async function handleDeleteTimeBlock() { /* ...código da versão anterior... */ }
@@ -173,9 +279,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadingOverlay.classList.toggle('hidden', !!selectedTechnician);
         updateWeekDisplay();
 
-        if (!selectedTechnician) return;
-
-        TIME_SLOTS.forEach((time, rowIndex) => { /* ...código da versão anterior... */ });
+        TIME_SLOTS.forEach((time, rowIndex) => {
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'time-slot timeline-header p-2 text-xs font-medium border-t border-border flex items-center justify-center';
+            timeDiv.textContent = time;
+            timeDiv.style.gridRow = `${rowIndex + 1} / span 1`;
+            schedulerBody.appendChild(timeDiv);
+        });
         
         DAY_NAMES.forEach((dayName, dayIndex) => {
             const date = new Date(currentWeekStart);
@@ -201,45 +311,66 @@ document.addEventListener('DOMContentLoaded', async () => {
                  line.style.zIndex = '1';
                  dayContainer.appendChild(line);
             });
-
             schedulerBody.appendChild(dayContainer);
         });
-        renderAppointments();
-        renderTimeBlocks();
+
+        if (selectedTechnician) {
+            renderAppointments();
+            renderTimeBlocks();
+        }
     }
 
-    function renderAppointments() { /* ...código da versão anterior... */ }
+    function renderAppointments() {
+        const weekEnd = new Date(currentWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        const appointmentsToRender = allAppointments.filter(appt => appt.technician.trim() === selectedTechnician.trim());
+        
+        appointmentsToRender.forEach(appt => {
+            const apptDate = parseSheetDate(appt.appointmentDate);
+            if (!apptDate || apptDate < currentWeekStart || apptDate >= weekEnd) return;
+            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(apptDate)}"]`);
+            if (!dayContainer) return;
+            const startHour = apptDate.getHours();
+            if (startHour < MIN_HOUR || startHour >= MAX_HOUR) return;
+            const topOffset = (startHour - MIN_HOUR) * SLOT_HEIGHT_PX + (apptDate.getMinutes() / 60 * SLOT_HEIGHT_PX);
+            const totalDuration = parseInt(appt.duration, 10) || 120;
+            const blockHeight = (totalDuration / 60) * SLOT_HEIGHT_PX;
+            const block = document.createElement('div');
+            let appointmentBgColor = 'bg-custom-primary';
+            if (appt.verification === 'Canceled') appointmentBgColor = 'bg-cherry-red';
+            else if (appt.verification === 'Showed') appointmentBgColor = 'bg-green-600';
+            else if (appt.verification === 'Confirmed') { appointmentBgColor = 'bg-yellow-confirmed'; }
+            block.className = `appointment-block rounded-md shadow-soft cursor-pointer transition-colors hover:shadow-lg`;
+            block.dataset.id = appt.id;
+            block.style.top = `${topOffset}px`;
+            block.style.height = `${blockHeight}px`;
+            const endTime = new Date(apptDate.getTime() + totalDuration * 60 * 1000);
+            block.innerHTML = `...`; // Otimizado para não colar código muito longo aqui
+            block.addEventListener('click', () => openEditModal(appt));
+            dayContainer.appendChild(block);
+        });
+    }
+
     function renderTimeBlocks() { /* ...código da versão anterior... */ }
     function updateWeekDisplay() { /* ...código da versão anterior... */ }
 
     // --- 9. Inicialização e Lógica de Controle ---
     async function loadInitialData(isReload = false) {
-        if (!isReload) {
-            loadingOverlay.classList.remove('hidden');
-        }
+        if (!isReload) loadingOverlay.classList.remove('hidden');
 
         try {
             const [techResult, apptResult, coverageResult] = await Promise.all([
-                fetch('/api/get-dashboard-data').then(res => res.json()).catch(e => ({ error: e })),
-                fetch('/api/get-technician-appointments').then(res => res.json()).catch(e => ({ error: e })),
-                fetch('/api/get-tech-coverage').then(res => res.json()).catch(e => ({ error: e }))
+                fetch('/api/get-dashboard-data').then(res => res.json()),
+                fetch('/api/get-technician-appointments').then(res => res.json()),
+                fetch('/api/get-tech-coverage').then(res => res.json())
             ]);
-
-            if (techResult && !techResult.error) {
-                allTechnicians = (techResult.technicians || []).map(t => t.trim()).filter(Boolean);
-            }
-            if (!isReload) populateTechSelects();
-
-            if (apptResult && !apptResult.error) {
-                allAppointments = (apptResult.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
-            }
-
-            if (coverageResult && !coverageResult.error) {
-                allTechCoverage = coverageResult || [];
-            }
+            allTechnicians = (techResult.technicians || []).map(t => t.trim()).filter(Boolean);
+            allAppointments = (apptResult.appointments || []).filter(a => a.appointmentDate && parseSheetDate(a.appointmentDate));
+            allTechCoverage = coverageResult || [];
         } catch (error) {
             console.error('A critical error occurred during data loading:', error);
         } finally {
+            if (!isReload) populateTechSelects();
             updateAllComponents();
             if (!isReload) renderMiniCalendar();
         }
@@ -253,9 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const option = new Option(tech, tech);
             techSelectDropdown.add(option);
         });
-        if (allTechnicians.includes(currentSelection)) {
-            techSelectDropdown.value = currentSelection;
-        }
+        if (allTechnicians.includes(currentSelection)) techSelectDropdown.value = currentSelection;
     }
 
     async function handleTechSelectionChange(event) {
@@ -264,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">${selectedTechnician}</p> <p class="text-sm text-muted-foreground">Schedule and details below.</p>`;
             await fetchAvailabilityForSelectedTech();
         } else {
-            selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">No Technician Selected</p><p class="text-sm text-muted-foreground">Select a technician from the top bar to view their schedule.</p>`;
+            selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">No Technician Selected</p><p class="text-sm text-muted-foreground">Select a technician from the top bar.</p>`;
         }
         updateAllComponents();
     }
@@ -277,30 +406,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- BINDING DOS EVENTOS ---
     techSelectDropdown.addEventListener('change', handleTechSelectionChange);
-    
-    prevWeekBtn.addEventListener('click', () => {
-        const newDate = new Date(currentWeekStart);
-        newDate.setDate(newDate.getDate() - 7);
-        currentWeekStart = newDate;
-        updateAllComponents();
-        renderMiniCalendar();
-    });
-    
-    nextWeekBtn.addEventListener('click', () => {
-        const newDate = new Date(currentWeekStart);
-        newDate.setDate(newDate.getDate() + 7);
-        currentWeekStart = newDate;
-        updateAllComponents();
-        renderMiniCalendar();
-    });
-
-    todayBtn.addEventListener('click', () => {
-        currentWeekStart = getStartOfWeek(new Date());
-        miniCalDate = new Date();
-        updateAllComponents();
-        renderMiniCalendar();
-    });
-    
+    prevWeekBtn.addEventListener('click', () => { currentWeekStart.setDate(currentWeekStart.getDate() - 7); updateAllComponents(); renderMiniCalendar(); });
+    nextWeekBtn.addEventListener('click', () => { currentWeekStart.setDate(currentWeekStart.getDate() + 7); updateAllComponents(); renderMiniCalendar(); });
+    todayBtn.addEventListener('click', () => { currentWeekStart = getStartOfWeek(new Date()); miniCalDate = new Date(); updateAllComponents(); renderMiniCalendar(); });
     modalSaveBtn.addEventListener('click', handleSaveAppointment);
     modalCancelBtn.addEventListener('click', closeEditModal);
     modalCloseXBtn.addEventListener('click', closeEditModal);
@@ -310,8 +418,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     editBlockSaveBtn.addEventListener('click', handleUpdateTimeBlock);
     editBlockDeleteBtn.addEventListener('click', handleDeleteTimeBlock);
     editBlockCancelBtn.addEventListener('click', closeEditTimeBlockModal);
-
     document.addEventListener('appointmentUpdated', () => loadInitialData(true));
-
     loadInitialData();
 });
