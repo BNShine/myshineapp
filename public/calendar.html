@@ -23,13 +23,16 @@
         }
         .appointment-block {
             width: 150px;
-            height: 120px; 
+            /* A altura agora é definida dinamicamente pelo JS */
             position: absolute;
             left: 0;
-            top: 0; 
-            padding: 8px; 
+            top: 0;
             box-sizing: border-box;
             z-index: 10;
+            display: flex; /* Adicionado para empilhar os filhos */
+            flex-direction: column; /* Empilhamento vertical */
+            padding: 0; /* Removido padding do container principal */
+            overflow: hidden; /* Garante que os cantos arredondados sejam aplicados aos filhos */
         }
         .timeline-header {
             grid-column: 1;
@@ -47,6 +50,10 @@
         .bg-green-600 { background-color: rgb(22 163 74); }
         .bg-cherry-red { background-color: hsl(0 84% 45%); }
         .bg-yellow-confirmed { background-color: #f9d872; }
+        
+        /* NOVAS CORES PARA OS COMPONENTES */
+        .bg-travel { background-color: hsl(337 100% 80%); } /* Rosa mais claro */
+        .bg-margin { background-color: hsl(337 100% 50%); } /* Rosa mais escuro */
         
         /* Estilos do Modal */
         .modal-overlay-fixed {
