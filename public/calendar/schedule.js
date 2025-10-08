@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nextWeekBtn = document.getElementById('next-week');
     const todayBtn = document.getElementById('today-btn');
     const addTimeBlockBtn = document.getElementById('add-time-block-btn');
-    const miniCalendarContainer = document.getElementById('mini-calendar-container'); // NOVO SELETOR
+    const miniCalendarContainer = document.getElementById('mini-calendar-container');
 
     // Modais e seus botões
     const editModal = document.getElementById('edit-appointment-modal');
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let techAvailabilityBlocks = [];
     let selectedTechnician = '';
     let currentWeekStart = getStartOfWeek(new Date());
-    let miniCalDate = new Date(); // NOVO: Data para o mini calendário
+    let miniCalDate = new Date();
 
     const SLOT_HEIGHT_PX = 60;
     const TIME_SLOTS = Array.from({ length: 15 }, (_, i) => `${(7 + i).toString().padStart(2, '0')}:00`);
@@ -103,16 +103,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const firstDayOfWeek = firstDayOfMonth.getDay();
 
         let datesHtml = '';
-        // Preenche os dias do mês anterior
         for (let i = 0; i < firstDayOfWeek; i++) {
             datesHtml += `<div class="date-cell other-month"></div>`;
         }
 
-        // Preenche os dias do mês atual
         for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
             const currentDate = new Date(year, month, i);
             const isToday = currentDate.toDateString() === new Date().toDateString();
-            const isSelected = currentDate.toDateString() === currentWeekStart.toDateString() || (currentDate > currentWeekStart && currentDate <= new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000));
+            const isSelected = currentDate >= currentWeekStart && currentDate < new Date(currentWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
             
             let cellClass = 'date-cell';
             if (isToday) cellClass += ' today';
@@ -136,7 +134,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `;
 
-        // Adiciona event listeners
         document.getElementById('mini-cal-prev-month').addEventListener('click', () => {
             miniCalDate.setMonth(miniCalDate.getMonth() - 1);
             renderMiniCalendar();
@@ -155,15 +152,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-
     // --- 5. Funções de Manipulação dos Modais ---
 
     function openEditModal(appt) {
-        const { id, appointmentDate, verification } = appt;
+        const { id, appointmentDate, verification, technician, pets, margin } = appt;
+        
         document.getElementById('modal-appt-id').value = id;
         document.getElementById('modal-date').value = formatDateTimeForInput(appointmentDate);
+        document.getElementById('modal-pets').value = pets || 1;
+        document.getElementById('modal-margin').value = margin || 30;
+
+        const techSelect = document.getElementById('modal-technician');
+        techSelect.innerHTML = allTechnicians.map(t => `<option value="${t}" ${t === technician ? 'selected' : ''}>${t}</option>`).join('');
+
         const verificationSelect = document.getElementById('modal-verification');
-        
         const statusOptions = ["Scheduled", "Confirmed", "Showed", "Canceled"];
         verificationSelect.innerHTML = statusOptions.map(opt =>
             `<option value="${opt}" ${verification === opt ? 'selected' : ''}>${opt}</option>`
@@ -225,7 +227,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const newDate = document.getElementById('modal-date').value;
         const newVerification = document.getElementById('modal-verification').value;
-
+        const newTechnician = document.getElementById('modal-technician').value;
+        const newPets = document.getElementById('modal-pets').value;
+        const newMargin = document.getElementById('modal-margin').value;
+        
         const [datePart, timePart] = newDate.split('T');
         const [year, month, day] = datePart.split('-');
         const apiFormattedDate = `${month}/${day}/${year} ${timePart}`;
@@ -234,12 +239,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             rowIndex: parseInt(apptId),
             appointmentDate: apiFormattedDate,
             verification: newVerification,
-            technician: appointmentToUpdate.technician,
-            petShowed: appointmentToUpdate.petShowed,
-            serviceShowed: appointmentToUpdate.serviceShowed,
-            tips: appointmentToUpdate.tips,
-            percentage: appointmentToUpdate.percentage,
-            paymentMethod: appointmentToUpdate.paymentMethod,
+            technician: newTechnician,
+            pets: newPets,
+            margin: newMargin,
         };
 
         try {
@@ -253,6 +255,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             document.dispatchEvent(new CustomEvent('appointmentUpdated'));
             closeEditModal();
+            
+            // Dispara o recálculo da agenda
+            recalculateSchedule(new Date(newDate), newTechnician);
 
         } catch (error) {
             alert(`Error saving appointment: ${error.message}`);
@@ -372,6 +377,53 @@ document.addEventListener('DOMContentLoaded', async () => {
             techAvailabilityBlocks = [];
         }
     }
+
+    async function recalculateSchedule(startDate, technician) {
+        const appointmentsOnDay = allAppointments
+            .filter(a => a.technician === technician && parseSheetDate(a.appointmentDate).toDateString() === startDate.toDateString())
+            .sort((a, b) => parseSheetDate(a.appointmentDate) - parseSheetDate(b.appointmentDate));
+
+        let previousAppointment = null;
+
+        for (const appt of appointmentsOnDay) {
+            if (previousAppointment) {
+                const travelTime = await getTravelTime(previousAppointment.zipCode, appt.zipCode);
+                
+                const newStartTime = new Date(parseSheetDate(previousAppointment.appointmentDate).getTime() + (previousAppointment.duration * 60000));
+                
+                appt.travelTime = travelTime;
+                appt.appointmentDate = formatDateTimeForApi(newStartTime);
+                appt.duration = travelTime + (parseInt(appt.pets, 10) * 60) + parseInt(appt.margin, 10);
+                
+                // Salvar a alteração na API
+                await fetch('/api/update-appointment-showed-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rowIndex: appt.id,
+                        appointmentDate: appt.appointmentDate,
+                        technician: appt.technician,
+                        pets: appt.pets,
+                        margin: appt.margin,
+                        travelTime: appt.travelTime,
+                        verification: appt.verification,
+                    }),
+                });
+            }
+            previousAppointment = appt;
+        }
+        document.dispatchEvent(new CustomEvent('appointmentUpdated'));
+    }
+
+    function formatDateTimeForApi(date) {
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        const hour = String(date.getHours()).padStart(2, '0');
+        const minute = String(date.getMinutes()).padStart(2, '0');
+        return `${month}/${day}/${year} ${hour}:${minute}`;
+    }
+
 
     // --- 7. Funções de Renderização ---
 
@@ -550,48 +602,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentWeekDisplay.textContent = `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}`;
     }
 
-    // --- 8. Inicialização e Event Listeners (COM LOGS) ---
+    // --- 8. Inicialização e Event Listeners ---
 
     async function loadInitialData() {
-        console.log("[FRONTEND LOG] Step 1: `loadInitialData` function started.");
         try {
-            console.log("[FRONTEND LOG] Step 2: Preparing to fetch data from '/api/get-dashboard-data' and '/api/get-technician-appointments'.");
             const [techDataResponse, appointmentsResponse] = await Promise.all([
                 fetch('/api/get-dashboard-data'),
                 fetch('/api/get-technician-appointments')
             ]);
             
-            console.log("[FRONTEND LOG] Step 3: Received responses from server.", { techDataResponse, appointmentsResponse });
-
             if (!techDataResponse.ok) {
                 const errorText = await techDataResponse.text();
                 throw new Error(`Failed to load technician data. Status: ${techDataResponse.status}. Response: ${errorText}`);
             }
             
             const techData = await techDataResponse.json();
-            console.log("[FRONTEND LOG] Step 4: Parsed JSON from technician data response:", techData);
-
             allTechnicians = techData.technicians || [];
-            console.log("[FRONTEND LOG] Step 5: Assigned technicians to `allTechnicians` array. Current value:", allTechnicians);
             
             if (!Array.isArray(allTechnicians)) {
-                console.error("[FRONTEND ERROR] `techData.technicians` is not an array! This is the main problem.", techData);
                 allTechnicians = [];
             }
 
             if (appointmentsResponse.ok) {
                 const apptsData = await appointmentsResponse.json();
                 allAppointments = (apptsData.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
-                console.log(`[FRONTEND LOG] Loaded ${allAppointments.length} appointments.`);
             } else {
-                console.warn("[FRONTEND WARN] Could not load appointments, but continuing with technician list.");
                 allAppointments = [];
             }
             
-            console.log("[FRONTEND LOG] Step 6: Calling `populateTechSelects` function.");
             populateTechSelects();
-
-            console.log("[FRONTEND LOG] Step 7: Calling `renderScheduler` and `renderMiniCalendar`.");
             renderScheduler();
             renderMiniCalendar();
 
@@ -604,9 +643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function populateTechSelects() {
-        console.log("[FRONTEND LOG] Inside `populateTechSelects`. Technicians to populate:", allTechnicians);
         if (!techSelectDropdown) {
-            console.error("[FRONTEND ERROR] Dropdown element with ID 'tech-select-dropdown' not found.");
             return;
         }
 
@@ -617,11 +654,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 option.value = tech;
                 option.textContent = tech;
                 techSelectDropdown.appendChild(option);
-                console.log(`[FRONTEND DATA] Added option: "${tech}"`);
             });
-            console.log("[FRONTEND SUCCESS] Dropdown populated successfully.");
         } else {
-            console.warn("[FRONTEND WARN] `allTechnicians` array is empty. Nothing to populate in the dropdown.");
             techSelectDropdown.innerHTML = '<option value="">No technicians found.</option>';
         }
     }
