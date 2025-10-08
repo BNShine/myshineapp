@@ -21,43 +21,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cityInput = document.getElementById('city');
     const sourceSelect = document.getElementById('source');
     const zipCodeInput = document.getElementById('zipCode');
-    const suggestedTechSelect = document.getElementById('suggestedTechSelect'); // Supondo que exista um select para o técnico
-    const travelTimeInput = document.getElementById('travelTime'); // Supondo que exista um input para o tempo de viagem
-    const marginInput = document.getElementById('margin'); // Supondo que exista um input para a margem
-
-    // Campos de Exibição (Displays)
+    const travelTimeInput = document.getElementById('travelTime');
+    const marginInput = document.getElementById('margin');
+    
+    // Campos de Exibição (Displays) e Campos do Técnico
     const codePassDisplay = document.getElementById('codePassDisplay');
     const statusDisplay = document.getElementById('statusDisplay');
     const reminderDateDisplay = document.getElementById('reminderDateDisplay');
-    const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
+    const suggestedTechDisplay = document.getElementById('suggestedTechDisplay'); // O DIV de exibição
+    const suggestedTechSelect = document.getElementById('suggestedTechSelect');   // O SELECT dropdown
 
-    let allTechniciansData = [];
+    let allTechniciansData = []; // Armazena dados de cobertura dos técnicos
 
     // --- Funções Auxiliares ---
 
-    /**
-     * Calcula a semana do mês para uma data específica.
-     * @param {Date} date - O objeto de data.
-     * @returns {number} - O número da semana do mês (1 a 5).
-     */
     function getWeekOfMonth(date) {
-        // O primeiro dia do mês da data fornecida.
         const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        // Obtém o dia da semana do primeiro dia do mês (0 para Domingo, 1 para Segunda, etc.).
         const firstDayOfWeek = firstDayOfMonth.getDay();
-        // O dia do mês da data fornecida (1 a 31).
         const dayOfMonth = date.getDate();
-        // Calcula a semana. A fórmula soma o dia do mês com o deslocamento do primeiro dia da semana e divide por 7.
-        // Math.ceil arredonda para cima para garantir que os dias na primeira semana parcial sejam contados como semana 1.
         return Math.ceil((dayOfMonth + firstDayOfWeek) / 7);
     }
 
-    /**
-     * Preenche um elemento <select> com opções.
-     * @param {HTMLSelectElement} selectElement - O elemento select a ser preenchido.
-     * @param {string[]} items - Um array de strings para as opções.
-     * @param {string} defaultText - O texto para a primeira opção desabilitada.
-     */
     function populateDropdown(selectElement, items, defaultText) {
         if (!selectElement) return;
         selectElement.innerHTML = `<option value="">${defaultText}</option>`;
@@ -73,9 +57,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    /**
-     * Busca os dados iniciais para preencher os dropdowns do formulário.
-     */
     async function fetchInitialData() {
         try {
             const [dashboardResponse, listsResponse, techCoverageResponse] = await Promise.all([
@@ -97,60 +78,103 @@ document.addEventListener('DOMContentLoaded', async () => {
             populateDropdown(closer2Select, dashboardData.employees, 'Selecione o SDR');
             populateDropdown(franchiseSelect, dashboardData.franchises, 'Selecione a Franquia');
             populateDropdown(sourceSelect, listsData.sources, 'Selecione a Origem');
+            
+            // Inicialmente, preenche com todos os técnicos
+            populateDropdown(suggestedTechSelect, allTechniciansData.map(tech => tech.nome), 'Selecione um técnico');
 
         } catch (error) {
             console.error("Erro ao carregar dados para o formulário:", error);
-            alert("Não foi possível carregar os dados necessários para o formulário. Verifique o console para mais detalhes.");
+            alert("Não foi possível carregar os dados necessários. Verifique o console.");
+        }
+    }
+    
+    async function getCityAndStateFromZip(zipCode) {
+        if (zipCode.length !== 5) return { city: null, state: null };
+        try {
+            const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+            if (!response.ok) return { city: null, state: null };
+            const data = await response.json();
+            const place = data.places[0];
+            return { city: place['place name'], state: place['state abbreviation'] };
+        } catch (error) {
+            console.error('Erro ao buscar dados do CEP:', error);
+            return { city: null, state: null };
+        }
+    }
+    
+    async function updateTechniciansByZip() {
+        const zip = zipCodeInput.value;
+        if (zip.length === 5) {
+            const { city, state } = await getCityAndStateFromZip(zip);
+            cityInput.value = city || ''; // Preenche a cidade automaticamente
+            
+            if (state && allTechniciansData.length > 0) {
+                const techniciansInState = [];
+                
+                for(const tech of allTechniciansData) {
+                    // Assume que o técnico atende no estado do seu próprio CEP de origem
+                    if(tech.zip_code) {
+                        const techStateResponse = await getCityAndStateFromZip(tech.zip_code);
+                        if(techStateResponse.state === state) {
+                            techniciansInState.push(tech.nome);
+                        }
+                    }
+                }
+                
+                populateDropdown(suggestedTechSelect, techniciansInState, 'Selecione um técnico na região');
+            }
         }
     }
 
-    /**
-     * Atualiza os campos de exibição (Código, Data de Lembrete, etc.) com base na data do agendamento.
-     */
+
     function updateDisplayFields() {
         const appointmentDateValue = appointmentDateInput.value;
         if (appointmentDateValue) {
             const date = new Date(appointmentDateValue);
-            
-            // Formata a data para MM/DD/YYYY
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             const year = date.getFullYear();
-            const formattedDate = `${month}/${day}/${year}`;
-
-            // Gera o código de confirmação
             codePassDisplay.textContent = `${customersInput.value.substring(0, 3).toUpperCase()}${month}${day}`;
-
-            // Calcula e exibe a data do lembrete (2 dias antes)
             const reminderDate = new Date(date);
             reminderDate.setDate(date.getDate() - 2);
-            const reminderMonth = String(reminderDate.getMonth() + 1).padStart(2, '0');
-            const reminderDay = String(reminderDate.getDate()).padStart(2, '0');
-            const reminderYear = reminderDate.getFullYear();
-            reminderDateDisplay.textContent = `${reminderMonth}/${reminderDay}/${reminderYear}`;
-            
-            // Preenche o campo de data oculto
-            dataInput.value = formattedDate;
+            reminderDateDisplay.textContent = `${String(reminderDate.getMonth() + 1).padStart(2, '0')}/${String(reminderDate.getDate()).padStart(2, '0')}/${reminderDate.getFullYear()}`;
+            dataInput.value = `${month}/${day}/${year}`;
         } else {
             codePassDisplay.textContent = '--/--/----';
             reminderDateDisplay.textContent = '--/--/----';
         }
     }
-    
+
     // --- Lógica de Eventos ---
 
-    // Atualiza campos derivados quando a data ou nome do cliente muda
     appointmentDateInput.addEventListener('input', updateDisplayFields);
     customersInput.addEventListener('input', updateDisplayFields);
+    zipCodeInput.addEventListener('input', updateTechniciansByZip);
 
-    // Lida com o envio do formulário
+    manualModeToggle.addEventListener('change', () => {
+        if (manualModeToggle.checked) { // MODO MANUAL
+            manualModeLabel.textContent = 'Manual Mode';
+            appointmentDateInput.readOnly = false;
+            zipCodeInput.readOnly = false;
+            petsSelect.disabled = false;
+            suggestedTechDisplay.classList.add('hidden');
+            suggestedTechSelect.classList.remove('hidden');
+        } else { // MODO SMART
+            manualModeLabel.textContent = 'Smart Mode';
+            appointmentDateInput.readOnly = true;
+            zipCodeInput.readOnly = true;
+            petsSelect.disabled = true;
+            suggestedTechDisplay.classList.remove('hidden');
+            suggestedTechSelect.classList.add('hidden');
+        }
+    });
+
     scheduleForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         
         const appointmentDateValue = appointmentDateInput.value;
         const appointmentDate = new Date(appointmentDateValue);
 
-        // Calcula semana, mês e ano para enviar à API
         const week = getWeekOfMonth(appointmentDate);
         const month = appointmentDate.getMonth() + 1;
         const year = appointmentDate.getFullYear();
@@ -176,9 +200,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             reminderDate: reminderDateDisplay.textContent,
             verification: 'Scheduled',
             zipCode: zipCodeInput.value,
-            technician: suggestedTechSelect ? suggestedTechSelect.value : '', // Garante que não quebre se o elemento não existir
-            travelTime: travelTimeInput ? travelTimeInput.value : '0',
-            margin: marginInput ? marginInput.value : '30'
+            technician: suggestedTechSelect.value,
+            travelTime: travelTimeInput.value || '0',
+            margin: marginInput.value || '30'
         };
         
         try {
@@ -187,16 +211,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
             });
-
             const result = await response.json();
-
             if (result.success) {
                 alert('Agendamento registrado com sucesso!');
                 scheduleForm.reset();
-                // Limpa os campos de exibição após o sucesso
                 codePassDisplay.textContent = '--/--/----';
                 reminderDateDisplay.textContent = '--/--/----';
                 suggestedTechDisplay.textContent = '--/--/----';
+                manualModeToggle.checked = true; // Volta para o modo manual por padrão
+                manualModeToggle.dispatchEvent(new Event('change'));
             } else {
                 alert(`Erro: ${result.message}`);
             }
@@ -206,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Inicializa o formulário
+    // Inicializa o formulário e o estado do switch
     fetchInitialData();
+    manualModeToggle.dispatchEvent(new Event('change'));
 });
