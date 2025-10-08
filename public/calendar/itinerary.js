@@ -30,26 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function getDayOfWeekDate(startOfWeekDate, dayOfWeek) { /* ...código existente... */ }
     async function getLatLon(zipCode) { /* ...código existente... */ }
     function calculateDistance(lat1, lon1, lat2, lon2) { /* ...código existente... */ }
-    async function getTravelTime(originZip, destinationZip) {
-        if (!originZip || !destinationZip || originZip === destinationZip) {
-            return 0;
-        }
-        try {
-            const response = await fetch('/api/get-travel-time', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ originZip, destinationZip }),
-            });
-            const result = await response.json();
-            if (result.success) {
-                return result.travelTimeInMinutes;
-            }
-            return 0;
-        } catch (error) {
-            console.error("Failed to fetch travel time:", error);
-            return 0;
-        }
-    }
+    async function getTravelTime(originZip, destinationZip) { /* ...código existente... */ }
     
     // --- Lógica da Aplicação da Rota ---
     function populateTimeSlotsDropdown() { /* ...código existente... */ }
@@ -88,13 +69,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (appointmentToUpdate) {
                 
                 const travelTime = await getTravelTime(lastZipCode, appointmentToUpdate.zipCode);
-                const newStartTime = new Date(lastEventEndTime.getTime()); // O novo agendamento começa quando o último evento termina
+                const newStartTime = new Date(lastEventEndTime.getTime()); 
                 
                 const pets = parseInt(appointmentToUpdate.pets, 10) || 1;
                 const margin = parseInt(appointmentToUpdate.margin, 10) || 30;
                 const serviceDuration = pets * 60;
                 
-                // A duração total do bloqueio na agenda é trajeto + serviço + margem
                 const totalBlockDuration = travelTime + serviceDuration + margin;
                 const newEndTime = new Date(newStartTime.getTime() + totalBlockDuration * 60000);
                 
@@ -150,11 +130,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadItineraryData() {
         try {
             const [appointmentsResponse, techCoverageResponse] = await Promise.all([
-                fetch('/api/get-technician-appointments'),
-                fetch('/api/get-tech-coverage')
+                fetch('/api/get-technician-appointments').catch(e => ({ error: e })),
+                fetch('/api/get-tech-coverage').catch(e => ({ error: e }))
             ]);
 
-            if (appointmentsResponse.ok) {
+            if (appointmentsResponse && appointmentsResponse.ok) {
                 const data = await appointmentsResponse.json();
                 allAppointments = (data.appointments || []).filter(appt => appt.appointmentDate && parseSheetDate(appt.appointmentDate));
             } else {
@@ -162,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 allAppointments = [];
             }
             
-            if (techCoverageResponse.ok) {
+            if (techCoverageResponse && techCoverageResponse.ok) {
                 allTechCoverage = await techCoverageResponse.json();
             } else {
                 console.error('Itinerary: Failed to load tech coverage.');
@@ -170,12 +150,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             console.error('Error loading initial data for itinerary:', error);
+            allAppointments = [];
+            allTechCoverage = [];
         } finally {
             renderDayItineraryTable();
         }
     }
     
-    async function fetchAvailabilityForSelectedTech(technicianName) { /* ...código existente... */ }
+    async function fetchAvailabilityForSelectedTech(technicianName) {
+        if (!technicianName) {
+            techAvailabilityBlocks = [];
+            return;
+        }
+        try {
+            const response = await fetch(`/api/manage-technician-availability?technicianName=${encodeURIComponent(technicianName)}`);
+            if (!response.ok) throw new Error('Could not fetch availability.');
+            const data = await response.json();
+            techAvailabilityBlocks = data.availability || [];
+        } catch (error) {
+            console.error('Error fetching availability:', error);
+            techAvailabilityBlocks = [];
+        }
+    }
     
     document.addEventListener('technicianChanged', async (e) => {
         selectedTechnician = e.detail.technician;
@@ -184,7 +180,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadItineraryData(); 
     });
 
-    document.addEventListener('weekChanged', (e) => { /* ...código existente... */ });
+    document.addEventListener('weekChanged', (e) => {
+        currentWeekStart = e.detail.weekStart;
+        renderDayItineraryTable();
+    });
+    
     document.addEventListener('appointmentUpdated', async () => { await loadItineraryData(); });
 
     if (dayFilter) dayFilter.addEventListener('change', renderDayItineraryTable);
