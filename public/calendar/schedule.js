@@ -426,57 +426,83 @@ document.addEventListener('DOMContentLoaded', async () => {
         const weekEnd = new Date(currentWeekStart);
         weekEnd.setDate(currentWeekStart.getDate() + 7);
         const appointmentsToRender = allAppointments.filter(appt => appt.technician === selectedTechnician);
-
+    
         appointmentsToRender.forEach(appt => {
             const apptDate = parseSheetDate(appt.appointmentDate);
             if (!apptDate || apptDate < currentWeekStart || apptDate >= weekEnd) return;
-
+    
             const dateKey = formatDateToYYYYMMDD(apptDate);
             const dayContainer = schedulerBody.querySelector(`[data-date-key="${dateKey}"]`);
             if (!dayContainer) return;
-
+    
             const startHour = apptDate.getHours();
             if (startHour < MIN_HOUR || startHour >= MAX_HOUR) return;
             
             const topOffset = (startHour - MIN_HOUR) * SLOT_HEIGHT_PX + (apptDate.getMinutes() / 60 * SLOT_HEIGHT_PX);
-
-            const durationInMinutes = parseInt(appt.duration, 10) || 120; // Padrão de 120 min
-            const blockHeight = (durationInMinutes / 60) * SLOT_HEIGHT_PX;
-
+    
+            const totalDuration = parseInt(appt.duration, 10) || 120;
+            const travelTime = parseInt(appt.travelTime, 10) || 0;
+            const marginTime = parseInt(appt.margin, 10) || 0;
+            const appointmentTime = Math.max(0, totalDuration - travelTime - marginTime);
+    
+            const travelPercent = totalDuration > 0 ? (travelTime / totalDuration) * 100 : 0;
+            const appointmentPercent = totalDuration > 0 ? (appointmentTime / totalDuration) * 100 : 0;
+            const marginPercent = totalDuration > 0 ? (marginTime / totalDuration) * 100 : 0;
+    
+            const blockHeight = (totalDuration / 60) * SLOT_HEIGHT_PX;
+    
             const block = document.createElement('div');
-            let bgColor = 'bg-custom-primary';
+    
+            let appointmentBgColor = 'bg-custom-primary';
             let textColor = 'text-white';
-
+    
             if (appt.verification === 'Canceled') {
-                bgColor = 'bg-cherry-red';
+                appointmentBgColor = 'bg-cherry-red';
             } else if (appt.verification === 'Showed') {
-                bgColor = 'bg-green-600';
+                appointmentBgColor = 'bg-green-600';
             } else if (appt.verification === 'Confirmed') {
-                bgColor = 'bg-yellow-confirmed';
+                appointmentBgColor = 'bg-yellow-confirmed';
                 textColor = 'text-black';
             }
-
-            block.className = `appointment-block ${bgColor} ${textColor} rounded-md shadow-soft cursor-pointer transition-colors hover:shadow-lg`;
+    
+            block.className = `appointment-block rounded-md shadow-soft cursor-pointer transition-colors hover:shadow-lg`;
             block.dataset.id = appt.id;
             block.style.top = `${topOffset}px`;
             block.style.height = `${blockHeight}px`;
-            block.style.width = '150px';
-
-            const endTime = new Date(apptDate.getTime() + durationInMinutes * 60 * 1000);
+    
+            const endTime = new Date(apptDate.getTime() + totalDuration * 60 * 1000);
             
             block.innerHTML = `
-                <div>
-                    <p class="text-xs font-semibold">${getTimeHHMM(apptDate)} - ${getTimeHHMM(endTime)}</p>
-                    <p class="text-sm font-bold truncate">${appt.customers}</p>
-                    <p class="text-xs font-medium opacity-80">${appt.verification}</p>
-                    <p class="text-xs font-medium opacity-80">Pets: ${appt.pets || 'N/A'}</p>
+                ${travelPercent > 0 ? `
+                <div class="bg-travel ${textColor}" style="height: ${travelPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    <span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Travel</span>
                 </div>
+                ` : ''}
+    
+                <div class="${appointmentBgColor} ${textColor}" style="height: ${appointmentPercent}%; padding: 4px 8px; display: flex; justify-content: space-between; flex-grow: 1;">
+                    <div class="flex-grow overflow-hidden">
+                        <p class="text-xs font-semibold">${getTimeHHMM(apptDate)} - ${getTimeHHMM(endTime)}</p>
+                        <p class="text-sm font-bold truncate">${appt.customers}</p>
+                        <p class="text-xs font-medium opacity-80">${appt.verification}</p>
+                        <p class="text-xs font-medium opacity-80">Pets: ${appt.pets || 'N/A'}</p>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Appointment</span>
+                    </div>
+                </div>
+    
+                ${marginPercent > 0 ? `
+                <div class="bg-margin ${textColor}" style="height: ${marginPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                     <span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Margin</span>
+                </div>
+                ` : ''}
             `;
             
             block.addEventListener('click', () => openEditModal(appt));
             dayContainer.appendChild(block);
         });
     }
+
     
     function renderTimeBlocks() {
         const weekEnd = new Date(currentWeekStart);
