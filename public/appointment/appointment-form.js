@@ -7,6 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // --- LÓGICA DE INICIALIZAÇÃO DOS DROPDOWNS ---
+    // Movido para o topo para garantir a execução prioritária.
+    initializeForm();
+
     // --- Seletores dos Elementos ---
     const customersInput = document.getElementById('customers');
     const codePassDisplay = document.getElementById('codePassDisplay');
@@ -15,14 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const zipCodeInputForm = document.getElementById('zipCode');
     const cityInput = document.getElementById('city');
     const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
-    const appointmentDateDisplay = document.getElementById('appointmentDateDisplay'); // **NOVO SELETOR**
+    const appointmentDateDisplay = document.getElementById('appointmentDateDisplay');
 
     // --- Funções Auxiliares ---
 
-    // **NOVA FUNÇÃO** para atualizar o display de hora AM/PM
     function updateAmPmDisplay(dateTimeValue) {
-        if (!dateTimeValue || !appointmentDateDisplay) {
-            if(appointmentDateDisplay) appointmentDateDisplay.textContent = '';
+        if (!appointmentDateDisplay) return;
+        if (!dateTimeValue) {
+            appointmentDateDisplay.textContent = '';
             return;
         }
         try {
@@ -166,6 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Event Listeners ---
+
     zipCodeInputForm.addEventListener('input', async (event) => {
         const zipCode = event.target.value.trim();
         cityInput.value = '';
@@ -210,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
             reminderDateDisplay.textContent = '--/--/----';
             reminderDateInput.value = '';
         }
-        // **ALTERAÇÃO AQUI**: Atualiza o display AM/PM
         updateAmPmDisplay(event.target.value);
     });
 
@@ -269,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 codePassDisplay.textContent = '--/--/----';
                 reminderDateDisplay.textContent = '--/--/----';
                 suggestedTechDisplay.innerHTML = '<div class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium">--/--/----</div>';
-                updateAmPmDisplay(''); // Limpa o display AM/PM no reset
+                updateAmPmDisplay('');
             } else {
                 alert(`Error: ${result.message}`);
             }
@@ -279,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
                 Register Appointment`;
         }
     });
@@ -300,6 +305,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('type').value = 'Central';
     document.getElementById('travelTime').value = '0';
     document.getElementById('margin').value = '30';
-
-    initializeForm();
 });
