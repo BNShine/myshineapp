@@ -20,16 +20,26 @@ document.addEventListener('DOMContentLoaded', () => {
         mainFormSection.classList.remove('hidden');
         mainFormSection.scrollIntoView({ behavior: 'smooth' });
         
-        // Garante que o modo manual esteja DESLIGADO por padrão ao pular
         const manualToggle = document.getElementById('manual-mode-toggle');
         if (manualToggle) {
             manualToggle.checked = false;
-            // Dispara o evento 'change' para atualizar o label e a lógica
             manualToggle.dispatchEvent(new Event('change'));
         }
     });
 
     // --- Funções da Checagem de Disponibilidade ---
+
+    // **NOVA FUNÇÃO HELPER** para formatar HH:mm para h:mm AM/PM
+    function formatToAmPm(timeStr) {
+        if (!timeStr) return '';
+        const [hour, minute] = timeStr.split(':');
+        const h = parseInt(hour, 10);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        let h12 = h % 12;
+        h12 = h12 ? h12 : 12; // A hora '0' deve ser '12'
+        return `${h12}:${minute} ${ampm}`;
+    }
+
     verifyBtn.addEventListener('click', handleVerifyAvailability);
     
     async function handleVerifyAvailability() {
@@ -71,11 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const { technician, restrictions, date, availableSlots } = data;
         const friendlyDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         
+        // **ALTERAÇÃO AQUI**: Usa a função formatToAmPm para exibir o horário
         const slotsHtml = availableSlots.map(slot => 
             `<button type="button" class="slot-btn bg-brand-primary/10 text-brand-primary font-semibold py-2 px-4 rounded-lg hover:bg-brand-primary hover:text-white transition-colors" 
                 data-slot="${slot.time}" data-date="${date}" data-tech="${technician}" data-zip="${originalZip}" data-pets="${numPets}"
                 data-travel-time="${slot.travelTime}" data-margin="${margin}">
-                ${slot.time} (+${slot.travelTime} min travel)
+                ${formatToAmPm(slot.time)} (+${slot.travelTime} min travel)
             </button>`
         ).join('');
 
@@ -92,14 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         mainFormSection.classList.remove('hidden');
         
-        // Garante que o modo manual esteja DESLIGADO ao vir do Smart Check
         const manualToggle = document.getElementById('manual-mode-toggle');
         if (manualToggle) {
             manualToggle.checked = false;
             manualToggle.dispatchEvent(new Event('change'));
         }
 
-        // Preenche os campos
         document.getElementById('appointmentDate').value = `${date}T${slot}`;
         document.getElementById('zipCode').value = zip;
         document.getElementById('pets').value = pets;
