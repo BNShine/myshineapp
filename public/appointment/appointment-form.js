@@ -1,136 +1,202 @@
 // public/appointment/appointment-form.js
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- Seletores dos Elementos do Formulário ---
+    // Seletores de Elementos do DOM
     const scheduleForm = document.getElementById('scheduleForm');
-    const customersInput = document.getElementById('customers');
-    const phoneInput = document.getElementById('phone');
-    const zipCodeInput = document.getElementById('zipCode');
-    const cityInput = document.getElementById('city');
-    const appointmentDateInput = document.getElementById('appointmentDate');
-    const serviceValueInput = document.getElementById('serviceValue');
-    const petsSelect = document.getElementById('pets');
-    const franchiseSelect = document.getElementById('franchise');
-    const closer1Select = document.getElementById('closer1');
-    const closer2Select = document.getElementById('closer2');
-    const sourceSelect = document.getElementById('source');
-    const oldNewSelect = document.getElementById('oldNew');
     const manualModeToggle = document.getElementById('manual-mode-toggle');
     const manualModeLabel = document.getElementById('manual-mode-label');
 
-    // Seletores para campos ocultos e de exibição
+    // Campos do Formulário
+    const typeInput = document.getElementById('type');
     const dataInput = document.getElementById('data');
-    const typeSelect = document.getElementById('type');
-    const monthSelect = document.getElementById('month');
-    const yearSelect = document.getElementById('year');
+    const petsSelect = document.getElementById('pets');
+    const closer1Select = document.getElementById('closer1');
+    const closer2Select = document.getElementById('closer2');
+    const customersInput = document.getElementById('customers');
+    const phoneInput = document.getElementById('phone');
+    const oldNewSelect = document.getElementById('oldNew');
+    const appointmentDateInput = document.getElementById('appointmentDate');
+    const serviceValueInput = document.getElementById('serviceValue');
+    const franchiseSelect = document.getElementById('franchise');
+    const cityInput = document.getElementById('city');
+    const sourceSelect = document.getElementById('source');
+    const zipCodeInput = document.getElementById('zipCode');
+    const travelTimeInput = document.getElementById('travelTime');
+    const marginInput = document.getElementById('margin');
+    
+    // Campos de Exibição (Displays) e Campos do Técnico
     const codePassDisplay = document.getElementById('codePassDisplay');
     const statusDisplay = document.getElementById('statusDisplay');
     const reminderDateDisplay = document.getElementById('reminderDateDisplay');
-    const suggestedTechContainer = document.getElementById('suggestedTechDisplay');
+    const suggestedTechDisplay = document.getElementById('suggestedTechDisplay'); // O DIV de exibição
+    const suggestedTechSelect = document.getElementById('suggestedTechSelect');   // O SELECT dropdown
 
-    // --- Estado do Formulário ---
-    let allEmployees = [];
-    let allFranchises = [];
-    let allLists = {};
+    let allTechniciansData = []; // Armazena dados de cobertura dos técnicos
 
     // --- Funções Auxiliares ---
-    function populateDropdown(selectElement, items, defaultOptionText) {
-        selectElement.innerHTML = `<option value="">${defaultOptionText}</option>`;
-        items.forEach(item => {
-            if (item) {
-                const option = new Option(item, item);
-                selectElement.add(option);
-            }
-        });
+
+    function getWeekOfMonth(date) {
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const firstDayOfWeek = firstDayOfMonth.getDay();
+        const dayOfMonth = date.getDate();
+        return Math.ceil((dayOfMonth + firstDayOfWeek) / 7);
     }
 
-    // --- Lógica do Formulário ---
-
-    // Função para buscar técnicos com base no CEP
-    async function handleZipCodeInput() {
-        const zipCode = zipCodeInput.value.trim();
-        
-        if (zipCode.length < 5) {
-            suggestedTechContainer.innerHTML = `<div class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium">--/--/----</div>`;
-            return;
+    /**
+     * NOVA FUNÇÃO: Gera um código alfanumérico aleatório.
+     * @param {number} length - O comprimento do código a ser gerado.
+     * @returns {string} - O código aleatório.
+     */
+    function generateRandomCode(length = 6) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
+        return result;
+    }
 
-        try {
-            const response = await fetch('/api/get-tech-data');
-            if (!response.ok) throw new Error('Failed to fetch technician data.');
-            
-            const techData = await response.json();
-            const cityInfo = techData[zipCode];
-            
-            if (cityInfo && cityInfo.tecnicos && cityInfo.tecnicos.length > 0) {
-                const options = cityInfo.tecnicos.map(tech => `<option value="${tech}">${tech}</option>`).join('');
-                suggestedTechContainer.innerHTML = `
-                    <select id="suggestedTechSelect" name="technician" class="input-style">
-                        <option value="">Select Technician...</option>
-                        ${options}
-                    </select>
-                `;
-
-                // Verifica se há um técnico pré-selecionado pelo "Smart Mode"
-                const techSelect = document.getElementById('suggestedTechSelect');
-                if (window.preselectedTechnician && techSelect) {
-                    techSelect.value = window.preselectedTechnician;
-                    window.preselectedTechnician = null; // Limpa a variável após o uso
+    function populateDropdown(selectElement, items, defaultText) {
+        if (!selectElement) return;
+        selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+        if (items && Array.isArray(items)) {
+            items.forEach(item => {
+                if (item) {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    selectElement.appendChild(option);
                 }
-
-            } else {
-                suggestedTechContainer.innerHTML = `<div class="h-12 w-full flex items-center input-display-style text-red-600 font-bold">No coverage</div>`;
-            }
-        } catch (error) {
-            console.error('Error fetching tech data:', error);
-            suggestedTechContainer.innerHTML = `<div class="h-12 w-full flex items-center input-display-style text-red-600 font-bold">API Error</div>`;
+            });
         }
     }
 
-    // Atualiza os campos de exibição e os campos ocultos
-    function updateDynamicFields() {
-        const appointmentDate = new Date(appointmentDateInput.value);
-        if (isNaN(appointmentDate.getTime())) {
-            dataInput.value = '';
-            monthSelect.value = '';
-            yearSelect.value = '';
-            reminderDateDisplay.textContent = '--/--/----';
-            codePassDisplay.textContent = '--/--/----';
-            return;
-        }
+    async function fetchInitialData() {
+        try {
+            const [dashboardResponse, listsResponse, techCoverageResponse] = await Promise.all([
+                fetch('/api/get-dashboard-data'),
+                fetch('/api/get-lists'),
+                fetch('/api/get-tech-coverage')
+            ]);
 
+            if (!dashboardResponse.ok || !listsResponse.ok || !techCoverageResponse.ok) {
+                throw new Error('Falha ao carregar dados iniciais do servidor.');
+            }
+
+            const dashboardData = await dashboardResponse.json();
+            const listsData = await listsResponse.json();
+            allTechniciansData = await techCoverageResponse.json();
+
+            populateDropdown(petsSelect, listsData.pets, 'Selecione a Quantidade');
+            populateDropdown(closer1Select, dashboardData.employees, 'Selecione o Closer');
+            populateDropdown(closer2Select, dashboardData.employees, 'Selecione o SDR');
+            populateDropdown(franchiseSelect, dashboardData.franchises, 'Selecione a Franquia');
+            populateDropdown(sourceSelect, listsData.sources, 'Selecione a Origem');
+            
+            populateDropdown(suggestedTechSelect, allTechniciansData.map(tech => tech.nome), 'Selecione um técnico');
+
+        } catch (error) {
+            console.error("Erro ao carregar dados para o formulário:", error);
+            alert("Não foi possível carregar os dados necessários. Verifique o console.");
+        }
+    }
+    
+    async function getCityAndStateFromZip(zipCode) {
+        if (zipCode.length !== 5) return { city: null, state: null };
+        try {
+            const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+            if (!response.ok) return { city: null, state: null };
+            const data = await response.json();
+            const place = data.places[0];
+            return { city: place['place name'], state: place['state abbreviation'] };
+        } catch (error) {
+            console.error('Erro ao buscar dados do CEP:', error);
+            return { city: null, state: null };
+        }
+    }
+    
+    async function updateTechniciansByZip() {
+        const zip = zipCodeInput.value;
+        if (zip.length === 5) {
+            const { city, state } = await getCityAndStateFromZip(zip);
+            cityInput.value = city || '';
+            
+            if (state && allTechniciansData.length > 0) {
+                const techniciansInState = [];
+                for(const tech of allTechniciansData) {
+                    if(tech.zip_code) {
+                        const techStateResponse = await getCityAndStateFromZip(tech.zip_code);
+                        if(techStateResponse.state === state) {
+                            techniciansInState.push(tech.nome);
+                        }
+                    }
+                }
+                populateDropdown(suggestedTechSelect, techniciansInState, 'Selecione um técnico na região');
+            }
+        }
+    }
+
+    function updateDisplayFields() {
+        const appointmentDateValue = appointmentDateInput.value;
+        if (appointmentDateValue) {
+            const date = new Date(appointmentDateValue);
+            
+            // ALTERAÇÃO: Gera código aleatório em vez de usar o nome do cliente.
+            codePassDisplay.textContent = generateRandomCode();
+
+            const reminderDate = new Date(date);
+            reminderDate.setDate(date.getDate() - 2);
+            reminderDateDisplay.textContent = `${String(reminderDate.getMonth() + 1).padStart(2, '0')}/${String(reminderDate.getDate()).padStart(2, '0')}/${reminderDate.getFullYear()}`;
+        } else {
+            codePassDisplay.textContent = '--/--/----';
+            reminderDateDisplay.textContent = '--/--/----';
+        }
+    }
+    
+    function setInitialDate() {
+        const today = new Date();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const year = today.getFullYear();
+        dataInput.value = `${month}/${day}/${year}`;
+    }
+
+    // --- Lógica de Eventos ---
+
+    appointmentDateInput.addEventListener('input', updateDisplayFields);
+    customersInput.addEventListener('input', updateDisplayFields);
+    zipCodeInput.addEventListener('input', updateTechniciansByZip);
+
+    manualModeToggle.addEventListener('change', () => {
+        if (manualModeToggle.checked) { // MODO MANUAL
+            manualModeLabel.textContent = 'Manual Mode';
+            appointmentDateInput.readOnly = false;
+            zipCodeInput.readOnly = false;
+            petsSelect.disabled = false;
+            suggestedTechDisplay.classList.add('hidden');
+            suggestedTechSelect.classList.remove('hidden');
+        } else { // MODO SMART
+            manualModeLabel.textContent = 'Smart Mode';
+            appointmentDateInput.readOnly = true;
+            zipCodeInput.readOnly = true;
+            petsSelect.disabled = true;
+            suggestedTechDisplay.classList.remove('hidden');
+            suggestedTechSelect.classList.add('hidden');
+        }
+    });
+
+    scheduleForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        
+        const appointmentDateValue = appointmentDateInput.value;
+        const appointmentDate = new Date(appointmentDateValue);
+
+        const week = getWeekOfMonth(appointmentDate);
         const month = appointmentDate.getMonth() + 1;
-        const day = appointmentDate.getDate();
         const year = appointmentDate.getFullYear();
 
-        dataInput.value = `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`;
-        monthSelect.value = month;
-        yearSelect.value = year;
-
-        // Calcula a data do lembrete (2 dias antes)
-        const reminderDate = new Date(appointmentDate);
-        reminderDate.setDate(reminderDate.getDate() - 2);
-        reminderDateDisplay.textContent = `${String(reminderDate.getMonth() + 1).padStart(2, '0')}/${String(reminderDate.getDate()).padStart(2, '0')}/${reminderDate.getFullYear()}`;
-        
-        // Gera o código de confirmação
-        const customerName = customersInput.value.trim();
-        const customerInitials = customerName.split(' ').map(n => n[0]).join('').toUpperCase();
-        codePassDisplay.textContent = `${customerInitials}${month}${day}${year}`;
-    }
-
-    // Lida com o envio do formulário
-    async function handleFormSubmit(event) {
-        event.preventDefault();
-        const submitButton = scheduleForm.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.innerHTML = 'Registering...';
-
-        // Pega o valor do select de técnico, que é criado dinamicamente
-        const suggestedTechSelect = document.getElementById('suggestedTechSelect');
-        const technician = suggestedTechSelect ? suggestedTechSelect.value : '';
-
         const formData = {
-            type: typeSelect.value,
+            type: typeInput.value,
             data: dataInput.value,
             pets: petsSelect.value,
             closer1: closer1Select.value,
@@ -138,23 +204,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             customers: customersInput.value,
             phone: phoneInput.value,
             oldNew: oldNewSelect.value,
-            appointmentDate: appointmentDateInput.value,
+            appointmentDate: appointmentDateValue.replace('T', ' '),
             serviceValue: serviceValueInput.value,
             franchise: franchiseSelect.value,
             city: cityInput.value,
             source: sourceSelect.value,
-            week: new Date(appointmentDateInput.value).getDay() + 1, // Simples cálculo de semana
-            month: monthSelect.value,
-            year: yearSelect.value,
+            week: week,
+            month: month,
+            year: year,
             code: codePassDisplay.textContent,
             reminderDate: reminderDateDisplay.textContent,
             verification: 'Scheduled',
             zipCode: zipCodeInput.value,
-            technician: technician,
-            travelTime: document.getElementById('travelTime') ? document.getElementById('travelTime').value : '0',
-            margin: document.getElementById('margin') ? document.getElementById('margin').value : '30',
+            technician: suggestedTechSelect.value,
+            travelTime: travelTimeInput.value || '0',
+            margin: marginInput.value || '30'
         };
-
+        
         try {
             const response = await fetch('/api/register-appointment', {
                 method: 'POST',
@@ -162,76 +228,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify(formData),
             });
             const result = await response.json();
-            alert(result.message);
             if (result.success) {
+                alert('Agendamento registrado com sucesso!');
                 scheduleForm.reset();
-                updateDynamicFields(); // Reseta os campos dinâmicos
+                codePassDisplay.textContent = '--/--/----';
+                reminderDateDisplay.textContent = '--/--/----';
+                suggestedTechDisplay.textContent = '--/--/----';
+                setInitialDate(); // Redefine a data de hoje
+                manualModeToggle.checked = true;
+                manualModeToggle.dispatchEvent(new Event('change'));
+            } else {
+                alert(`Erro: ${result.message}`);
             }
         } catch (error) {
-            console.error('Error submitting form:', error);
-            alert('An error occurred. Please try again.');
-        } finally {
-            submitButton.disabled = false;
-            submitButton.innerHTML = 'Register Appointment';
+            console.error('Erro ao enviar o formulário:', error);
+            alert('Ocorreu um erro de rede ao tentar registrar o agendamento.');
         }
-    }
+    });
 
-    // Lida com a troca de modo (Smart/Manual)
-    function toggleManualMode() {
-        const isManual = manualModeToggle.checked;
-        manualModeLabel.textContent = isManual ? 'Manual Mode' : 'Smart Mode';
-        
-        if (isManual) {
-            // No modo manual, o usuário pode digitar qualquer coisa
-            suggestedTechContainer.innerHTML = `<input type="text" id="manualTechInput" name="technician" class="input-style" placeholder="Enter technician name manually">`;
-        } else {
-            // No modo smart, volta a depender do CEP
-            handleZipCodeInput();
-        }
-    }
-
-    // --- Inicialização ---
-    async function initForm() {
-        try {
-            const [dashboardResponse, listsResponse] = await Promise.all([
-                fetch('/api/get-dashboard-data'),
-                fetch('/api/get-lists')
-            ]);
-
-            if (!dashboardResponse.ok || !listsResponse.ok) {
-                throw new Error('Failed to load initial form data.');
-            }
-
-            const dashboardData = await dashboardResponse.json();
-            allLists = await listsResponse.json();
-            
-            allEmployees = dashboardData.employees || [];
-            allFranchises = dashboardData.franchises || [];
-
-            populateDropdown(petsSelect, allLists.pets, 'Select Qty');
-            populateDropdown(franchiseSelect, allFranchises, 'Select Franchise');
-            populateDropdown(closer1Select, allEmployees, 'Select Closer');
-            populateDropdown(closer2Select, allEmployees, 'Select SDR');
-            populateDropdown(sourceSelect, allLists.sources, 'Select Source');
-            populateDropdown(monthSelect, allLists.months, '');
-            populateDropdown(yearSelect, allLists.years, '');
-            
-            // Adiciona os listeners de eventos
-            appointmentDateInput.addEventListener('input', updateDynamicFields);
-            customersInput.addEventListener('input', updateDynamicFields);
-            zipCodeInput.addEventListener('input', handleZipCodeInput);
-            scheduleForm.addEventListener('submit', handleFormSubmit);
-            manualModeToggle.addEventListener('change', toggleManualMode);
-
-            // Inicializa os campos
-            updateDynamicFields();
-            toggleManualMode();
-
-        } catch (error) {
-            console.error("Error initializing form:", error);
-            alert("Could not load necessary data for the form. Please refresh the page.");
-        }
-    }
-
-    initForm();
+    // Inicializa o formulário e o estado do switch
+    fetchInitialData();
+    setInitialDate(); // Garante que o campo 'data' tenha um valor ao carregar
+    manualModeToggle.dispatchEvent(new Event('change'));
 });
