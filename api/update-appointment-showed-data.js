@@ -15,7 +15,6 @@ const serviceAccountAuth = new JWT({
 
 const SPREADSHEET_ID_APPOINTMENTS = process.env.SHEET_ID_APPOINTMENTS;
 
-// Função auxiliar para analisar strings para um número puro (float ou int)
 function parseToNumeric(value) {
     if (value === null || value === undefined || value === '') return 0;
     if (typeof value === 'number') return value;
@@ -24,7 +23,6 @@ function parseToNumeric(value) {
     return isNaN(parsed) ? 0 : parsed;
 }
 
-// MODIFICATION: Simply return the string as Sheets can handle MM/DD/YYYY HH:MM directly.
 function formatToSheetDate(dateTimeStr) {
     return dateTimeStr;
 }
@@ -35,24 +33,27 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { rowIndex, technician, petShowed, serviceShowed, tips, percentage, paymentMethod, verification, appointmentDate } = req.body;
-        // appointmentDate is received in MM/DD/YYYY HH:MM format
+        const { 
+            rowIndex, technician, petShowed, serviceShowed, tips, 
+            percentage, paymentMethod, verification, appointmentDate,
+            pets, margin, travelTime // Novos campos recebidos
+        } = req.body;
 
         if (rowIndex === undefined || rowIndex < 2) { 
             return res.status(400).json({ success: false, message: `O índice da linha é inválido: ${rowIndex}` });
         }
         
-        // Converte todos os valores para os tipos corretos
         const serviceValue = parseToNumeric(serviceShowed);
         const tipsValue = parseToNumeric(tips);
         const petShowedValue = parseToNumeric(petShowed);
-        
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Converte a porcentagem para um decimal (ex: "20%" -> 0.2) para salvar na planilha
         const percentageValue = parseToNumeric(percentage) / 100;
-        
-        // Calcula o 'To Pay' com o valor decimal
         const toPayValue = (serviceValue * percentageValue) + tipsValue;
+
+        // Recalcula a Duração Total
+        const travelTimeMinutes = parseInt(travelTime, 10) || 0;
+        const marginMinutes = parseInt(margin, 10) || 30;
+        const petsCount = parseInt(pets, 10) || 1;
+        const duration = travelTimeMinutes + (petsCount * 60) + marginMinutes;
 
         const doc = new GoogleSpreadsheet(SPREADSHEET_ID_APPOINTMENTS, serviceAccountAuth);
         await doc.loadInfo();
@@ -69,8 +70,7 @@ export default async function handler(req, res) {
             return res.status(404).json({ success: false, message: 'Agendamento não encontrado para atualização.' });
         }
         
-        // Define os valores na linha. A biblioteca enviará os tipos corretos para a planilha.
-        targetRow.set('Date (Appointment)', formatToSheetDate(appointmentDate)); // Uses MM/DD/YYYY HH:MM directly
+        targetRow.set('Date (Appointment)', formatToSheetDate(appointmentDate));
         targetRow.set('Verification', verification);
         targetRow.set('Technician', technician);
         targetRow.set('Method', paymentMethod);
@@ -78,9 +78,13 @@ export default async function handler(req, res) {
         targetRow.set('Tips', tipsValue);
         targetRow.set('Pet Showed', petShowedValue);
         targetRow.set('To Pay', toPayValue);
-        
-        // Salva o valor da porcentagem como um número decimal
         targetRow.set('Percentage', percentageValue);
+        
+        // Salva os novos campos
+        targetRow.set('Pets', petsCount);
+        targetRow.set('Margin', marginMinutes);
+        targetRow.set('Travel Time', travelTimeMinutes);
+        targetRow.set('Duration', duration);
         
         await targetRow.save();
         
