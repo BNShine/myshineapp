@@ -8,12 +8,32 @@ document.addEventListener('DOMContentLoaded', () => {
     let localSelectedTechnician = '';
     let localCurrentWeekStart = new Date();
 
-    // Funções auxiliares
-    function parseSheetDate(dateStr) { /* ...código da versão anterior... */ }
-    function formatDateTimeForInput(dateTimeStr) { /* ...código da versão anterior... */ }
+    function parseSheetDate(dateStr) {
+        if (!dateStr) return null;
+        const [datePart, timePart] = dateStr.split(' ');
+        if (!datePart || !timePart) return null;
+        const dateParts = datePart.split('/');
+        if (dateParts.length !== 3) return null;
+        const [month, day, year] = dateParts.map(Number);
+        const [hour, minute] = timePart.split(':').map(Number);
+        if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) return null;
+        return new Date(year, month - 1, day, hour, minute);
+    }
+
+    function formatDateTimeForInput(dateTimeStr) {
+        if (!dateTimeStr) return '';
+        const date = parseSheetDate(dateTimeStr);
+        if (!date) return '';
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hour = date.getHours().toString().padStart(2, '0');
+        const minute = date.getMinutes().toString().padStart(2, '0');
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+    }
 
     function renderShowedAppointmentsTable() {
-        if (!showedAppointmentsTableBody) return;
+        if(!showedAppointmentsTableBody) return;
         showedAppointmentsTableBody.innerHTML = '';
         const weekEnd = new Date(localCurrentWeekStart);
         weekEnd.setDate(weekEnd.getDate() + 7);
