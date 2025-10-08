@@ -251,8 +251,104 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function handleApplyRoute() { /* ...código da versão anterior... */ }
-    function populateTimeSlotsDropdown() { /* ...código da versão anterior... */ }
+    async function handleApplyRoute() {
+        const selectedStartTime = firstScheduleSelect.value;
+        const selectedDay = dayFilter.value;
+        
+        if (!selectedStartTime || selectedDay === '' || orderedClientStops.length === 0) {
+            alert("Please optimize a route and select a start time first.");
+            return;
+        }
+
+        applyRouteBtn.disabled = true;
+        applyRouteBtn.textContent = "Applying...";
+        
+        const targetDate = getDayOfWeekDate(localCurrentWeekStart, selectedDay);
+        
+        let techOriginZip = localTechCoverage.find(t => t.nome === localSelectedTechnician)?.zip_code;
+        if (!techOriginZip) {
+            alert('Technician origin zip code not found. Cannot calculate route.');
+            applyRouteBtn.disabled = false;
+            applyRouteBtn.textContent = "Apply Route";
+            return;
+        }
+
+        const updatePromises = [];
+        let lastEventEndTime = new Date(targetDate);
+        const [startHour, startMinute] = selectedStartTime.split(':').map(Number);
+        lastEventEndTime.setHours(startHour, startMinute, 0, 0);
+        
+        let lastZipCode = techOriginZip;
+
+        for (const stop of orderedClientStops) {
+            const appointmentToUpdate = localAppointments.find(a => a.id === stop.id);
+            if (appointmentToUpdate) {
+                
+                const travelTime = await getTravelTime(lastZipCode, appointmentToUpdate.zipCode);
+                const newStartTime = new Date(lastEventEndTime.getTime());
+                
+                const pets = parseInt(appointmentToUpdate.pets, 10) || 1;
+                const margin = parseInt(appointmentToUpdate.margin, 10) || 30;
+                const serviceDuration = pets * 60;
+                
+                const totalBlockDuration = travelTime + serviceDuration + margin;
+                const newEndTime = new Date(newStartTime.getTime() + totalBlockDuration * 60000);
+                
+                const apiDateTime = `${String(newStartTime.getMonth() + 1).padStart(2, '0')}/${String(newStartTime.getDate()).padStart(2, '0')}/${newStartTime.getFullYear()} ${getTimeHHMM(newStartTime)}`;
+
+                const dataToUpdate = {
+                    rowIndex: appointmentToUpdate.id,
+                    appointmentDate: apiDateTime,
+                    technician: appointmentToUpdate.technician,
+                    pets: pets,
+                    margin: margin,
+                    travelTime: travelTime,
+                    verification: appointmentToUpdate.verification,
+                };
+                        
+                const promise = fetch('/api/update-appointment-showed-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToUpdate),
+                }).then(res => res.json());
+
+                updatePromises.push(promise);
+                
+                lastEventEndTime = newEndTime;
+                lastZipCode = appointmentToUpdate.zipCode;
+            }
+        }
+
+        try {
+            const results = await Promise.all(updatePromises);
+            const allSuccess = results.every(res => res.success);
+
+            if (allSuccess) {
+                alert("Route applied and all appointments updated successfully!");
+                document.dispatchEvent(new CustomEvent('appointmentUpdated'));
+            } else {
+                throw new Error("Some appointments could not be updated.");
+            }
+        } catch (error) {
+            console.error("Error applying route:", error);
+            alert(`An error occurred: ${error.message}`);
+        } finally {
+            applyRouteBtn.disabled = false;
+            applyRouteBtn.textContent = "Apply Route";
+        }
+    }
+
+    function populateTimeSlotsDropdown() {
+        if (!firstScheduleSelect) return;
+        firstScheduleSelect.innerHTML = '';
+        for (let hour = 7; hour < 21; hour++) {
+            for (let minute = 0; minute < 60; minute += 30) {
+                const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                const option = new Option(timeString, timeString);
+                firstScheduleSelect.add(option);
+            }
+        }
+    }
 
     // --- OUVINTES DE EVENTOS GLOBAIS ---
     document.addEventListener('stateUpdated', (e) => {
