@@ -89,10 +89,16 @@ createApp({
     const loadInitialData = async () => {
         state.isLoading = true;
         try {
+            // *** CORREÇÃO APLICADA AQUI ***
             const [techResponse, apptResponse] = await Promise.all([
                 fetch('/api/get-dashboard-data'),
-                fetch('/api/appointment/get-technician-appointments')
+                fetch('/api/get-technician-appointments') 
             ]);
+
+            if (!techResponse.ok || !apptResponse.ok) {
+                throw new Error('Failed to fetch initial data from one or more endpoints.');
+            }
+
             const techData = await techResponse.json();
             const apptData = await apptResponse.json();
 
@@ -109,7 +115,6 @@ createApp({
     // Navegação do Calendário
     const changeWeek = (direction) => {
         state.currentWeekStart.setDate(state.currentWeekStart.getDate() + direction * 7);
-        // Vue's reactivity needs a new object to trigger updates on dates
         state.currentWeekStart = new Date(state.currentWeekStart);
     };
 
@@ -120,8 +125,7 @@ createApp({
     
     // Ações do Modal
     const openEditModal = (appointment) => {
-        state.editingAppointment = { ...appointment }; // Create a copy to edit
-        // Format date for the datetime-local input
+        state.editingAppointment = { ...appointment };
         state.editingAppointment.appointmentDate = formatDateTimeForInput(appointment.appointmentDate);
         state.isEditModalVisible = true;
     };
@@ -134,7 +138,6 @@ createApp({
     const handleSaveAppointment = async () => {
         if (!state.editingAppointment) return;
         
-        // Format date back to MM/DD/YYYY HH:MM for the API
         const [datePart, timePart] = state.editingAppointment.appointmentDate.split('T');
         const [year, month, day] = datePart.split('-');
         const apiFormattedDate = `${month}/${day}/${year} ${timePart}`;
@@ -143,7 +146,6 @@ createApp({
             rowIndex: state.editingAppointment.id,
             appointmentDate: apiFormattedDate,
             verification: state.editingAppointment.verification,
-            // Include other fields to prevent them from being wiped out
             technician: state.editingAppointment.technician,
             petShowed: state.editingAppointment.petShowed,
             serviceShowed: state.editingAppointment.serviceShowed,
@@ -153,7 +155,8 @@ createApp({
         };
 
         try {
-            const response = await fetch('/api/appointment/update-appointment-showed-data', {
+            // *** CORREÇÃO APLICADA AQUI ***
+            const response = await fetch('/api/update-appointment-showed-data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dataToUpdate),
@@ -161,10 +164,8 @@ createApp({
             const result = await response.json();
             if (!result.success) throw new Error(result.message);
 
-            // Update the main list
             const index = state.allAppointments.findIndex(a => a.id === state.editingAppointment.id);
             if (index !== -1) {
-                // We need to re-format the date for local state consistency
                 state.editingAppointment.appointmentDate = apiFormattedDate.replace(/-/g, '/');
                 state.allAppointments[index] = { ...state.editingAppointment };
             }
@@ -174,7 +175,6 @@ createApp({
         }
     };
 
-    // Formata a data para input [type=datetime-local]
     function formatDateTimeForInput(dateTimeStr) {
         if (!dateTimeStr) return '';
         const date = parseSheetDate(dateTimeStr);
@@ -197,8 +197,7 @@ createApp({
       closeEditModal,
       handleSaveAppointment,
       parseSheetDate, 
-      formatDateToYYYYMMDD, // <<-- CORREÇÃO APLICADA AQUI
-      // Constants
+      formatDateToYYYYMMDD,
       TIME_SLOTS: Array.from({ length: 15 }, (_, i) => `${(7 + i).toString().padStart(2, '0')}:00`),
       SLOT_HEIGHT_PX: 60,
       MIN_HOUR: 7,
