@@ -37,7 +37,8 @@ async function safelyExtractColumnData(doc, sheetName, expectedHeaderName) {
     }
     rows.forEach(row => {
         const value = row.get(header);
-        if (value && value.trim() !== '') data.push(value.trim());
+        // Garante que o valor existe e remove espaços extras
+        if (value && String(value).trim() !== '') data.push(String(value).trim());
     });
     console.log(`[API TRACE] Extraídos ${data.length} itens da planilha "${sheetName}".`);
     return data;
@@ -71,7 +72,6 @@ export default async function handler(req, res) {
             });
         }
 
-        // REMOVEMOS 'sources' da resposta desta API
         const responseData = { appointments, employees, technicians, franchises };
         return res.status(200).json(responseData);
 
