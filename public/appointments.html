@@ -238,8 +238,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div class="space-y-2">
                                 <label for="appointmentDate" class="block text-sm font-semibold text-foreground">Appointment Date/Time</label>
-                                <input type="datetime-local" id="appointmentDate" name="appointmentDate" required class="input-style">
-                            </div>
+                                <div class="relative">
+                                    <input type="datetime-local" id="appointmentDate" name="appointmentDate" required class="input-style">
+                                    <span id="appointmentDateDisplay" class="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground pointer-events-none"></span>
+                                </div>
+                                </div>
                             <div class="space-y-2">
                                 <label for="serviceValue" class="block text-sm font-semibold text-foreground">Estimated Value</label>
                                 <input type="text" id="serviceValue" name="serviceValue" required class="input-style" placeholder="Ex: $150.00">
