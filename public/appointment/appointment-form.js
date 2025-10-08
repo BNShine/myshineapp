@@ -15,8 +15,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const zipCodeInputForm = document.getElementById('zipCode');
     const cityInput = document.getElementById('city');
     const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
+    const appointmentDateDisplay = document.getElementById('appointmentDateDisplay'); // **NOVO SELETOR**
 
     // --- Funções Auxiliares ---
+
+    // **NOVA FUNÇÃO** para atualizar o display de hora AM/PM
+    function updateAmPmDisplay(dateTimeValue) {
+        if (!dateTimeValue || !appointmentDateDisplay) {
+            if(appointmentDateDisplay) appointmentDateDisplay.textContent = '';
+            return;
+        }
+        try {
+            const dateObj = new Date(dateTimeValue);
+            if (isNaN(dateObj.getTime())) {
+                appointmentDateDisplay.textContent = '';
+                return;
+            }
+            let hours = dateObj.getHours();
+            const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // Hora 0 vira 12
+            const strHours = String(hours);
+            appointmentDateDisplay.textContent = `${strHours}:${minutes} ${ampm}`;
+        } catch (e) {
+            appointmentDateDisplay.textContent = '';
+        }
+    }
 
     function populateDropdown(selectElement, items, placeholder) {
         if (!selectElement) {
@@ -185,6 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
             reminderDateDisplay.textContent = '--/--/----';
             reminderDateInput.value = '';
         }
+        // **ALTERAÇÃO AQUI**: Atualiza o display AM/PM
+        updateAmPmDisplay(event.target.value);
     });
 
     scheduleForm.addEventListener('submit', async (event) => {
@@ -210,7 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             formDataObject.verification = 'Scheduled';
             
-            // **NOVA FORMATAÇÃO DE DATA**
             const dateObj = new Date(formDataObject.appointmentDate);
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
@@ -219,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const minutes = String(dateObj.getMinutes()).padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
             hours = hours % 12;
-            hours = hours ? hours : 12; // Hora 0 vira 12
+            hours = hours ? hours : 12;
             const strHours = String(hours).padStart(2, '0');
             
             formDataObject.appointmentDate = `${month}/${day}/${year} ${strHours}:${minutes} ${ampm}`;
@@ -243,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 codePassDisplay.textContent = '--/--/----';
                 reminderDateDisplay.textContent = '--/--/----';
                 suggestedTechDisplay.innerHTML = '<div class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium">--/--/----</div>';
-
+                updateAmPmDisplay(''); // Limpa o display AM/PM no reset
             } else {
                 alert(`Error: ${result.message}`);
             }
@@ -253,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send w-4 h-4"><path d="m22 2-11 11m0 0-3 9 9-3L22 2zM12 12 3 21"/></svg>
                 Register Appointment`;
         }
     });
