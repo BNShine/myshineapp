@@ -308,8 +308,8 @@
                             </div>
                             <div class="w-full md:w-1/4 space-y-2">
                                 <label for="suggestedTechDisplay" class="block text-sm font-semibold text-foreground">Suggested Technician</label>
-                                <div id="suggestedTechDisplay" class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium">--/--/----</div>
-                                <select id="suggestedTechSelect" name="technician" class="hidden"></select>
+                                <div id="suggestedTechDisplay" class="h-12 w-full flex items-center input-display-style text-muted-foreground font-medium hidden">--/--/----</div>
+                                <select id="suggestedTechSelect" name="technician" class="input-style"></select>
                             </div>
                         </div>
                         <div class="space-y-2">
@@ -324,39 +324,6 @@
         </div>
     </main>
     
-    <script>
-        // Adicionando a lógica do switch diretamente aqui para garantir o funcionamento
-        document.addEventListener('DOMContentLoaded', () => {
-            const manualToggle = document.getElementById('manual-mode-toggle');
-            const manualLabel = document.getElementById('manual-mode-label');
-            const appointmentDateInput = document.getElementById('appointmentDate');
-            const zipCodeInput = document.getElementById('zipCode');
-            const petsInput = document.getElementById('pets');
-            const suggestedTechDisplay = document.getElementById('suggestedTechDisplay');
-
-            function updateToggleState() {
-                if (manualToggle.checked) {
-                    manualLabel.textContent = 'Manual Mode';
-                    // Habilita os campos para edição manual
-                    appointmentDateInput.readOnly = false;
-                    zipCodeInput.readOnly = false;
-                    petsInput.disabled = false;
-                    // Você pode adicionar mais campos aqui se necessário
-                } else {
-                    manualLabel.textContent = 'Smart Mode';
-                    // Desabilita os campos, pois foram preenchidos pelo modo smart
-                    appointmentDateInput.readOnly = true;
-                    zipCodeInput.readOnly = true;
-                    petsInput.disabled = true;
-                }
-            }
-
-            manualToggle.addEventListener('change', updateToggleState);
-            
-            // Inicia o estado do switch
-            updateToggleState();
-        });
-    </script>
     <script src="appointment/dashboard-cards.js"></script>
     <script src="appointment/availability-check.js"></script>
     <script src="appointment/appointment-form.js"></script>
