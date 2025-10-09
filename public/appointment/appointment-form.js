@@ -195,6 +195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const month = appointmentDate.getMonth() + 1;
         const year = appointmentDate.getFullYear();
 
+        // **CORREÇÃO DA DATA**
+        const [datePart, timePart] = appointmentDateValue.split('T');
+        const [yearPart, monthPart, dayPart] = datePart.split('-');
+        const formattedApiDate = `${monthPart}/${dayPart}/${yearPart} ${timePart}`;
+
         const formData = {
             type: typeInput.value,
             data: dataInput.value,
@@ -204,7 +209,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             customers: customersInput.value,
             phone: phoneInput.value,
             oldNew: oldNewSelect.value,
-            appointmentDate: appointmentDateValue.replace('T', ' '),
+            appointmentDate: formattedApiDate, // **DATA CORRIGIDA**
             serviceValue: serviceValueInput.value,
             franchise: franchiseSelect.value,
             city: cityInput.value,
@@ -216,11 +221,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             reminderDate: reminderDateDisplay.textContent,
             verification: 'Scheduled',
             zipCode: zipCodeInput.value,
-            technician: suggestedTechSelect.value,
+            technician: suggestedTechSelect.value, // **TÉCNICO CORRIGIDO**
             travelTime: travelTimeInput.value || '0',
             margin: marginInput.value || '30'
         };
         
+        // **CORREÇÃO DO TÉCNICO**
+        // Garante que o campo de técnico não esteja vazio antes de enviar
+        if (!formData.technician) {
+            alert('Erro: O técnico não foi selecionado. Por favor, selecione um técnico na lista ou através do Smart Mode.');
+            return;
+        }
+
         try {
             const response = await fetch('/api/register-appointment', {
                 method: 'POST',
