@@ -141,7 +141,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (appointmentDateValue) {
             const date = new Date(appointmentDateValue);
             
-            // ALTERAÇÃO: Gera código aleatório em vez de usar o nome do cliente.
             codePassDisplay.textContent = generateRandomCode();
 
             const reminderDate = new Date(date);
@@ -195,10 +194,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const month = appointmentDate.getMonth() + 1;
         const year = appointmentDate.getFullYear();
 
-        // **CORREÇÃO DA DATA**
         const [datePart, timePart] = appointmentDateValue.split('T');
         const [yearPart, monthPart, dayPart] = datePart.split('-');
         const formattedApiDate = `${monthPart}/${dayPart}/${yearPart} ${timePart}`;
+
+        // **CORREÇÃO APLICADA AQUI**
+        // Verifica qual modo está ativo para pegar o técnico do lugar certo.
+        let technicianValue;
+        if (manualModeToggle.checked) {
+            // Modo Manual: Pega do select dropdown
+            technicianValue = suggestedTechSelect.value;
+        } else {
+            // Modo Smart: Pega do valor que foi setado no select (mesmo que oculto)
+            // O `availability-check.js` já atualiza o `value` de `suggestedTechSelect`
+            technicianValue = suggestedTechSelect.value;
+        }
 
         const formData = {
             type: typeInput.value,
@@ -209,7 +219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             customers: customersInput.value,
             phone: phoneInput.value,
             oldNew: oldNewSelect.value,
-            appointmentDate: formattedApiDate, // **DATA CORRIGIDA**
+            appointmentDate: formattedApiDate,
             serviceValue: serviceValueInput.value,
             franchise: franchiseSelect.value,
             city: cityInput.value,
@@ -221,13 +231,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             reminderDate: reminderDateDisplay.textContent,
             verification: 'Scheduled',
             zipCode: zipCodeInput.value,
-            technician: suggestedTechSelect.value, // **TÉCNICO CORRIGIDO**
+            technician: technicianValue, // Usa a variável corrigida
             travelTime: travelTimeInput.value || '0',
             margin: marginInput.value || '30'
         };
         
-        // **CORREÇÃO DO TÉCNICO**
-        // Garante que o campo de técnico não esteja vazio antes de enviar
         if (!formData.technician) {
             alert('Erro: O técnico não foi selecionado. Por favor, selecione um técnico na lista ou através do Smart Mode.');
             return;
@@ -246,7 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 codePassDisplay.textContent = '--/--/----';
                 reminderDateDisplay.textContent = '--/--/----';
                 suggestedTechDisplay.textContent = '--/--/----';
-                setInitialDate(); // Redefine a data de hoje
+                setInitialDate();
                 manualModeToggle.checked = true;
                 manualModeToggle.dispatchEvent(new Event('change'));
             } else {
@@ -260,6 +268,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Inicializa o formulário e o estado do switch
     fetchInitialData();
-    setInitialDate(); // Garante que o campo 'data' tenha um valor ao carregar
+    setInitialDate();
     manualModeToggle.dispatchEvent(new Event('change'));
 });
