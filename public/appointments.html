@@ -7,277 +7,259 @@
     <link href="output.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      /* Estilos para o Switch (Interruptor) */
-      .switch { position: relative; display: inline-block; width: 52px; height: 28px; }
-      .switch input { opacity: 0; width: 0; height: 0; }
-      .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
-      .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-      input:checked + .slider { background-color: hsl(var(--brand-primary)); }
-      input:checked + .slider:before { transform: translateX(24px); }
-      html.dark .slider { background-color: #4b5563; }
+        /* Estilos para o Switch (Interruptor) */
+        .switch { position: relative; display: inline-block; width: 52px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: hsl(var(--brand-primary)); }
+        input:checked + .slider:before { transform: translateX(24px); }
+        html.dark .slider { background-color: #4b5563; }
     </style>
 </head>
-<body class="min-h-screen bg-background text-foreground flex flex-col">
+<body class="min-h-screen bg-background text-foreground">
 
     <div id="toast-container" class="fixed top-5 right-5 z-[100] space-y-2"></div>
 
-    <header class="bg-card shadow-medium border-b border-border sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-4">
-            <div class="w-10 h-10 bg-gradient-subtle rounded-lg flex items-center justify-center shadow-soft">
-              <img src="https://i.imgur.com/XamnfOc.png" alt="Company Logo" class="max-w-full max-h-full object-contain rounded"/>
+    <div class="flex">
+        <aside class="sidebar">
+            <div class="flex h-16 items-center border-b px-6">
+                <a class="flex items-center gap-2 font-semibold" href="#">
+                    <img src="https://i.imgur.com/XamnfOc.png" alt="Logo" class="h-8 w-auto"/>
+                    <span class="sr-only">Myshineapp</span>
+                </a>
             </div>
-            <h1 class="text-xl font-bold text-foreground hidden sm:block">
-              Sales Dashboard
-            </h1>
-          </div>
-          <nav class="hidden md:flex items-center space-x-1">
-            <a href="appointments.html" class="btn bg-muted text-foreground" aria-current="page">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-                <span class="hidden lg:inline ml-2">Sales</span>
-            </a>
-            <a href="customers.html" class="btn btn-ghost">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span class="hidden lg:inline ml-2">Customers</span>
-            </a>
-            <a href="analytics.html" class="btn btn-ghost">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                <span class="hidden lg:inline ml-2">Analytics</span>
-            </a>
-            <a href="quick-routes.html" class="btn btn-ghost">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
-                <span class="hidden lg:inline ml-2">Routes</span>
-            </a>
-          </nav>
-          <div class="flex items-center gap-2">
-            <button id="dark-mode-toggle" class="btn btn-ghost w-11 h-11 px-0">
-              <svg class="w-5 h-5 block dark:hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-              <svg class="w-5 h-5 hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            </button>
-            <a href="finance-credentials.html" class="btn btn-outline hidden sm:inline-flex">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
-              <span class="ml-2">Finance</span>
-            </a>
-          </div>
-        </div>
-      </div>
-    </header>
+            <nav class="flex-1 overflow-auto py-4">
+                <ul class="grid items-start px-4 text-sm font-medium">
+                    <li><a class="sidebar-link active" href="appointments.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>Sales</a></li>
+                    <li><a class="sidebar-link" href="customers.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Customers</a></li>
+                    <li><a class="sidebar-link" href="analytics.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a></li>
+                    <li><a class="sidebar-link" href="quick-routes.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>Routes</a></li>
+                    <li><a class="sidebar-link" href="finance.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>Finance</a></li>
+                </ul>
+            </nav>
+        </aside>
 
-    <main class="flex-1 p-4 sm:p-8 overflow-y-auto">
-        <div class="max-w-7xl mx-auto space-y-8">
+        <div class="main-content flex flex-col flex-1">
+            <header class="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card px-6">
+                <h1 class="text-lg font-semibold text-foreground">Sales Dashboard</h1>
+                <div class="ml-auto flex items-center gap-2">
+                    <button id="dark-mode-toggle" class="btn btn-ghost w-10 h-10 p-0">
+                        <svg class="w-5 h-5 block dark:hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                        <svg class="w-5 h-5 hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                    </button>
+                    </div>
+            </header>
+            
+            <main class="flex-1 p-4 sm:p-6 space-y-6">
+                <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="card-base p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-small">Today's Appointments</h3>
+                            <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></div>
+                        </div>
+                        <p id="todayAppointmentsCount" class="text-4xl font-bold text-foreground">0</p>
+                        <p id="appointmentDifference" class="text-sm font-medium"></p>
+                    </div>
+                    <div class="card-base p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-small">Customers This Month</h3>
+                            <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                        </div>
+                        <p id="customersThisMonthCount" class="text-4xl font-bold text-foreground">0</p>
+                        <p id="customersThisMonthPercentage" class="text-sm font-medium"></p>
+                    </div>
+                    <div class="card-base p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-small">Pets Scheduled</h3>
+                            <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M12 8v4"/><path d="m8.5 14.5.8-1.3a2 2 0 0 1 3.4 0l.8 1.3"/><path d="M7 4v2"/><path d="M17 4v2"/></svg></div>
+                        </div>
+                        <p id="petsThisMonthCount" class="text-4xl font-bold text-foreground">0</p>
+                        <p id="petsThisMonthPercentage" class="text-sm font-medium"></p>
+                    </div>
+                    <div class="card-base p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-small">Top Closer</h3>
+                            <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.52c.42-.25.86-.42 1.32-.52"/><path d="m8.68 6-1.32.52C2.86 8.41 1.5 12.52 4.05 16.5c2.55 3.98 7.26 5.86 11.45 4.36s6.3-6.22 4.36-11.45c-.2-.53-.44-.93-.72-1.32"/><path d="M15.32 6 14 5.48c.42-.25.86-.42 1.32-.52"/><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M12 22v-2"/></svg></div>
+                        </div>
+                        <p id="bestSellerName" class="text-4xl font-bold text-foreground">--</p>
+                        <p class="text-sm font-medium text-muted-foreground">This month's top performer</p>
+                    </div>
+                </section>
 
-            <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="card-base p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-small">Today's Appointments</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></div>
+                <section id="availability-checker-section" class="card-base">
+                    <div class="p-6 border-b">
+                        <h2 class="text-section-title">1. Smart Availability Check</h2>
+                        <p class="text-body mt-1">Enter customer details to find the best appointment slots automatically.</p>
                     </div>
-                    <p id="todayAppointmentsCount" class="text-4xl font-bold text-foreground">0</p>
-                    <p id="appointmentDifference" class="text-sm font-medium"></p>
-                </div>
-                <div class="card-base p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-small">Customers This Month</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                    </div>
-                    <p id="customersThisMonthCount" class="text-4xl font-bold text-foreground">0</p>
-                    <p id="customersThisMonthPercentage" class="text-sm font-medium"></p>
-                </div>
-                <div class="card-base p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-small">Pets Scheduled</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M12 8v4"/><path d="m8.5 14.5.8-1.3a2 2 0 0 1 3.4 0l.8 1.3"/><path d="M7 4v2"/><path d="M17 4v2"/></svg></div>
-                    </div>
-                    <p id="petsThisMonthCount" class="text-4xl font-bold text-foreground">0</p>
-                    <p id="petsThisMonthPercentage" class="text-sm font-medium"></p>
-                </div>
-                <div class="card-base p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-small">Top Closer</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.52c.42-.25.86-.42 1.32-.52"/><path d="m8.68 6-1.32.52C2.86 8.41 1.5 12.52 4.05 16.5c2.55 3.98 7.26 5.86 11.45 4.36s6.3-6.22 4.36-11.45c-.2-.53-.44-.93-.72-1.32"/><path d="M15.32 6 14 5.48c.42-.25.86-.42 1.32-.52"/><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M12 22v-2"/></svg></div>
-                    </div>
-                    <p id="bestSellerName" class="text-4xl font-bold text-foreground">--</p>
-                    <p class="text-sm font-medium text-muted-foreground">This month's top performer</p>
-                </div>
-            </section>
-
-            <section id="availability-checker-section" class="card-base">
-                <div class="p-6 border-b">
-                    <h2 class="text-section-title">1. Smart Availability Check</h2>
-                    <p class="text-body mt-1">Enter customer details to find the best appointment slots automatically.</p>
-                </div>
-                <div class="p-6 space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label for="customer-zip-code" class="text-label mb-2 block">Customer Zip Code</label>
-                            <input type="text" id="customer-zip-code" placeholder="Enter 5-digit zip code" class="input-base">
-                        </div>
-                        <div>
-                            <label for="num-pets" class="text-label mb-2 block">Number of Pets</label>
-                            <input type="number" id="num-pets" value="1" min="1" class="input-base">
-                        </div>
-                        <div>
-                            <label for="appointment-margin" class="text-label mb-2 block">Scheduling Margin</label>
-                            <select id="appointment-margin" class="input-base">
-                                <option value="30" selected>30 minutes</option>
-                                <option value="10">10 minutes</option>
-                                <option value="20">20 minutes</option>
-                                <option value="40">40 minutes</option>
-                                <option value="50">50 minutes</option>
-                                <option value="60">60 minutes</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="availability-results" class="mt-4"></div>
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <button id="verify-availability-btn" class="btn-primary w-full sm:w-auto">
-                            <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 11 4 4 8-8"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                            Check Availability
-                        </button>
-                        <button id="skip-to-manual-btn" class="btn-outline w-full sm:w-auto">
-                            Manual Scheduling
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <section id="main-appointment-form" class="card-base hidden">
-                <div class="p-6 border-b flex justify-between items-center">
-                    <div>
-                        <h2 class="text-section-title">Register New Appointment</h2>
-                        <p class="text-body mt-1">Fill in all mandatory fields to create a new appointment.</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span id="manual-mode-label" class="text-small">Manual Mode</span>
-                        <label class="switch">
-                            <input type="checkbox" id="manual-mode-toggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-                
-                <form id="scheduleForm" class="p-6 space-y-8">
-                    <div class="p-6 border rounded-lg bg-background">
-                        <h3 class="text-card-title mb-6 flex items-center gap-2">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-primary"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
-                            Client Details
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                           <div>
-                                <label for="customers" class="text-label mb-2 block">Customer Name</label>
-                                <input type="text" id="customers" name="customers" required class="input-base" placeholder="Ex: John Doe">
+                    <div class="p-6 space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label for="customer-zip-code" class="text-label mb-2 block">Customer Zip Code</label>
+                                <input type="text" id="customer-zip-code" placeholder="Enter 5-digit zip code" class="input-base">
                             </div>
                             <div>
-                                <label for="phone" class="text-label mb-2 block">Phone</label>
-                                <input type="tel" id="phone" name="phone" required class="input-base" placeholder="Ex: (123) 456-7890">
+                                <label for="num-pets" class="text-label mb-2 block">Number of Pets</label>
+                                <input type="number" id="num-pets" value="1" min="1" class="input-base">
                             </div>
                             <div>
-                                <label for="email" class="text-label mb-2 block">Email</label>
-                                <input type="email" id="email" name="email" class="input-base" placeholder="Ex: john.doe@email.com">
-                            </div>
-                            <div>
-                                <label for="zipCode" class="text-label mb-2 block">Zip Code (Logistics)</label>
-                                <input type="text" id="zipCode" name="zipCode" required class="input-base" placeholder="Ex: 90210 (5 digits)">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label for="address" class="text-label mb-2 block">Full Address</label>
-                                <input type="text" id="address" name="address" class="input-base" placeholder="Ex: 123 Main St">
-                            </div>
-                             <div>
-                                <label for="city" class="text-label mb-2 block">City</label>
-                                <input type="text" id="city" name="city" required class="input-base" placeholder="Ex: Beverly Hills">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-6 border rounded-lg bg-background">
-                        <h3 class="text-card-title mb-6 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-primary"><path d="M8 21h8a2 2 0 0 0 2-2V7H6v12a2 2 0 0 0 2 2Z"/><path d="M18 3H6"/><path d="M10 3v4"/><path d="M14 3v4"/></svg>
-                             Service and Sales Details
-                         </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label for="appointmentDate" class="text-label mb-2 block">Appointment Date/Time</label>
-                                <input type="datetime-local" id="appointmentDate" name="appointmentDate" required class="input-base">
-                            </div>
-                            <div>
-                                <label for="serviceValue" class="text-label mb-2 block">Estimated Value</label>
-                                <input type="text" id="serviceValue" name="serviceValue" required class="input-base" placeholder="Ex: $150.00">
-                            </div>
-                            <div>
-                                <label for="pets" class="text-label mb-2 block">Estimated Qty (Pets/Services)</label>
-                                <select id="pets" name="pets" class="input-base"></select>
-                            </div>
-                            <div>
-                                <label for="franchise" class="text-label mb-2 block">Franchise</label>
-                                <select id="franchise" name="franchise" required class="input-base"></select>
-                            </div>
-                            <div>
-                                <label for="closer1" class="text-label mb-2 block">Closer</label>
-                                <select id="closer1" name="closer1" required class="input-base"></select>
-                            </div>
-                            <div>
-                                <label for="closer2" class="text-label mb-2 block">SDR</label>
-                                <select id="closer2" name="closer2" class="input-base"></select>
-                            </div>
-                            <div>
-                                <label for="source" class="text-label mb-2 block">Lead Source</label>
-                                <select id="source" name="source" required class="input-base"></select>
-                            </div>
-                            <div>
-                                <label for="oldNew" class="text-label mb-2 block">Phase (New/Old)</label>
-                                <select id="oldNew" name="oldNew" required class="input-base">
-                                    <option value="New">New</option>
-                                    <option value="Old">Old</option>
+                                <label for="appointment-margin" class="text-label mb-2 block">Scheduling Margin</label>
+                                <select id="appointment-margin" class="input-base">
+                                    <option value="30" selected>30 minutes</option>
+                                    <option value="10">10 minutes</option>
+                                    <option value="20">20 minutes</option>
+                                    <option value="40">40 minutes</option>
+                                    <option value="50">50 minutes</option>
+                                    <option value="60">60 minutes</option>
                                 </select>
                             </div>
                         </div>
-                    </div>
-                    <div class="p-6 border rounded-lg bg-background">
-                        <div class="hidden">
-                            <input type="date" id="data" name="data">
-                            <select id="type" name="type"><option value="Central" selected>Central</option></select>
-                            <input type="hidden" id="travelTime" name="travelTime" value="0">
-                            <input type="hidden" id="margin" name="margin" value="30">
+                        <div id="availability-results" class="mt-4"></div>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <button id="verify-availability-btn" class="btn-primary w-full sm:w-auto">
+                                <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 11 4 4 8-8"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                Check Availability
+                            </button>
+                            <button id="skip-to-manual-btn" class="btn-outline w-full sm:w-auto">
+                                Manual Scheduling
+                            </button>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                            <div>
-                                <label class="text-label mb-2 block">Confirmation Code</label>
-                                <div id="codePassDisplay" class="input-base bg-muted font-mono">--/--/----</div>
-                            </div>
-                             <div>
-                                <label class="text-label mb-2 block">Status</label>
-                                <div id="statusDisplay" class="input-base bg-muted text-success font-semibold">Scheduled</div>
-                            </div>
-                             <div>
-                                <label class="text-label mb-2 block">Reminder Date</label>
-                                <div id="reminderDateDisplay" class="input-base bg-muted font-mono">--/--/----</div>
-                            </div>
-                            <div>
-                                <label class="text-label mb-2 block">Suggested Technician</label>
-                                <div id="suggestedTechDisplay" class="input-base bg-muted hidden">--/--/----</div>
-                                <select id="suggestedTechSelect" name="technician" class="input-base"></select>
+                    </div>
+                </section>
+
+                <section id="main-appointment-form" class="card-base hidden">
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <div>
+                            <h2 class="text-section-title">Register New Appointment</h2>
+                            <p class="text-body mt-1">Fill in all mandatory fields to create a new appointment.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="manual-mode-label" class="text-small">Manual Mode</span>
+                            <label class="switch">
+                                <input type="checkbox" id="manual-mode-toggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <form id="scheduleForm" class="p-6 space-y-8">
+                        <div class="p-6 border rounded-lg bg-background">
+                            <h3 class="text-card-title mb-6 flex items-center gap-2">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-primary"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+                                Client Details
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                               <div>
+                                    <label for="customers" class="text-label mb-2 block">Customer Name</label>
+                                    <input type="text" id="customers" name="customers" required class="input-base" placeholder="Ex: John Doe">
+                                </div>
+                                <div>
+                                    <label for="phone" class="text-label mb-2 block">Phone</label>
+                                    <input type="tel" id="phone" name="phone" required class="input-base" placeholder="Ex: (123) 456-7890">
+                                </div>
+                                <div>
+                                    <label for="email" class="text-label mb-2 block">Email</label>
+                                    <input type="email" id="email" name="email" class="input-base" placeholder="Ex: john.doe@email.com">
+                                </div>
+                                <div>
+                                    <label for="zipCode" class="text-label mb-2 block">Zip Code (Logistics)</label>
+                                    <input type="text" id="zipCode" name="zipCode" required class="input-base" placeholder="Ex: 90210 (5 digits)">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="address" class="text-label mb-2 block">Full Address</label>
+                                    <input type="text" id="address" name="address" class="input-base" placeholder="Ex: 123 Main St">
+                                </div>
+                                 <div>
+                                    <label for="city" class="text-label mb-2 block">City</label>
+                                    <input type="text" id="city" name="city" required class="input-base" placeholder="Ex: Beverly Hills">
+                                </div>
                             </div>
                         </div>
-                        <button type="submit" form="scheduleForm" class="btn-primary w-full">
-                            <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                            Register Appointment
-                        </button>
-                    </div>
-                </form>
-            </section>
+                        <div class="p-6 border rounded-lg bg-background">
+                            <h3 class="text-card-title mb-6 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-primary"><path d="M8 21h8a2 2 0 0 0 2-2V7H6v12a2 2 0 0 0 2 2Z"/><path d="M18 3H6"/><path d="M10 3v4"/><path d="M14 3v4"/></svg>
+                                 Service and Sales Details
+                             </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div>
+                                    <label for="appointmentDate" class="text-label mb-2 block">Appointment Date/Time</label>
+                                    <input type="datetime-local" id="appointmentDate" name="appointmentDate" required class="input-base">
+                                </div>
+                                <div>
+                                    <label for="serviceValue" class="text-label mb-2 block">Estimated Value</label>
+                                    <input type="text" id="serviceValue" name="serviceValue" required class="input-base" placeholder="Ex: $150.00">
+                                </div>
+                                <div>
+                                    <label for="pets" class="text-label mb-2 block">Estimated Qty (Pets/Services)</label>
+                                    <select id="pets" name="pets" class="input-base"></select>
+                                </div>
+                                <div>
+                                    <label for="franchise" class="text-label mb-2 block">Franchise</label>
+                                    <select id="franchise" name="franchise" required class="input-base"></select>
+                                </div>
+                                <div>
+                                    <label for="closer1" class="text-label mb-2 block">Closer</label>
+                                    <select id="closer1" name="closer1" required class="input-base"></select>
+                                </div>
+                                <div>
+                                    <label for="closer2" class="text-label mb-2 block">SDR</label>
+                                    <select id="closer2" name="closer2" class="input-base"></select>
+                                </div>
+                                <div>
+                                    <label for="source" class="text-label mb-2 block">Lead Source</label>
+                                    <select id="source" name="source" required class="input-base"></select>
+                                </div>
+                                <div>
+                                    <label for="oldNew" class="text-label mb-2 block">Phase (New/Old)</label>
+                                    <select id="oldNew" name="oldNew" required class="input-base">
+                                        <option value="New">New</option>
+                                        <option value="Old">Old</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6 border rounded-lg bg-background">
+                            <div class="hidden">
+                                <input type="date" id="data" name="data">
+                                <select id="type" name="type"><option value="Central" selected>Central</option></select>
+                                <input type="hidden" id="travelTime" name="travelTime" value="0">
+                                <input type="hidden" id="margin" name="margin" value="30">
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                                <div>
+                                    <label class="text-label mb-2 block">Confirmation Code</label>
+                                    <div id="codePassDisplay" class="input-base bg-muted font-mono">--/--/----</div>
+                                </div>
+                                 <div>
+                                    <label class="text-label mb-2 block">Status</label>
+                                    <div id="statusDisplay" class="input-base bg-muted text-success font-semibold">Scheduled</div>
+                                </div>
+                                 <div>
+                                    <label class="text-label mb-2 block">Reminder Date</label>
+                                    <div id="reminderDateDisplay" class="input-base bg-muted font-mono">--/--/----</div>
+                                </div>
+                                <div>
+                                    <label class="text-label mb-2 block">Suggested Technician</label>
+                                    <div id="suggestedTechDisplay" class="input-base bg-muted hidden">--/--/----</div>
+                                    <select id="suggestedTechSelect" name="technician" class="input-base"></select>
+                                </div>
+                            </div>
+                            <button type="submit" form="scheduleForm" class="btn-primary w-full">
+                                <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                Register Appointment
+                            </button>
+                        </div>
+                    </form>
+                </section>
+            </main>
         </div>
-    </main>
-    
+    </div>
+
     <script>
         // Script do Dark Mode
-        const darkModeToggle = document.getElementById('dark-mode-toggle');
-        const htmlEl = document.documentElement;
-        darkModeToggle.addEventListener('click', () => {
-            htmlEl.classList.toggle('dark');
+        document.getElementById('dark-mode-toggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
         });
-        // Script para inicializar ícones Lucide
-        // A biblioteca Lucide não é mais necessária pois os SVGs estão embutidos.
     </script>
     <script src="appointment/dashboard-cards.js"></script>
     <script src="appointment/availability-check.js"></script>
