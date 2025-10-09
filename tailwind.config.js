@@ -1,7 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: "class",
-  content: ["./public/**/*.html"], // Aponta para todos os arquivos HTML na pasta public
+  content: [
+    "./public/**/*.html", // Escaneia todos os arquivos HTML na pasta public
+  ],
   theme: {
     container: {
       center: true,
