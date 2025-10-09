@@ -1,7 +1,7 @@
-// public/calendar/schedule.js (Controlador Principal)
+// public/calendar/schedule.js (Controlador Principal Refatorado)
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- 1. Seletores de Elementos ---
+    // --- 1. Seletores de Elementos Principais ---
     const techSelectDropdown = document.getElementById('tech-select-dropdown');
     const selectedTechDisplay = document.getElementById('selected-tech-display');
     const loadingOverlay = document.getElementById('loading-overlay');
@@ -13,24 +13,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const todayBtn = document.getElementById('today-btn');
     const addTimeBlockBtn = document.getElementById('add-time-block-btn');
     const miniCalendarContainer = document.getElementById('mini-calendar-container');
-
-    // Modais e seus botões
-    const editModal = document.getElementById('edit-appointment-modal');
-    const modalSaveBtn = document.getElementById('modal-save-btn');
-    const modalCancelBtn = document.getElementById('modal-cancel-btn');
-    const modalCloseXBtn = document.getElementById('modal-close-x-btn');
-    const timeBlockModal = document.getElementById('time-block-modal');
-    const blockSaveBtn = document.getElementById('block-save-btn');
-    const blockCancelBtn = document.getElementById('block-cancel-btn');
-    const editTimeBlockModal = document.getElementById('edit-time-block-modal');
-    const editBlockSaveBtn = document.getElementById('edit-block-save-btn');
-    const editBlockCancelBtn = document.getElementById('edit-block-cancel-btn');
-    const editBlockDeleteBtn = document.getElementById('edit-block-delete-btn');
-    const editBlockRowNumberInput = document.getElementById('edit-block-row-number');
-    const editBlockDateInput = document.getElementById('edit-block-date');
-    const editBlockStartInput = document.getElementById('edit-block-start-hour');
-    const editBlockEndInput = document.getElementById('edit-block-end-hour');
-    const editBlockNotesInput = document.getElementById('edit-block-notes');
 
     // --- 2. Variáveis Globais de Estado ---
     let allAppointments = [];
@@ -47,71 +29,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const MIN_HOUR = 7;
     const MAX_HOUR = 21;
-
-    // --- 4. Funções Auxiliares ---
-    function getStartOfWeek(date) {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() - d.getDay());
-        return d;
-    }
-
-    function formatDateToYYYYMMDD(date) {
-        if (!(date instanceof Date) || isNaN(date)) return '';
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        return `${year}/${month}/${day}`;
-    }
-
-    function parseSheetDate(dateStr) {
-        if (!dateStr) return null;
-        const [datePart, timePart] = dateStr.split(' ');
-        if (!datePart || !timePart) return null;
-        const dateParts = datePart.split('/');
-        if (dateParts.length !== 3) return null;
-        const [month, day, year] = dateParts.map(Number);
-        const [hour, minute] = timePart.split(':').map(Number);
-        if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) return null;
-        return new Date(year, month - 1, day, hour, minute);
-    }
-
-    function getTimeHHMM(date) {
-        if (!date) return '';
-        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    }
-
-    function formatDateTimeForInput(dateTimeStr) {
-        if (!dateTimeStr) return '';
-        const date = parseSheetDate(dateTimeStr);
-        if (!date) return '';
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const hour = date.getHours().toString().padStart(2, '0');
-        const minute = date.getMinutes().toString().padStart(2, '0');
-        return `${year}-${month}-${day}T${hour}:${minute}`;
-    }
-
-    async function getTravelTime(originZip, destinationZip) {
-        if (!originZip || !destinationZip || originZip === destinationZip) {
-            return 0;
-        }
-        try {
-            const response = await fetch('/api/get-travel-time', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ originZip, destinationZip }),
-            });
-            const result = await response.json();
-            return result.success ? result.travelTimeInMinutes : 0;
-        } catch (error) {
-            console.error("Failed to fetch travel time:", error);
-            return 0;
-        }
-    }
     
-    // --- 5. Lógica do Mini Calendário ---
+    // --- 4. Lógica do Mini Calendário ---
     function renderMiniCalendar() {
         if (!miniCalendarContainer) return;
         const month = miniCalDate.getMonth();
@@ -152,58 +71,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- 6. Funções de Manipulação dos Modais ---
-    function openEditModal(appt) {
-        const { id, appointmentDate, verification, technician, pets, margin } = appt;
-        document.getElementById('modal-appt-id').value = id;
-        document.getElementById('modal-date').value = formatDateTimeForInput(appointmentDate);
-        document.getElementById('modal-pets').value = pets || 1;
-        document.getElementById('modal-margin').value = margin || 30;
-        const techSelect = document.getElementById('modal-technician');
-        techSelect.innerHTML = allTechnicians.map(t => `<option value="${t}" ${t === technician ? 'selected' : ''}>${t}</option>`).join('');
-        const verificationSelect = document.getElementById('modal-verification');
-        const statusOptions = ["Scheduled", "Confirmed", "Showed", "Canceled"];
-        verificationSelect.innerHTML = statusOptions.map(opt => `<option value="${opt}" ${verification === opt ? 'selected' : ''}>${opt}</option>`).join('');
-        editModal.classList.remove('hidden');
-        document.body.classList.add('modal-open');
-    }
-
-    function closeEditModal() {
-        if (editModal) editModal.classList.add('hidden');
-        document.body.classList.remove('modal-open');
-    }
-
-    function openTimeBlockModal() {
-        if (!selectedTechnician) {
-            alert('Please select a technician first.');
-            return;
-        }
-        document.getElementById('time-block-form').reset();
-        timeBlockModal.classList.remove('hidden');
-    }
-
-    function closeTimeBlockModal() {
-        timeBlockModal.classList.add('hidden');
-    }
-
-    function openEditTimeBlockModal(blockData) {
-        editBlockRowNumberInput.value = blockData.rowNumber;
-        const [month, day, year] = blockData.date.split('/');
-        editBlockDateInput.value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        editBlockStartInput.value = blockData.startHour;
-        editBlockEndInput.value = blockData.endHour;
-        editBlockNotesInput.value = blockData.notes;
-        editTimeBlockModal.classList.remove('hidden');
-        document.body.classList.add('modal-open');
-    }
-
-    function closeEditTimeBlockModal() {
-        if (editTimeBlockModal) editTimeBlockModal.classList.add('hidden');
-        document.body.classList.remove('modal-open');
-    }
-
-    // --- 7. Funções de Manipulação de Dados (API Calls) ---
+    // --- 5. Funções de Manipulação de Dados (API Calls) ---
     async function handleSaveAppointment() {
+        const modalSaveBtn = document.getElementById('modal-save-btn');
         modalSaveBtn.disabled = true;
         modalSaveBtn.textContent = 'Saving...';
 
@@ -263,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } finally {
             modalSaveBtn.disabled = false;
             modalSaveBtn.textContent = 'Save Changes';
-            closeEditModal();
+            window.closeEditModal();
         }
     }
     
@@ -277,6 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const startHourInput = document.getElementById('block-start-hour');
         const endHourInput = document.getElementById('block-end-hour');
         const notesInput = document.getElementById('block-notes');
+        const blockSaveBtn = document.getElementById('block-save-btn');
 
         if (!dateInput.value || !startHourInput.value || !endHourInput.value) {
             alert("Date, Start Time, and End Time are required.");
@@ -308,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             await fetchAvailabilityForSelectedTech();
             updateAllComponents();
-            closeTimeBlockModal();
+            window.closeTimeBlockModal();
             alert("Time block saved successfully!");
 
         } catch (error) {
@@ -321,6 +192,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function handleUpdateTimeBlock() {
+        const editBlockRowNumberInput = document.getElementById('edit-block-row-number');
+        const editBlockDateInput = document.getElementById('edit-block-date');
+        const editBlockStartInput = document.getElementById('edit-block-start-hour');
+        const editBlockEndInput = document.getElementById('edit-block-end-hour');
+        const editBlockNotesInput = document.getElementById('edit-block-notes');
+        const editBlockSaveBtn = document.getElementById('edit-block-save-btn');
+        
         const rowNumber = parseInt(editBlockRowNumberInput.value, 10);
         const dateValue = editBlockDateInput.value;
         const startHour = editBlockStartInput.value;
@@ -357,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             await fetchAvailabilityForSelectedTech();
             updateAllComponents();
-            closeEditTimeBlockModal();
+            window.closeEditTimeBlockModal();
             alert("Time block updated successfully!");
         } catch (error) {
             console.error("Error updating time block:", error);
@@ -369,6 +247,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function handleDeleteTimeBlock() {
+        const editBlockRowNumberInput = document.getElementById('edit-block-row-number');
+        const editBlockDeleteBtn = document.getElementById('edit-block-delete-btn');
+        
         const rowNumber = parseInt(editBlockRowNumberInput.value, 10);
         if (!rowNumber) {
             alert("Could not find the time block to delete.");
@@ -393,7 +274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             await fetchAvailabilityForSelectedTech();
             updateAllComponents();
-            closeEditTimeBlockModal();
+            window.closeEditTimeBlockModal();
             alert("Time block deleted successfully!");
         } catch (error) {
             console.error("Error deleting time block:", error);
@@ -420,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // --- 8. Funções de Renderização ---
+    // --- 6. Funções de Renderização ---
     function renderScheduler() {
         if (!schedulerHeader || !schedulerBody) return;
         schedulerHeader.innerHTML = '<div class="timeline-header p-2 font-semibold">Time</div>';
@@ -439,7 +320,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         DAY_NAMES.forEach((dayName, dayIndex) => {
             const date = new Date(currentWeekStart);
             date.setDate(date.getDate() + dayIndex);
-            const dateKey = formatDateToYYYYMMDD(date);
             const column = dayIndex + 2;
             const header = document.createElement('div');
             header.className = 'day-column-header p-2 font-semibold border-l border-border';
@@ -450,7 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             dayContainer.className = 'relative border-r border-border';
             dayContainer.style.gridColumn = column;
             dayContainer.style.gridRow = `1 / span ${TIME_SLOTS.length}`;
-            dayContainer.dataset.dateKey = dateKey;
+            dayContainer.dataset.dateKey = formatDateToYYYYMMDD(date);
             
             TIME_SLOTS.forEach((_, rowIndex) => {
                  const line = document.createElement('div');
@@ -515,14 +395,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 ${marginTime > 0 ? `<div class="bg-margin ${textColor}" style="height: ${marginPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Margin</span></div>` : ''}`;
             
-            block.addEventListener('click', () => openEditModal(appt));
+            block.addEventListener('click', () => window.openEditModal(appt, allTechnicians));
             dayContainer.appendChild(block);
         });
     }
 
     function renderTimeBlocks() {
         const weekEnd = new Date(currentWeekStart);
-        weekEnd.setDate(currentWeekStart.getDate() + 7);
+        weekEnd.setDate(weekEnd.getDate() + 7);
         techAvailabilityBlocks.forEach(block => {
             if (!block || typeof block.date !== 'string' || block.date.trim() === '') return;
             const parts = block.date.split('/');
@@ -544,13 +424,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const blockEl = document.createElement('div');
             blockEl.className = 'appointment-block rounded-md';
             blockEl.style.height = `${height}px`;
-            blockEl.style.backgroundColor = 'rgba(107, 114, 128, 0.7)'; // Cor cinza translúcida
+            blockEl.style.backgroundColor = 'rgba(107, 114, 128, 0.7)';
             blockEl.style.zIndex = '5';
             blockEl.style.cursor = 'pointer';
             blockEl.style.padding = '4px 8px';
             blockEl.style.top = `${topOffset}px`;
             blockEl.innerHTML = `<p class="text-xs font-semibold text-white truncate">${block.notes || 'Blocked'}</p><p class="text-xs text-white/80">${block.startHour} - ${block.endHour}</p>`;
-            blockEl.addEventListener('click', () => openEditTimeBlockModal(block));
+            blockEl.addEventListener('click', () => window.openEditTimeBlockModal(block));
             dayContainer.appendChild(blockEl);
         });
     }
@@ -562,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentWeekDisplay.textContent = `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}`;
     }
 
-    // --- 9. Inicialização e Lógica de Controle ---
+    // --- 7. Inicialização e Lógica de Controle ---
     async function loadInitialData(isReload = false) {
         if (!isReload) loadingOverlay.classList.remove('hidden');
         try {
@@ -616,17 +496,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     techSelectDropdown.addEventListener('change', handleTechSelectionChange);
     
     prevWeekBtn.addEventListener('click', () => {
-        const newDate = new Date(currentWeekStart);
-        newDate.setDate(newDate.getDate() - 7);
-        currentWeekStart = newDate;
+        currentWeekStart.setDate(currentWeekStart.getDate() - 7);
         updateAllComponents();
         renderMiniCalendar();
     });
     
     nextWeekBtn.addEventListener('click', () => {
-        const newDate = new Date(currentWeekStart);
-        newDate.setDate(newDate.getDate() + 7);
-        currentWeekStart = newDate;
+        currentWeekStart.setDate(currentWeekStart.getDate() + 7);
         updateAllComponents();
         renderMiniCalendar();
     });
@@ -638,15 +514,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderMiniCalendar();
     });
     
-    modalSaveBtn.addEventListener('click', handleSaveAppointment);
-    modalCancelBtn.addEventListener('click', closeEditModal);
-    modalCloseXBtn.addEventListener('click', closeEditModal);
-    addTimeBlockBtn.addEventListener('click', openTimeBlockModal);
-    blockSaveBtn.addEventListener('click', handleSaveTimeBlock);
-    blockCancelBtn.addEventListener('click', closeTimeBlockModal);
-    editBlockSaveBtn.addEventListener('click', handleUpdateTimeBlock);
-    editBlockDeleteBtn.addEventListener('click', handleDeleteTimeBlock);
-    editBlockCancelBtn.addEventListener('click', closeEditTimeBlockModal);
+    // Listeners dos botões dos modais
+    document.getElementById('modal-save-btn')?.addEventListener('click', handleSaveAppointment);
+    document.getElementById('modal-cancel-btn')?.addEventListener('click', window.closeEditModal);
+    document.getElementById('modal-close-x-btn')?.addEventListener('click', window.closeEditModal);
+    addTimeBlockBtn?.addEventListener('click', () => window.openTimeBlockModal(selectedTechnician));
+    document.getElementById('block-save-btn')?.addEventListener('click', handleSaveTimeBlock);
+    document.getElementById('block-cancel-btn')?.addEventListener('click', window.closeTimeBlockModal);
+    document.getElementById('edit-block-save-btn')?.addEventListener('click', handleUpdateTimeBlock);
+    document.getElementById('edit-block-delete-btn')?.addEventListener('click', handleDeleteTimeBlock);
+    document.getElementById('edit-block-cancel-btn')?.addEventListener('click', window.closeEditTimeBlockModal);
 
     document.addEventListener('appointmentUpdated', () => loadInitialData(true));
 
