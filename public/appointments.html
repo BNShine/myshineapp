@@ -6,7 +6,6 @@
     <title>Sales Dashboard</title>
     <link href="output.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/lucide-static@latest/dist/umd/lucide.js"></script>
     <style>
       /* Estilos para o Switch (Interruptor) */
       .switch { position: relative; display: inline-block; width: 52px; height: 28px; }
@@ -15,9 +14,10 @@
       .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
       input:checked + .slider { background-color: hsl(var(--brand-primary)); }
       input:checked + .slider:before { transform: translateX(24px); }
+      html.dark .slider { background-color: #4b5563; }
     </style>
 </head>
-<body class="min-h-screen bg-background flex flex-col">
+<body class="min-h-screen bg-background text-foreground flex flex-col">
 
     <div id="toast-container" class="fixed top-5 right-5 z-[100] space-y-2"></div>
 
@@ -34,29 +34,29 @@
           </div>
           <nav class="hidden md:flex items-center space-x-1">
             <a href="appointments.html" class="btn bg-muted text-foreground" aria-current="page">
-                <i data-lucide="calendar" class="w-4 h-4"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                 <span class="hidden lg:inline ml-2">Sales</span>
             </a>
             <a href="customers.html" class="btn btn-ghost">
-                <i data-lucide="users" class="w-4 h-4"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 <span class="hidden lg:inline ml-2">Customers</span>
             </a>
             <a href="analytics.html" class="btn btn-ghost">
-                <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
                 <span class="hidden lg:inline ml-2">Analytics</span>
             </a>
             <a href="quick-routes.html" class="btn btn-ghost">
-                <i data-lucide="route" class="w-4 h-4"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
                 <span class="hidden lg:inline ml-2">Routes</span>
             </a>
           </nav>
           <div class="flex items-center gap-2">
             <button id="dark-mode-toggle" class="btn btn-ghost w-11 h-11 px-0">
-              <i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i>
-              <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
+              <svg class="w-5 h-5 block dark:hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+              <svg class="w-5 h-5 hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
             </button>
             <a href="finance-credentials.html" class="btn btn-outline hidden sm:inline-flex">
-              <i data-lucide="dollar-sign" class="w-4 h-4"></i>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
               <span class="ml-2">Finance</span>
             </a>
           </div>
@@ -71,31 +71,31 @@
                 <div class="card-base p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-small">Today's Appointments</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><i data-lucide="calendar" class="h-4 w-4"></i></div>
+                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></div>
                     </div>
                     <p id="todayAppointmentsCount" class="text-4xl font-bold text-foreground">0</p>
-                    <p id="appointmentDifference" class="text-sm font-medium text-green-600"></p>
+                    <p id="appointmentDifference" class="text-sm font-medium"></p>
                 </div>
                 <div class="card-base p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-small">Customers This Month</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><i data-lucide="users" class="h-4 w-4"></i></div>
+                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                     </div>
                     <p id="customersThisMonthCount" class="text-4xl font-bold text-foreground">0</p>
-                    <p id="customersThisMonthPercentage" class="text-sm font-medium text-green-600"></p>
+                    <p id="customersThisMonthPercentage" class="text-sm font-medium"></p>
                 </div>
                 <div class="card-base p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-small">Pets Scheduled</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><i data-lucide="paw-print" class="h-4 w-4"></i></div>
+                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M12 8v4"/><path d="m8.5 14.5.8-1.3a2 2 0 0 1 3.4 0l.8 1.3"/><path d="M7 4v2"/><path d="M17 4v2"/></svg></div>
                     </div>
                     <p id="petsThisMonthCount" class="text-4xl font-bold text-foreground">0</p>
-                    <p id="petsThisMonthPercentage" class="text-sm font-medium text-green-600"></p>
+                    <p id="petsThisMonthPercentage" class="text-sm font-medium"></p>
                 </div>
                 <div class="card-base p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-small">Top Closer</h3>
-                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><i data-lucide="award" class="h-4 w-4"></i></div>
+                        <div class="h-8 w-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.52c.42-.25.86-.42 1.32-.52"/><path d="m8.68 6-1.32.52C2.86 8.41 1.5 12.52 4.05 16.5c2.55 3.98 7.26 5.86 11.45 4.36s6.3-6.22 4.36-11.45c-.2-.53-.44-.93-.72-1.32"/><path d="M15.32 6 14 5.48c.42-.25.86-.42 1.32-.52"/><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M12 22v-2"/></svg></div>
                     </div>
                     <p id="bestSellerName" class="text-4xl font-bold text-foreground">--</p>
                     <p class="text-sm font-medium text-muted-foreground">This month's top performer</p>
@@ -132,7 +132,7 @@
                     <div id="availability-results" class="mt-4"></div>
                     <div class="flex flex-col sm:flex-row gap-4">
                         <button id="verify-availability-btn" class="btn-primary w-full sm:w-auto">
-                            <i data-lucide="search-check" class="w-4 h-4 mr-2"></i>
+                            <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 11 4 4 8-8"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                             Check Availability
                         </button>
                         <button id="skip-to-manual-btn" class="btn-outline w-full sm:w-auto">
@@ -157,10 +157,10 @@
                     </div>
                 </div>
                 
-                <form id="scheduleForm" class="p-6">
-                    <div class="mb-8 p-6 border rounded-lg bg-background">
+                <form id="scheduleForm" class="p-6 space-y-8">
+                    <div class="p-6 border rounded-lg bg-background">
                         <h3 class="text-card-title mb-6 flex items-center gap-2">
-                            <i data-lucide="user-check" class="w-5 h-5 text-brand-primary"></i>
+                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-primary"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
                             Client Details
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -190,13 +190,13 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-8 p-6 border rounded-lg bg-background">
+                    <div class="p-6 border rounded-lg bg-background">
                         <h3 class="text-card-title mb-6 flex items-center gap-2">
-                            <i data-lucide="briefcase" class="w-5 h-5 text-brand-primary"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-primary"><path d="M8 21h8a2 2 0 0 0 2-2V7H6v12a2 2 0 0 0 2 2Z"/><path d="M18 3H6"/><path d="M10 3v4"/><path d="M14 3v4"/></svg>
                              Service and Sales Details
                          </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                           <div>
+                            <div>
                                 <label for="appointmentDate" class="text-label mb-2 block">Appointment Date/Time</label>
                                 <input type="datetime-local" id="appointmentDate" name="appointmentDate" required class="input-base">
                             </div>
@@ -233,8 +233,8 @@
                             </div>
                         </div>
                     </div>
-                     <div class="p-6 border rounded-lg bg-background">
-                        <div class="space-y-2 hidden">
+                    <div class="p-6 border rounded-lg bg-background">
+                        <div class="hidden">
                             <input type="date" id="data" name="data">
                             <select id="type" name="type"><option value="Central" selected>Central</option></select>
                             <input type="hidden" id="travelTime" name="travelTime" value="0">
@@ -243,7 +243,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                             <div>
                                 <label class="text-label mb-2 block">Confirmation Code</label>
-                                <div id="codePassDisplay" class="input-base bg-muted">--/--/----</div>
+                                <div id="codePassDisplay" class="input-base bg-muted font-mono">--/--/----</div>
                             </div>
                              <div>
                                 <label class="text-label mb-2 block">Status</label>
@@ -251,7 +251,7 @@
                             </div>
                              <div>
                                 <label class="text-label mb-2 block">Reminder Date</label>
-                                <div id="reminderDateDisplay" class="input-base bg-muted">--/--/----</div>
+                                <div id="reminderDateDisplay" class="input-base bg-muted font-mono">--/--/----</div>
                             </div>
                             <div>
                                 <label class="text-label mb-2 block">Suggested Technician</label>
@@ -260,7 +260,7 @@
                             </div>
                         </div>
                         <button type="submit" form="scheduleForm" class="btn-primary w-full">
-                            <i data-lucide="send" class="w-4 h-4 mr-2"></i>
+                            <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                             Register Appointment
                         </button>
                     </div>
@@ -272,11 +272,12 @@
     <script>
         // Script do Dark Mode
         const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const htmlEl = document.documentElement;
         darkModeToggle.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
+            htmlEl.classList.toggle('dark');
         });
         // Script para inicializar ícones Lucide
-        lucide.createIcons();
+        // A biblioteca Lucide não é mais necessária pois os SVGs estão embutidos.
     </script>
     <script src="appointment/dashboard-cards.js"></script>
     <script src="appointment/availability-check.js"></script>
