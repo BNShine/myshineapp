@@ -35,8 +35,8 @@
     
     /* Variáveis da Sidebar Refinadas */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 4% 56%; /* Texto um pouco mais claro */
-    --sidebar-active-background: 240 5% 96%;
+    --sidebar-foreground: 240 4% 46%;
+    --sidebar-active-background: 240 8% 90%; /* Cor #e4e4e7 em HSL */
     --sidebar-active-foreground: 240 6% 10%;
   }
 
@@ -62,7 +62,7 @@
     /* Variáveis da Sidebar (Dark) Refinadas */
     --sidebar-background: 240 6% 12%;
     --sidebar-foreground: 240 5% 65%;
-    --sidebar-active-background: 240 4% 16%;
+    --sidebar-active-background: 240 4% 20%; /* Um cinza mais escuro para o modo dark */
     --sidebar-active-foreground: 0 0% 98%;
   }
 }
@@ -80,10 +80,10 @@
 @layer components {
   /* Layout */
   .sidebar { @apply fixed top-0 left-0 z-40 flex h-screen w-64 flex-col border-r bg-[--sidebar-background] transition-transform; }
-  .main-content { @apply pl-64; } /* Alterado para padding */
+  .main-content { @apply pl-64; }
 
   /* Componentes da Sidebar */
-  .sidebar-link { @apply flex items-center gap-3 rounded-md px-3 py-2.5 text-base font-medium text-[--sidebar-foreground] transition-all hover:text-[--sidebar-active-foreground] hover:bg-[--sidebar-active-background]; }
+  .sidebar-link { @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium text-[--sidebar-foreground] transition-all hover:text-[--sidebar-active-foreground] hover:bg-[--sidebar-active-background]; }
   .sidebar-link.active { @apply bg-[--sidebar-active-background] text-[--sidebar-active-foreground] font-semibold; }
   
   /* ... (outras classes de componentes) ... */
