@@ -42,11 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return Math.ceil((dayOfMonth + firstDayOfWeek) / 7);
     }
 
-    /**
-     * NOVA FUNÇÃO: Gera um código alfanumérico aleatório.
-     * @param {number} length - O comprimento do código a ser gerado.
-     * @returns {string} - O código aleatório.
-     */
     function generateRandomCode(length = 6) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
@@ -198,16 +193,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const [yearPart, monthPart, dayPart] = datePart.split('-');
         const formattedApiDate = `${monthPart}/${dayPart}/${yearPart} ${timePart}`;
 
-        // **CORREÇÃO APLICADA AQUI**
-        // Verifica qual modo está ativo para pegar o técnico do lugar certo.
+        // **CORREÇÃO FINAL APLICADA AQUI**
         let technicianValue;
         if (manualModeToggle.checked) {
-            // Modo Manual: Pega do select dropdown
+            // Modo Manual: Pega do select dropdown visível
             technicianValue = suggestedTechSelect.value;
         } else {
-            // Modo Smart: Pega do valor que foi setado no select (mesmo que oculto)
-            // O `availability-check.js` já atualiza o `value` de `suggestedTechSelect`
-            technicianValue = suggestedTechSelect.value;
+            // Modo Smart: Pega o texto do campo de exibição que é preenchido pelo availability-check.js
+            technicianValue = suggestedTechDisplay.textContent;
         }
 
         const formData = {
@@ -236,7 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             margin: marginInput.value || '30'
         };
         
-        if (!formData.technician) {
+        if (!formData.technician || formData.technician === '--/--/----') {
             alert('Erro: O técnico não foi selecionado. Por favor, selecione um técnico na lista ou através do Smart Mode.');
             return;
         }
