@@ -6,49 +6,31 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-
     --primary: 337 100% 67%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 48 95% 72%;
-    --secondary-foreground: 222.2 84% 4.9%;
-
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
     --success: 142.1 76.2% 36.3%;
     --success-foreground: 210 40% 98%;
-
     --warning: 47.9 95.8% 53.1%;
-    --warning-foreground: 210 40% 98%;
-
+    --warning-foreground: 222.2 84% 4.9%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 337 100% 67%;
-
     --radius: 0.75rem;
-
-    /* Custom brand colors */
     --brand-primary: 337 100% 67%;
-    --brand-primary-hover: 337 85% 60%;
-    
-    /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--brand-primary)), hsl(337 85% 75%));
     --gradient-subtle: linear-gradient(135deg, hsl(var(--card)), hsl(var(--muted) / 0.5));
-
-    /* Shadows */
     --shadow-soft: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
     --shadow-medium: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
     --shadow-large: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
@@ -64,18 +46,18 @@
     --popover-foreground: 210 40% 98%;
     --primary: 337 100% 67%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 48 95% 72%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
     --success: 142.1 76.2% 36.3%;
     --success-foreground: 210 40% 98%;
     --warning: 47.9 95.8% 53.1%;
-    --warning-foreground: 210 40% 98%;
+    --warning-foreground: 222.2 84% 4.9%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 337 100% 67%;
@@ -93,26 +75,25 @@
   }
 }
 
-/* Camada de Componentes para padronização */
 @layer components {
-  /* Tipografia */
+  /* Typography */
   .text-page-title { @apply text-2xl font-bold tracking-tight text-foreground sm:text-3xl; }
   .text-section-title { @apply text-xl font-semibold text-foreground; }
   .text-card-title { @apply text-lg font-semibold text-foreground; }
   .text-body { @apply text-base text-muted-foreground; }
   .text-label { @apply text-sm font-medium leading-none text-foreground; }
   .text-small { @apply text-sm font-medium text-muted-foreground; }
-  
-  /* Botões */
+
+  /* Buttons */
   .btn { @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50; }
   .btn-primary { @apply btn bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 shadow-brand h-11 px-8; }
   .btn-secondary { @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-6; }
   .btn-outline { @apply btn border-2 border-input bg-transparent hover:bg-accent hover:text-accent-foreground h-11 px-6; }
-  .btn-ghost { @apply btn hover:bg-accent hover:text-accent-foreground h-11 px-4; }
-  
-  /* Inputs e Forms */
-  .input-base { @apply flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors; }
-  
+  .btn-ghost { @apply btn hover:bg-accent hover:text-accent-foreground h-11; }
+
+  /* Forms */
+  .input-base { @apply flex h-11 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors; }
+
   /* Cards */
   .card-base { @apply rounded-xl border bg-card text-card-foreground shadow-soft; }
 }
