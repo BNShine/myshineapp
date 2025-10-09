@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 240 10% 99%; /* Um branco levemente azulado */
+    --background: 240 10% 99%;
     --foreground: 240 6% 10%;
     --card: 0 0% 100%;
     --card-foreground: 240 6% 10%;
@@ -22,13 +22,18 @@
     --destructive-foreground: 0 0% 100%;
     --success: 142.1 76.2% 36.3%;
     --success-foreground: 0 0% 100%;
-    --warning: 47.9 95.8% 53.1%;
+    --warning: 38 92% 50%;
     --warning-foreground: 240 6% 10%;
     --border: 240 6% 90%;
     --input: 240 6% 90%;
     --ring: 337 100% 67%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
     --brand-primary: 337 100% 67%;
+
+    /* Cores para ícones do Dashboard */
+    --info-background: 207 90% 54%;
+    --success-background: 142.1 76.2% 36.3%;
+    --warning-background: 38 92% 50%;
     
     /* Variáveis da Sidebar */
     --sidebar-background: 0 0% 100%;
@@ -52,6 +57,9 @@
     --accent-foreground: 0 0% 98%;
     --border: 240 4% 16%;
     --input: 240 4% 16%;
+    --destructive: 0 72% 51%;
+    --success: 142.1 70.6% 45.3%;
+    --warning: 38 92% 50%;
     
     /* Variáveis da Sidebar (Dark) */
     --sidebar-background: 240 6% 12%;
@@ -72,20 +80,11 @@
 }
 
 @layer components {
-  .sidebar {
-    @apply fixed top-0 left-0 z-40 flex h-screen w-64 flex-col border-r bg-[--sidebar-background] transition-transform;
-  }
-  .main-content {
-    @apply ml-64; /* A mesma largura da sidebar */
-  }
-  .sidebar-link {
-    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-[--sidebar-foreground] transition-all hover:text-[--sidebar-active-foreground] hover:bg-[--sidebar-active-background];
-  }
-  .sidebar-link.active {
-    @apply bg-[--sidebar-active-background] text-[--sidebar-active-foreground] font-semibold;
-  }
-  
-  /* Componentes Visuais */
+  /* ... (outras classes de componentes) ... */
+  .sidebar { @apply fixed top-0 left-0 z-40 flex h-screen w-64 flex-col border-r bg-[--sidebar-background] transition-transform; }
+  .main-content { @apply ml-64; }
+  .sidebar-link { @apply flex items-center gap-3 rounded-lg px-3 py-2 text-[--sidebar-foreground] transition-all hover:text-[--sidebar-active-foreground] hover:bg-[--sidebar-active-background]; }
+  .sidebar-link.active { @apply bg-[--sidebar-active-background] text-[--sidebar-active-foreground] font-semibold; }
   .text-page-title { @apply text-2xl font-bold tracking-tight text-foreground sm:text-3xl; }
   .text-section-title { @apply text-xl font-semibold text-foreground; }
   .text-card-title { @apply text-lg font-semibold text-foreground; }
@@ -94,9 +93,8 @@
   .text-small { @apply text-sm font-medium text-muted-foreground; }
   .btn { @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50; }
   .btn-primary { @apply btn bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 shadow-brand h-11 px-8; }
-  .btn-secondary { @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-6; }
   .btn-outline { @apply btn border-2 border-input bg-transparent hover:bg-accent hover:text-accent-foreground h-11 px-6; }
   .btn-ghost { @apply btn hover:bg-accent hover:text-accent-foreground h-11; }
-  .input-base { @apply flex h-11 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors; }
+  .input-base { @apply flex h-11 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors; }
   .card-base { @apply rounded-xl border bg-card text-card-foreground shadow-soft; }
 }
