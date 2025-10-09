@@ -1,13 +1,23 @@
 // public/calendar/manageShowed.js
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Seletores de Elementos ---
     const showedAppointmentsTableBody = document.getElementById('showed-appointments-table-body');
-    if (!showedAppointmentsTableBody) return;
+    const accessPasswordBtn = document.getElementById('access-password-btn');
+    const manageShowedLockScreen = document.getElementById('manage-showed-lock-screen');
+    const manageShowedContent = document.getElementById('manage-showed-content');
 
+    if (!showedAppointmentsTableBody || !accessPasswordBtn || !manageShowedLockScreen || !manageShowedContent) {
+        console.error("One or more required elements for ManageShowed script are missing.");
+        return;
+    }
+
+    // --- Variáveis de Estado ---
     let localAppointments = [];
     let localSelectedTechnician = '';
     let localCurrentWeekStart = new Date();
 
+    // --- Funções Auxiliares ---
     function parseSheetDate(dateStr) {
         if (!dateStr) return null;
         const [datePart, timePart] = dateStr.split(' ');
@@ -32,8 +42,46 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${year}-${month}-${day}T${hour}:${minute}`;
     }
 
+    // --- Lógica de Desbloqueio por Senha ---
+    accessPasswordBtn.addEventListener('click', async () => {
+        const password = prompt("Please enter the access password:");
+        if (password === null) { // Usuário clicou em "Cancelar"
+            return; 
+        }
+
+        try {
+            accessPasswordBtn.disabled = true;
+            accessPasswordBtn.textContent = "Verifying...";
+
+            const response = await fetch('/api/verify-fkey', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                manageShowedLockScreen.classList.add('hidden');
+                manageShowedContent.classList.remove('hidden');
+                // Após desbloquear, renderiza a tabela com os dados já carregados
+                renderShowedAppointmentsTable();
+            } else {
+                alert('Incorrect password. Please try again.');
+            }
+        } catch (error) {
+            console.error("Error verifying password:", error);
+            alert("An error occurred while trying to verify the password. Please check the console.");
+        } finally {
+            accessPasswordBtn.disabled = false;
+            accessPasswordBtn.textContent = "Access with Password";
+        }
+    });
+
+    // --- Lógica de Renderização da Tabela ---
     function renderShowedAppointmentsTable() {
-        if(!showedAppointmentsTableBody) return;
+        if (!showedAppointmentsTableBody) return;
+        
         showedAppointmentsTableBody.innerHTML = '';
         const weekEnd = new Date(localCurrentWeekStart);
         weekEnd.setDate(weekEnd.getDate() + 7);
@@ -50,29 +98,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         appointmentsForWeek.forEach(appointment => {
             const row = document.createElement('tr');
-            row.className = 'border-b border-border hover:bg-muted/50';
+            row.className = 'border-b hover:bg-muted/50';
             row.dataset.rowId = appointment.id;
             const statusOptions = ["Scheduled", "Confirmed", "Showed", "Canceled"];
             row.innerHTML = `
-                <td class="p-4"><input type="datetime-local" value="${formatDateTimeForInput(appointment.appointmentDate)}" style="width: 160px;" class="bg-transparent border border-border rounded-md px-2" data-key="appointmentDate"></td>
+                <td class="p-4"><input type="datetime-local" value="${formatDateTimeForInput(appointment.appointmentDate)}" style="width: 160px;" class="input-base h-9 text-sm" data-key="appointmentDate"></td>
                 <td class="p-4">${appointment.customers.length > 18 ? appointment.customers.substring(0, 15) + '...' : appointment.customers}</td>
                 <td class="p-4">${appointment.code}</td>
-                <td class="p-4"><input type="text" value="${appointment.technician}" class="bg-transparent border border-border rounded-md px-2" data-key="technician" disabled></td>
-                <td class="p-4"><select style="width: 60px;" class="bg-transparent border border-border rounded-md px-2" data-key="petShowed"><option value="">Pets</option>${Array.from({ length: 10 }, (_, i) => i + 1).map(num => `<option value="${num}" ${appointment.petShowed == String(num) ? 'selected' : ''}>${num}</option>`).join('')}</select></td>
-                <td class="p-4"><input type="text" value="${appointment.serviceShowed || ''}" style="width: 100px;" class="bg-transparent border border-border rounded-md px-2" data-key="serviceShowed"></td>
-                <td class="p-4"><input type="text" value="${appointment.tips || ''}" style="width: 80px;" class="bg-transparent border border-border rounded-md px-2" data-key="tips"></td>
-                <td class="p-4"><select style="width: 80px;" class="bg-transparent border border-border rounded-md px-2" data-key="percentage"><option value="">%</option>${["20%", "25%"].map(opt => `<option value="${opt}" ${appointment.percentage === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
-                <td class="p-4"><select style="width: 120px;" class="bg-transparent border border-border rounded-md px-2" data-key="paymentMethod"><option value="">Select...</option>${["Check", "American Express", "Apple Pay", "Discover", "Master Card", "Visa", "Zelle", "Cash", "Invoice"].map(opt => `<option value="${opt}" ${appointment.paymentMethod === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
-                <td class="p-4"><select style="width: 100px;" class="bg-transparent border border-border rounded-md px-2" data-key="verification">${statusOptions.map(opt => `<option value="${opt}" ${appointment.verification === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
+                <td class="p-4"><input type="text" value="${appointment.technician}" class="input-base h-9 text-sm" data-key="technician" disabled></td>
+                <td class="p-4"><select style="width: 80px;" class="input-base h-9 text-sm" data-key="petShowed"><option value="">Pets</option>${Array.from({ length: 10 }, (_, i) => i + 1).map(num => `<option value="${num}" ${appointment.petShowed == String(num) ? 'selected' : ''}>${num}</option>`).join('')}</select></td>
+                <td class="p-4"><input type="text" value="${appointment.serviceShowed || ''}" style="width: 100px;" class="input-base h-9 text-sm" data-key="serviceShowed"></td>
+                <td class="p-4"><input type="text" value="${appointment.tips || ''}" style="width: 80px;" class="input-base h-9 text-sm" data-key="tips"></td>
+                <td class="p-4"><select style="width: 80px;" class="input-base h-9 text-sm" data-key="percentage"><option value="">%</option>${["20%", "25%"].map(opt => `<option value="${opt}" ${appointment.percentage === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
+                <td class="p-4"><select style="width: 120px;" class="input-base h-9 text-sm" data-key="paymentMethod"><option value="">Select...</option>${["Check", "American Express", "Apple Pay", "Discover", "Master Card", "Visa", "Zelle", "Cash", "Invoice"].map(opt => `<option value="${opt}" ${appointment.paymentMethod === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
+                <td class="p-4"><select style="width: 100px;" class="input-base h-9 text-sm" data-key="verification">${statusOptions.map(opt => `<option value="${opt}" ${appointment.verification === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></td>
             `;
             showedAppointmentsTableBody.appendChild(row);
         });
     }
 
-    document.addEventListener('stateUpdated', (e) => {
-        localAppointments = e.detail.allAppointments;
-        localSelectedTechnician = e.detail.technician;
-        localCurrentWeekStart = e.detail.weekStart;
-        renderShowedAppointmentsTable();
+    // --- Ouvinte de Eventos Globais ---
+    document.addEventListener('stateUpdated', (event) => {
+        localAppointments = event.detail.allAppointments;
+        localSelectedTechnician = event.detail.technician;
+        localCurrentWeekStart = event.detail.weekStart;
+        
+        // Renderiza a tabela somente se a seção de gerenciamento já estiver visível (desbloqueada).
+        if (!manageShowedContent.classList.contains('hidden')) {
+            renderShowedAppointmentsTable();
+        }
     });
 });
