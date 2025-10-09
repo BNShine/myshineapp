@@ -267,9 +267,143 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    async function handleSaveTimeBlock() { /* Implementação completa... */ }
-    async function handleUpdateTimeBlock() { /* Implementação completa... */ }
-    async function handleDeleteTimeBlock() { /* Implementação completa... */ }
+    async function handleSaveTimeBlock() {
+        if (!selectedTechnician) {
+            alert("No technician selected.");
+            return;
+        }
+
+        const dateInput = document.getElementById('block-date');
+        const startHourInput = document.getElementById('block-start-hour');
+        const endHourInput = document.getElementById('block-end-hour');
+        const notesInput = document.getElementById('block-notes');
+
+        if (!dateInput.value || !startHourInput.value || !endHourInput.value) {
+            alert("Date, Start Time, and End Time are required.");
+            return;
+        }
+        
+        const [year, month, day] = dateInput.value.split('-');
+        const formattedDate = `${month}/${day}/${year}`;
+
+        const dataToSend = {
+            technicianName: selectedTechnician,
+            date: formattedDate,
+            startHour: startHourInput.value,
+            endHour: endHourInput.value,
+            notes: notesInput.value || '',
+        };
+
+        blockSaveBtn.disabled = true;
+        blockSaveBtn.textContent = "Saving...";
+
+        try {
+            const response = await fetch('/api/manage-technician-availability', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataToSend),
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            
+            await fetchAvailabilityForSelectedTech();
+            updateAllComponents();
+            closeTimeBlockModal();
+            alert("Time block saved successfully!");
+
+        } catch (error) {
+            console.error("Error saving time block:", error);
+            alert(`Failed to save time block: ${error.message}`);
+        } finally {
+            blockSaveBtn.disabled = false;
+            blockSaveBtn.textContent = "Save Block";
+        }
+    }
+
+    async function handleUpdateTimeBlock() {
+        const rowNumber = parseInt(editBlockRowNumberInput.value, 10);
+        const dateValue = editBlockDateInput.value;
+        const startHour = editBlockStartInput.value;
+        const endHour = editBlockEndInput.value;
+        const notes = editBlockNotesInput.value;
+
+        if (!rowNumber || !dateValue || !startHour || !endHour) {
+            alert("All fields are required to update.");
+            return;
+        }
+        
+        const [year, month, day] = dateValue.split('-');
+        const formattedDate = `${month}/${day}/${year}`;
+
+        const dataToUpdate = {
+            rowNumber,
+            date: formattedDate,
+            startHour,
+            endHour,
+            notes
+        };
+
+        editBlockSaveBtn.disabled = true;
+        editBlockSaveBtn.textContent = "Saving...";
+
+        try {
+            const response = await fetch('/api/manage-technician-availability', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataToUpdate),
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+
+            await fetchAvailabilityForSelectedTech();
+            updateAllComponents();
+            closeEditTimeBlockModal();
+            alert("Time block updated successfully!");
+        } catch (error) {
+            console.error("Error updating time block:", error);
+            alert(`Failed to update time block: ${error.message}`);
+        } finally {
+            editBlockSaveBtn.disabled = false;
+            editBlockSaveBtn.textContent = "Save Changes";
+        }
+    }
+
+    async function handleDeleteTimeBlock() {
+        const rowNumber = parseInt(editBlockRowNumberInput.value, 10);
+        if (!rowNumber) {
+            alert("Could not find the time block to delete.");
+            return;
+        }
+
+        if (!confirm("Are you sure you want to delete this time block?")) {
+            return;
+        }
+
+        editBlockDeleteBtn.disabled = true;
+        editBlockDeleteBtn.textContent = "Deleting...";
+
+        try {
+            const response = await fetch('/api/manage-technician-availability', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rowNumber }),
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+
+            await fetchAvailabilityForSelectedTech();
+            updateAllComponents();
+            closeEditTimeBlockModal();
+            alert("Time block deleted successfully!");
+        } catch (error) {
+            console.error("Error deleting time block:", error);
+            alert(`Failed to delete time block: ${error.message}`);
+        } finally {
+            editBlockDeleteBtn.disabled = false;
+            editBlockDeleteBtn.textContent = "Delete";
+        }
+    }
+
     async function fetchAvailabilityForSelectedTech() {
         if (!selectedTechnician) {
             techAvailabilityBlocks = [];
@@ -387,10 +521,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderTimeBlocks() {
+        const weekEnd = new Date(currentWeekStart);
+        weekEnd.setDate(currentWeekStart.getDate() + 7);
         techAvailabilityBlocks.forEach(block => {
-            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(parseSheetDate(block.date))}"`);
+            if (!block || typeof block.date !== 'string' || block.date.trim() === '') return;
+            const parts = block.date.split('/');
+            if (parts.length !== 3) return;
+            const [M, D, Y] = parts;
+            const blockDate = new Date(`${Y}-${M.padStart(2, '0')}-${D.padStart(2, '0')}T00:00:00`);
+
+            if (isNaN(blockDate.getTime()) || blockDate < currentWeekStart || blockDate >= weekEnd) return;
+            
+            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(blockDate)}"]`);
             if (!dayContainer) return;
-            // ... (resto da lógica)
+
+            const [startH, startM] = block.startHour.split(':').map(Number);
+            const [endH, endM] = block.endHour.split(':').map(Number);
+            const topOffset = ((startH - MIN_HOUR) * SLOT_HEIGHT_PX) + (startM / 60 * SLOT_HEIGHT_PX);
+            const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+            const height = (durationMinutes / 60) * SLOT_HEIGHT_PX;
+            
+            const blockEl = document.createElement('div');
+            blockEl.className = 'appointment-block rounded-md';
+            blockEl.style.height = `${height}px`;
+            blockEl.style.backgroundColor = 'rgba(107, 114, 128, 0.7)'; // Cor cinza translúcida
+            blockEl.style.zIndex = '5';
+            blockEl.style.cursor = 'pointer';
+            blockEl.style.padding = '4px 8px';
+            blockEl.style.top = `${topOffset}px`;
+            blockEl.innerHTML = `<p class="text-xs font-semibold text-white truncate">${block.notes || 'Blocked'}</p><p class="text-xs text-white/80">${block.startHour} - ${block.endHour}</p>`;
+            blockEl.addEventListener('click', () => openEditTimeBlockModal(block));
+            dayContainer.appendChild(blockEl);
         });
     }
 
@@ -404,7 +565,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 9. Inicialização e Lógica de Controle ---
     async function loadInitialData(isReload = false) {
         if (!isReload) loadingOverlay.classList.remove('hidden');
-
         try {
             const [techResult, apptResult, coverageResult] = await Promise.all([
                 fetch('/api/get-dashboard-data').then(res => res.json()),
@@ -441,6 +601,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await fetchAvailabilityForSelectedTech();
         } else {
             selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">No Technician Selected</p><p class="text-sm text-muted-foreground">Select a technician from the top bar to view their schedule.</p>`;
+            techAvailabilityBlocks = [];
         }
         updateAllComponents();
     }
