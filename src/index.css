@@ -27,17 +27,15 @@
     --border: 240 6% 90%;
     --input: 240 6% 90%;
     --ring: 337 100% 67%;
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     --brand-primary: 337 100% 67%;
-
-    /* Cores para ícones do Dashboard */
     --info-background: 207 90% 54%;
     --success-background: 142.1 76.2% 36.3%;
     --warning-background: 38 92% 50%;
     
-    /* Variáveis da Sidebar */
+    /* Variáveis da Sidebar Refinadas */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 4% 46%;
+    --sidebar-foreground: 240 4% 56%; /* Texto um pouco mais claro */
     --sidebar-active-background: 240 5% 96%;
     --sidebar-active-foreground: 240 6% 10%;
   }
@@ -61,7 +59,7 @@
     --success: 142.1 70.6% 45.3%;
     --warning: 38 92% 50%;
     
-    /* Variáveis da Sidebar (Dark) */
+    /* Variáveis da Sidebar (Dark) Refinadas */
     --sidebar-background: 240 6% 12%;
     --sidebar-foreground: 240 5% 65%;
     --sidebar-active-background: 240 4% 16%;
@@ -80,11 +78,15 @@
 }
 
 @layer components {
-  /* ... (outras classes de componentes) ... */
+  /* Layout */
   .sidebar { @apply fixed top-0 left-0 z-40 flex h-screen w-64 flex-col border-r bg-[--sidebar-background] transition-transform; }
-  .main-content { @apply ml-64; }
-  .sidebar-link { @apply flex items-center gap-3 rounded-lg px-3 py-2 text-[--sidebar-foreground] transition-all hover:text-[--sidebar-active-foreground] hover:bg-[--sidebar-active-background]; }
+  .main-content { @apply pl-64; } /* Alterado para padding */
+
+  /* Componentes da Sidebar */
+  .sidebar-link { @apply flex items-center gap-3 rounded-md px-3 py-2.5 text-base font-medium text-[--sidebar-foreground] transition-all hover:text-[--sidebar-active-foreground] hover:bg-[--sidebar-active-background]; }
   .sidebar-link.active { @apply bg-[--sidebar-active-background] text-[--sidebar-active-foreground] font-semibold; }
+  
+  /* ... (outras classes de componentes) ... */
   .text-page-title { @apply text-2xl font-bold tracking-tight text-foreground sm:text-3xl; }
   .text-section-title { @apply text-xl font-semibold text-foreground; }
   .text-card-title { @apply text-lg font-semibold text-foreground; }
