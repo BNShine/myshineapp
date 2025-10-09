@@ -4,63 +4,60 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 10% 99%; /* Um branco levemente azulado */
+    --foreground: 240 6% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 6% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 6% 10%;
     --primary: 337 100% 67%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
     --success: 142.1 76.2% 36.3%;
-    --success-foreground: 210 40% 98%;
+    --success-foreground: 0 0% 100%;
     --warning: 47.9 95.8% 53.1%;
-    --warning-foreground: 222.2 84% 4.9%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --warning-foreground: 240 6% 10%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
     --ring: 337 100% 67%;
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     --brand-primary: 337 100% 67%;
-    --gradient-primary: linear-gradient(135deg, hsl(var(--brand-primary)), hsl(337 85% 75%));
-    --gradient-subtle: linear-gradient(135deg, hsl(var(--card)), hsl(var(--muted) / 0.5));
-    --shadow-soft: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-    --shadow-medium: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
-    --shadow-large: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-    --shadow-brand: 0 8px 25px -8px hsl(var(--brand-primary) / 0.4);
+    
+    /* Variáveis da Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 4% 46%;
+    --sidebar-active-background: 240 5% 96%;
+    --sidebar-active-foreground: 240 6% 10%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 337 100% 67%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142.1 76.2% 36.3%;
-    --success-foreground: 210 40% 98%;
-    --warning: 47.9 95.8% 53.1%;
-    --warning-foreground: 222.2 84% 4.9%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 337 100% 67%;
+    --background: 240 6% 10%;
+    --foreground: 0 0% 98%;
+    --card: 240 6% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 98%;
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 4% 16%;
+    --accent-foreground: 0 0% 98%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    
+    /* Variáveis da Sidebar (Dark) */
+    --sidebar-background: 240 6% 12%;
+    --sidebar-foreground: 240 5% 65%;
+    --sidebar-active-background: 240 4% 16%;
+    --sidebar-active-foreground: 0 0% 98%;
   }
 }
 
@@ -71,22 +68,21 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 }
 
+/* Novas classes de componentes para layout */
 @layer components {
-  .text-page-title { @apply text-2xl font-bold tracking-tight text-foreground sm:text-3xl; }
-  .text-section-title { @apply text-xl font-semibold text-foreground; }
-  .text-card-title { @apply text-lg font-semibold text-foreground; }
-  .text-body { @apply text-base text-muted-foreground; }
-  .text-label { @apply text-sm font-medium leading-none text-foreground; }
-  .text-small { @apply text-sm font-medium text-muted-foreground; }
-  .btn { @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50; }
-  .btn-primary { @apply btn bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 shadow-brand h-11 px-8; }
-  .btn-secondary { @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-6; }
-  .btn-outline { @apply btn border-2 border-input bg-transparent hover:bg-accent hover:text-accent-foreground h-11 px-6; }
-  .btn-ghost { @apply btn hover:bg-accent hover:text-accent-foreground h-11; }
-  .input-base { @apply flex h-11 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors; }
-  .card-base { @apply rounded-xl border bg-card text-card-foreground shadow-soft; }
+  .sidebar {
+    @apply fixed top-0 left-0 z-40 flex h-screen w-64 flex-col border-r bg-[--sidebar-background] transition-transform;
+  }
+  .main-content {
+    @apply ml-64; /* A mesma largura da sidebar */
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-[--sidebar-foreground] transition-all hover:text-[--sidebar-active-foreground] hover:bg-[--sidebar-active-background];
+  }
+  .sidebar-link.active {
+    @apply bg-[--sidebar-active-background] text-[--sidebar-active-foreground] font-semibold;
+  }
 }
