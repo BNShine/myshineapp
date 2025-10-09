@@ -140,6 +140,12 @@ export default async function handler(req, res) {
             const currentDate = new Date(today);
             currentDate.setDate(today.getDate() + i);
 
+            // **NOVA REGRA: Pular domingos**
+            // O método getDay() retorna 0 para Domingo.
+            if (currentDate.getDay() === 0) {
+                continue; // Pula para a próxima iteração do loop se for domingo
+            }
+
             for (const tech of qualifiedTechs) {
                 const techSchedule = [];
                 
