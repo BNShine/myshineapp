@@ -71,7 +71,6 @@
   }
 }
 
-/* Novas classes de componentes para layout */
 @layer components {
   .sidebar {
     @apply fixed top-0 left-0 z-40 flex h-screen w-64 flex-col border-r bg-[--sidebar-background] transition-transform;
@@ -85,4 +84,19 @@
   .sidebar-link.active {
     @apply bg-[--sidebar-active-background] text-[--sidebar-active-foreground] font-semibold;
   }
+  
+  /* Componentes Visuais */
+  .text-page-title { @apply text-2xl font-bold tracking-tight text-foreground sm:text-3xl; }
+  .text-section-title { @apply text-xl font-semibold text-foreground; }
+  .text-card-title { @apply text-lg font-semibold text-foreground; }
+  .text-body { @apply text-base text-muted-foreground; }
+  .text-label { @apply text-sm font-medium leading-none text-foreground; }
+  .text-small { @apply text-sm font-medium text-muted-foreground; }
+  .btn { @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50; }
+  .btn-primary { @apply btn bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 shadow-brand h-11 px-8; }
+  .btn-secondary { @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-6; }
+  .btn-outline { @apply btn border-2 border-input bg-transparent hover:bg-accent hover:text-accent-foreground h-11 px-6; }
+  .btn-ghost { @apply btn hover:bg-accent hover:text-accent-foreground h-11; }
+  .input-base { @apply flex h-11 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors; }
+  .card-base { @apply rounded-xl border bg-card text-card-foreground shadow-soft; }
 }
