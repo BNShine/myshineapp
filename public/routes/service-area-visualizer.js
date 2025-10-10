@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Funções Auxiliares ---
 
-    // Função para obter o ponto de uma cidade, agora com a dica de estado (stateHint)
     async function getCityPoint(cityName, stateHint = null) {
         const cacheKey = `point_${cityName.toLowerCase().replace(/\s/g, '_')}${stateHint ? `_${stateHint.toLowerCase().replace(/\s/g, '_')}` : ''}`;
         const cachedData = sessionStorage.getItem(cacheKey);
@@ -38,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Função para obter o estado a partir de um Zip Code
     async function getStateFromZip(zipCode) {
         if (!zipCode || zipCode.length !== 5) return null;
         const cacheKey = `state_for_zip_${zipCode}`;
@@ -77,27 +75,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tech || !tech.cidades || tech.cidades.length === 0) return null;
     
         const bounds = new google.maps.LatLngBounds();
-
-        // --- INÍCIO DA NOVA LÓGICA DE ESTADO PREDOMINANTE ---
-        // 1. Usa o Zip Code de Origem do técnico para obter uma dica de estado confiável.
         const stateHint = tech.zip_code ? await getStateFromZip(tech.zip_code) : null;
         
-        // 2. Coleta todas as coordenadas das cidades, passando a dica de estado para a API.
         const cityPoints = (await Promise.all(
-            tech.cidades.map(async (city) => {
-                const point = await getCityPoint(city, stateHint); // Passa a dica aqui!
-                return point ? { ...point, name: city } : null;
-            })
-        )).filter(Boolean); // Filtra cidades que não foram encontradas
-        // --- FIM DA NOVA LÓGICA ---
+            tech.cidades.map(city => getCityPoint(city, stateHint))
+        )).filter(Boolean);
 
         if (cityPoints.length === 0) return null;
 
-        // 3. Agrupa os pontos em clusters
         let clusters = [];
         const CLUSTER_RADIUS_KM = 150; 
 
-        cityPoints.forEach(point => {
+        cityPoints.forEach((point, index) => {
+            point.name = tech.cidades[index]; // Garante que o nome da cidade está no ponto
             let foundCluster = false;
             for (const cluster of clusters) {
                 if (getDistance(point, cluster.center) < CLUSTER_RADIUS_KM) {
@@ -115,14 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // 4. Desenha um perímetro arredondado (círculo) e marcadores para cada cluster
         clusters.forEach(cluster => {
             let maxRadius = 0;
             cluster.points.forEach(point => {
                 const distance = getDistance(cluster.center, point);
                 if (distance > maxRadius) maxRadius = distance;
             });
-            const radiusInMeters = (maxRadius + 20) * 1000; // Adiciona margem de 20km
+            const radiusInMeters = (maxRadius + 20) * 1000;
 
             const circle = new google.maps.Circle({
                 strokeColor: color, strokeOpacity: 0.8, strokeWeight: 2, fillColor: color, fillOpacity: 0.2,
@@ -140,7 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const infoWindow = new google.maps.InfoWindow({ content: `<div style="font-weight: bold;">${techName}</div><div>${point.name}</div>` });
                 marker.addListener('mouseover', () => infoWindow.open(areaMap, marker));
                 marker.addListener('mouseout', () => infoWindow.close());
-
                 bounds.extend(point);
             });
         });
@@ -148,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return bounds;
     }
     
+    // **FUNÇÃO ATUALIZADA**
     async function handleAreaSelectionChange() {
         if (!areaMap) return;
         clearAreaMap();
@@ -157,22 +146,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         areaMapContainer.style.opacity = '0.5';
 
+        let techniciansToDraw = [];
+
+        // Filtra a lista de técnicos com base na seleção
         if (selectedValue === 'all') {
-            const allBoundsPromises = techData.map((tech, index) => {
-                 if (tech.cidades && tech.cidades.length > 0) {
-                    const color = techColors[index % techColors.length];
-                    return drawTechnicianArea(tech.nome, color);
-                }
-                return Promise.resolve(null);
-            });
-            const allBounds = await Promise.all(allBoundsPromises);
-            allBounds.forEach(bounds => {
-                if(bounds && !bounds.isEmpty()) finalBounds.union(bounds);
-            });
+            techniciansToDraw = techData;
+        } else if (selectedValue === 'all-central') {
+            techniciansToDraw = techData.filter(tech => tech.categoria === 'Central');
+        } else if (selectedValue === 'all-franchise') {
+            techniciansToDraw = techData.filter(tech => tech.categoria === 'Franchise');
         } else if (selectedValue) {
-            const bounds = await drawTechnicianArea(selectedValue, techColors[0]);
-            if (bounds && !bounds.isEmpty()) finalBounds.union(bounds);
+            const singleTech = techData.find(tech => tech.nome === selectedValue);
+            if(singleTech) techniciansToDraw.push(singleTech);
         }
+
+        const allBoundsPromises = techniciansToDraw.map((tech, index) => {
+             if (tech.cidades && tech.cidades.length > 0) {
+                const color = techColors[index % techColors.length];
+                return drawTechnicianArea(tech.nome, color);
+            }
+            return Promise.resolve(null);
+        });
+        
+        const allBounds = await Promise.all(allBoundsPromises);
+        allBounds.forEach(bounds => {
+            if(bounds && !bounds.isEmpty()) finalBounds.union(bounds);
+        });
 
         if (!finalBounds.isEmpty()) {
             areaMap.fitBounds(finalBounds);
@@ -184,14 +183,21 @@ document.addEventListener('DOMContentLoaded', () => {
         areaMapContainer.style.opacity = '1';
     }
     
+    // **FUNÇÃO ATUALIZADA**
     function init(data) {
         techData = data;
-        areaTechSelect.innerHTML = '<option value="">Select a Technician</option><option value="all">View All Technicians</option>';
+        // Adiciona as novas opções ao dropdown
+        areaTechSelect.innerHTML = `<option value="">Select an Option</option>
+                                    <option value="all">View All Technicians</option>
+                                    <option value="all-central">All Central</option>
+                                    <option value="all-franchise">All Franchise</option>
+                                    <optgroup label="Individual Technicians">`;
         techData.forEach(tech => {
             if (tech.nome) {
                 areaTechSelect.innerHTML += `<option value="${tech.nome}">${tech.nome}</option>`;
             }
         });
+        areaTechSelect.innerHTML += `</optgroup>`;
     }
 
     document.addEventListener('techDataLoaded', (event) => {
