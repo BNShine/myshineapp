@@ -11,12 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const optimizeItineraryBtn = document.getElementById('optimize-itinerary-btn');
     const itineraryResults = document.getElementById('itinerary-results');
     const itineraryList = document.getElementById('itinerary-list');
-    const mapContainer = document.getElementById('map'); // Adicionado
+    const mapContainer = document.getElementById('map');
 
     let techData = [];
     let clientData = [{ nome: "", zip_code: "" }];
     let directionsService, directionsRenderer;
-    let routeMap; // Variável para o mapa desta seção
+    let routeMap;
     const showToast = (message, type) => alert(type.toUpperCase() + ": " + message);
 
     // --- Funções Auxiliares de Geolocalização ---
@@ -62,8 +62,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleVerifyZipCode() {
         const zipCode = zipCodeInput.value.trim();
-        if (!zipCode) return;
-        
+        zipCodeResults.innerHTML = '';
+        if (!zipCode || zipCode.length !== 5) {
+            zipCodeResults.innerHTML = `<p class="text-red-600">Please enter a valid 5-digit Zip Code.</p>`;
+            return;
+        }
+
         const [lat, lon, city, state] = await getLatLon(zipCode);
         if (!city) {
             zipCodeResults.innerHTML = `<p class="text-red-600">Zip Code not found or invalid.</p>`;
@@ -72,7 +76,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         zipCodeResults.innerHTML = `<p class="text-green-600 font-bold">Zip Code Found:</p><p><strong>City:</strong> ${city}, ${state}</p>`;
         
-        const availableTechs = techData.filter(tech => (tech.cidades || []).some(c => c.trim().toLowerCase() === city.trim().toLowerCase()));
+        const availableTechs = techData.filter(tech => {
+            const serviceAreas = (tech.cidades || []).map(area => String(area).toLowerCase().trim());
+            return serviceAreas.includes(String(zipCode).toLowerCase().trim()) || serviceAreas.includes(String(city).toLowerCase().trim());
+        });
+        
         zipCodeResults.innerHTML += `<p class="mt-2"><strong>Covering Technicians:</strong> ${availableTechs.length > 0 ? availableTechs.map(t => t.nome).join(', ') : 'None'}</p>`;
     }
     
