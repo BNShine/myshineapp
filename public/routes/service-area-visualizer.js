@@ -1,4 +1,4 @@
-// public/routes/service--visualizer.js
+// public/routes/service-area-visualizer.js
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Seletores ---
@@ -13,36 +13,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Otimização: Funções de Cache e Geolocalização ---
 
-    // **MELHORIA 1: Implementação do Cache**
-    async function getCityBoundary(cityName) {
-        const cacheKey = `boundary_${cityName.toLowerCase().replace(/\s/g, '_')}`;
+    // **MELHORIA 1: Cache para coordenadas de cidades**
+    async function getCityPoint(cityName) {
+        const cacheKey = `point_${cityName.toLowerCase().replace(/\s/g, '_')}`;
         const cachedData = sessionStorage.getItem(cacheKey);
 
-        // Se encontrar no cache, usa o dado armazenado para performance máxima
         if (cachedData) {
             return JSON.parse(cachedData);
         }
 
-        // Se não, busca na API externa e armazena no cache para a próxima vez
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(cityName)}&format=json&polygon_geojson=1&limit=1`);
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(cityName)}&format=json&limit=1`);
             if (!response.ok) return null;
             
             const data = await response.json();
-            const geojson = (data.length > 0 && data[0].geojson) ? data[0].geojson : null;
+            const point = (data.length > 0) ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
             
-            if (geojson) {
-                sessionStorage.setItem(cacheKey, JSON.stringify(geojson));
+            if (point) {
+                sessionStorage.setItem(cacheKey, JSON.stringify(point));
             }
-            
-            return geojson;
+            return point;
         } catch (error) {
-            console.error(`Error fetching boundary for ${cityName}:`, error);
+            console.error(`Error fetching point for ${cityName}:`, error);
             return null;
         }
     }
     
-    // --- Lógica do Mapa ---
+    // --- Lógica do Mapa e Perímetro (Convex Hull) ---
+
+    // Função para calcular o perímetro (Convex Hull)
+    function createConvexHull(points) {
+        points.sort((a, b) => a.lng - b.lng || a.lat - b.lat);
+
+        const crossProduct = (p1, p2, p3) => (p2.lng - p1.lng) * (p3.lat - p1.lat) - (p2.lat - p1.lat) * (p3.lng - p1.lng);
+
+        const buildHull = (points) => {
+            const hull = [];
+            for (const pt of points) {
+                while (hull.length >= 2 && crossProduct(hull[hull.length - 2], hull[hull.length - 1], pt) <= 0) {
+                    hull.pop();
+                }
+                hull.push(pt);
+            }
+            hull.pop();
+            return hull;
+        };
+
+        const upperHull = buildHull(points);
+        const lowerHull = buildHull([...points].reverse());
+        return upperHull.concat(lowerHull);
+    }
+
     function clearAreaMap() {
         currentMapElements.forEach(element => element.setMap(null));
         currentMapElements = [];
@@ -53,43 +74,58 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tech || !tech.cidades || tech.cidades.length === 0) return null;
     
         const bounds = new google.maps.LatLngBounds();
-    
-        // Processa todas as cidades em paralelo para mais velocidade
-        const cityPromises = tech.cidades.map(async (city) => {
-            const geojson = await getCityBoundary(city);
-            if (!geojson || !geojson.coordinates) return;
+        const cityPoints = [];
 
-            const drawPolygon = (coords) => {
-                const paths = coords.map(path => path.map(coord => ({ lat: coord[1], lng: coord[0] })));
-                paths.forEach(path => {
-                    if (path.length === 0) return;
-
-                    const polygon = new google.maps.Polygon({
-                        paths: path, strokeColor: color, strokeOpacity: 0.8, strokeWeight: 2, fillColor: color, fillOpacity: 0.35
-                    });
-                    polygon.setMap(areaMap);
-                    currentMapElements.push(polygon);
-                    
-                    // **MELHORIA 2: Tooltip com Nome do Técnico e da Cidade**
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `<div style="font-weight: bold;">${techName}</div><div>${city}</div>`
-                    });
-
-                    polygon.addListener('mouseover', e => { infoWindow.setPosition(e.latLng); infoWindow.open(areaMap); });
-                    polygon.addListener('mouseout', () => infoWindow.close());
-
-                    path.forEach(p => bounds.extend(p));
-                });
-            };
-
-            if (geojson.type === 'Polygon') {
-                drawPolygon(geojson.coordinates);
-            } else if (geojson.type === 'MultiPolygon') {
-                geojson.coordinates.forEach(polygonCoords => drawPolygon(polygonCoords));
+        // 1. Coleta todas as coordenadas das cidades em paralelo
+        const pointPromises = tech.cidades.map(async (city) => {
+            const point = await getCityPoint(city);
+            if (point) {
+                cityPoints.push({ ...point, name: city });
+                bounds.extend(point);
             }
         });
+        await Promise.all(pointPromises);
 
-        await Promise.all(cityPromises); // Espera todas as cidades do técnico serem processadas
+        // 2. Desenha o perímetro (Convex Hull) se houver 3 ou mais pontos
+        if (cityPoints.length >= 3) {
+            const hullPoints = createConvexHull(cityPoints);
+            const hullPolygon = new google.maps.Polygon({
+                paths: hullPoints,
+                strokeColor: color,
+                strokeOpacity: 0.6,
+                strokeWeight: 2,
+                fillColor: color,
+                fillOpacity: 0.20
+            });
+            hullPolygon.setMap(areaMap);
+            currentMapElements.push(hullPolygon);
+        }
+
+        // 3. Desenha um marcador para cada cidade
+        cityPoints.forEach(point => {
+            const marker = new google.maps.Marker({
+                position: point,
+                map: areaMap,
+                title: `${techName} - ${point.name}`,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 5,
+                    fillColor: color,
+                    fillOpacity: 1,
+                    strokeColor: 'white',
+                    strokeWeight: 1,
+                }
+            });
+            currentMapElements.push(marker);
+
+            // **MELHORIA 2: Tooltip com Nome do Técnico e da Cidade**
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<div style="font-weight: bold;">${techName}</div><div>${point.name}</div>`
+            });
+
+            marker.addListener('mouseover', () => infoWindow.open(areaMap, marker));
+            marker.addListener('mouseout', () => infoWindow.close());
+        });
     
         return bounds;
     }
@@ -101,8 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedValue = areaTechSelect.value;
         const finalBounds = new google.maps.LatLngBounds();
 
-        // Adiciona um feedback visual de carregamento
-        areaMapContainer.style.opacity = '0.5';
+        areaMapContainer.style.opacity = '0.5'; // Feedback de carregamento
 
         if (selectedValue === 'all') {
             const allBoundsPromises = techData.map((tech, index) => {
@@ -115,23 +150,21 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const allBounds = await Promise.all(allBoundsPromises);
             allBounds.forEach(bounds => {
-                if(bounds) finalBounds.union(bounds);
+                if(bounds && !bounds.isEmpty()) finalBounds.union(bounds);
             });
 
         } else if (selectedValue) {
             const bounds = await drawTechnicianArea(selectedValue, techColors[0]);
-            if (bounds) finalBounds.union(bounds);
+            if (bounds && !bounds.isEmpty()) finalBounds.union(bounds);
         }
 
         if (!finalBounds.isEmpty()) {
             areaMap.fitBounds(finalBounds);
         } else {
-            // Se nenhuma área foi desenhada, reseta para a visão geral
             areaMap.setCenter({ lat: 39.8283, lng: -98.5795 });
             areaMap.setZoom(4);
         }
         
-        // Remove o feedback de carregamento
         areaMapContainer.style.opacity = '1';
     }
     
@@ -159,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (areaMapContainer && !areaMap) {
              areaMap = new google.maps.Map(areaMapContainer, {
                 center: { lat: 39.8283, lng: -98.5795 }, zoom: 4, streetViewControl: false, fullscreenControl: false,
-                styles: [ // Estilo opcional para um mapa mais limpo
+                styles: [
                     { featureType: 'poi', stylers: [{ visibility: 'off' }] },
                     { featureType: 'transit', stylers: [{ visibility: 'off' }] }
                 ]
