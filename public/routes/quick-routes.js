@@ -1,4 +1,4 @@
-// public/quick-routes.js
+// public/routes/quick-routes.js
 
 document.addEventListener('DOMContentLoaded', async () => {
     const techTableBody = document.getElementById('tech-table-body');
@@ -375,7 +375,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function handleOptimizeItinerary() {
         itineraryList.innerHTML = '';
-        mapContainer.innerHTML = ''; 
+        
+        // CORREÇÃO: Limpa a rota anterior sem apagar o mapa
+        if (directionsRenderer) {
+            directionsRenderer.setDirections(null);
+        }
         
         if (!GOOGLE_MAPS_API_KEY || !directionsService) {
             alert('Erro: O serviço Google Maps (DirectionsService) não foi inicializado. Verifique a chave da API.');
@@ -437,14 +441,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             stopover: true
         }));
         
-        if (waypoints.length > 8) {
-            alert("Aviso: O Google Maps suporta no máximo 8 paradas intermediárias (waypoints). A rota será otimizada localmente, mas a rota do mapa pode ser incorreta.");
+        if (waypoints.length > 23) { // Limite da API do Google Maps é 25 pontos (origem + destino + 23 waypoints)
+            alert("Aviso: O Google Maps suporta um número limitado de paradas. A rota pode não ser otimizada corretamente pela API do Google.");
         }
 
         const request = {
             origin: origin,
             destination: destination,
-            waypoints: waypoints.slice(0, 8), // Limita aos 8 primeiros para evitar erro da API
+            waypoints: waypoints,
             optimizeWaypoints: true,
             travelMode: google.maps.TravelMode.DRIVING
         };
@@ -525,6 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const init = async () => {
         await fetchGoogleMapsApiKey();
         await loadInitialData();
+        renderClientTable(); // Renderiza a tabela de clientes inicial
     }
 
 
