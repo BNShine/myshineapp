@@ -12,17 +12,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const techColors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#A133FF', '#33FFA1', '#FFC300', '#C70039', '#900C3F', '#581845'];
     const MAX_CLUSTERS = 5;
 
-    // --- Funções Auxiliares ---
+    const isZipCode = (str) => /^\d{5}$/.test(String(str).trim());
 
-    async function getCityPoint(cityName, stateHint = null) {
-        const cacheKey = `point_${cityName.toLowerCase().replace(/\s/g, '_')}${stateHint ? `_${stateHint.toLowerCase().replace(/\s/g, '_')}` : ''}`;
+    // --- Funções de Geolocalização ---
+    async function getPoint(location, stateHint = null) {
+        const isZip = isZipCode(location);
+        const cacheKey = `point_${String(location).toLowerCase().replace(/\s/g, '_')}${isZip ? '' : (stateHint ? `_${stateHint}` : '')}`;
         const cachedData = sessionStorage.getItem(cacheKey);
         if (cachedData) return JSON.parse(cachedData);
 
         try {
-            let apiUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&city=${encodeURIComponent(cityName)}`;
-            if (stateHint) {
-                apiUrl += `&state=${encodeURIComponent(stateHint)}`;
+            let apiUrl;
+            if (isZip) {
+                // Para Zip Codes, a API do Nominatim usa 'postalcode'
+                apiUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&postalcode=${encodeURIComponent(location)}&country=us`;
+            } else {
+                apiUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&city=${encodeURIComponent(location)}`;
+                if (stateHint) apiUrl += `&state=${encodeURIComponent(stateHint)}`;
             }
 
             const response = await fetch(apiUrl);
@@ -32,13 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (point) sessionStorage.setItem(cacheKey, JSON.stringify(point));
             return point;
         } catch (error) {
-            console.error(`Error fetching point for ${cityName}:`, error);
+            console.error(`Error fetching point for ${location}:`, error);
             return null;
         }
     }
 
     async function getStateFromZip(zipCode) {
-        if (!zipCode || zipCode.length !== 5) return null;
+        if (!zipCode || String(zipCode).length !== 5) return null;
         const cacheKey = `state_for_zip_${zipCode}`;
         const cachedState = sessionStorage.getItem(cacheKey);
         if (cachedState) return cachedState;
@@ -56,9 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Lógica do Mapa e Clustering ---
+    // --- Lógica do Mapa ---
     function getDistance(p1, p2) {
-        const R = 6371; // Raio da Terra em km
+        const R = 6371;
         const dLat = (p2.lat - p1.lat) * Math.PI / 180;
         const dLon = (p2.lng - p1.lng) * Math.PI / 180;
         const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -78,7 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const stateHint = tech.zip_code ? await getStateFromZip(tech.zip_code) : null;
         
         const cityPoints = (await Promise.all(
-            tech.cidades.map(city => getCityPoint(city, stateHint))
+            tech.cidades.map(async (area) => {
+                const point = await getPoint(area, stateHint);
+                return point ? { ...point, name: area } : null;
+            })
         )).filter(Boolean);
 
         if (cityPoints.length === 0) return null;
@@ -86,8 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let clusters = [];
         const CLUSTER_RADIUS_KM = 150; 
 
-        cityPoints.forEach((point, index) => {
-            point.name = tech.cidades[index]; // Garante que o nome da cidade está no ponto
+        cityPoints.forEach(point => {
             let foundCluster = false;
             for (const cluster of clusters) {
                 if (getDistance(point, cluster.center) < CLUSTER_RADIUS_KM) {
@@ -136,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return bounds;
     }
     
-    // **FUNÇÃO ATUALIZADA**
     async function handleAreaSelectionChange() {
         if (!areaMap) return;
         clearAreaMap();
@@ -148,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let techniciansToDraw = [];
 
-        // Filtra a lista de técnicos com base na seleção
         if (selectedValue === 'all') {
             techniciansToDraw = techData;
         } else if (selectedValue === 'all-central') {
@@ -183,10 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
         areaMapContainer.style.opacity = '1';
     }
     
-    // **FUNÇÃO ATUALIZADA**
     function init(data) {
         techData = data;
-        // Adiciona as novas opções ao dropdown
         areaTechSelect.innerHTML = `<option value="">Select an Option</option>
                                     <option value="all">View All Technicians</option>
                                     <option value="all-central">All Central</option>
