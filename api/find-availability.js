@@ -18,7 +18,7 @@ const SPREADSHEET_ID_APPOINTMENTS = process.env.SHEET_ID_APPOINTMENTS;
 const SPREADSHEET_ID_DATA = process.env.SHEET_ID_DATA;
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
-// --- Funções Auxiliares de Datas ---
+// --- Funções Auxiliares ---
 const parseSheetDate = (dateStr) => {
     if (!dateStr) return null;
     const [datePart, timePart] = dateStr.split(' ');
@@ -29,7 +29,6 @@ const parseSheetDate = (dateStr) => {
     return new Date(year, month - 1, day, hour, minute);
 };
 
-// --- Funções Auxiliares de API Externa ---
 const getCityFromZip = async (zipCode) => {
     try {
         const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
@@ -43,12 +42,8 @@ const getCityFromZip = async (zipCode) => {
 };
 
 const getTravelTime = async (originZip, destinationZip) => {
-    if (!GOOGLE_MAPS_API_KEY) {
-        throw new Error("Google Maps API key is not configured on the server.");
-    }
-    if (originZip === destinationZip) {
-        return 0;
-    }
+    if (!GOOGLE_MAPS_API_KEY) throw new Error("Google Maps API key is not configured.");
+    if (originZip === destinationZip) return 0;
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=zip%20${originZip}&destinations=zip%20${destinationZip}&key=${GOOGLE_MAPS_API_KEY}`;
     try {
         const response = await fetch(url);
@@ -64,11 +59,9 @@ const getTravelTime = async (originZip, destinationZip) => {
     }
 };
 
-// --- Funções de Busca de Dados Internos ---
 const getAllData = async () => {
     const docAppointments = new GoogleSpreadsheet(SPREADSHEET_ID_APPOINTMENTS, serviceAccountAuth);
     const docData = new GoogleSpreadsheet(SPREADSHEET_ID_DATA, serviceAccountAuth);
-
     await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
 
     const techSheet = docData.sheetsByTitle[SHEET_NAME_TECH_COVERAGE];
@@ -102,8 +95,6 @@ const getAllData = async () => {
     return { technicians, availabilityBlocks, appointments };
 };
 
-
-// --- Handler Principal da API ---
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
@@ -123,9 +114,10 @@ export default async function handler(req, res) {
             return res.status(404).json({ success: false, message: `Could not find city for Zip Code ${zipCode}.` });
         }
 
-        const qualifiedTechs = technicians.filter(tech =>
-            tech.cities.some(city => city.toLowerCase() === customerCity.toLowerCase())
-        );
+        const qualifiedTechs = technicians.filter(tech => {
+            const serviceAreas = (tech.cities || []).map(area => String(area).toLowerCase().trim());
+            return serviceAreas.includes(String(zipCode).toLowerCase().trim()) || serviceAreas.includes(String(customerCity).toLowerCase().trim());
+        });
 
         if (qualifiedTechs.length === 0) {
             return res.status(200).json({ options: [] });
@@ -135,21 +127,14 @@ export default async function handler(req, res) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // REGRA: A busca inicia 2 dias após o dia atual (D+2)
         for (let i = 2; i < 16; i++) {
             const currentDate = new Date(today);
             currentDate.setDate(today.getDate() + i);
-
-            // **NOVA REGRA: Pular domingos**
-            // O método getDay() retorna 0 para Domingo.
-            if (currentDate.getDay() === 0) {
-                continue; // Pula para a próxima iteração do loop se for domingo
-            }
+            if (currentDate.getDay() === 0) continue;
 
             for (const tech of qualifiedTechs) {
                 const techSchedule = [];
                 
-                // Adiciona agendamentos existentes
                 appointments.forEach(appt => {
                     if (appt.technician === tech.name && appt.dateTime.toDateString() === currentDate.toDateString()) {
                         const endTime = new Date(appt.dateTime.getTime() + (appt.duration * 60000));
@@ -157,7 +142,6 @@ export default async function handler(req, res) {
                     }
                 });
 
-                // Adiciona bloqueios de horário
                 availabilityBlocks.forEach(block => {
                     if (block.technician === tech.name) {
                         const [bMonth, bDay, bYear] = block.date.split('/').map(Number);
@@ -176,24 +160,21 @@ export default async function handler(req, res) {
 
                 techSchedule.sort((a, b) => a.start - b.start);
 
-                // Adiciona início e fim do dia de trabalho como bloqueios para simplificar a lógica
                 const workDayStart = new Date(currentDate);
                 workDayStart.setHours(8, 0, 0, 0);
                 const workDayEnd = new Date(currentDate);
                 workDayEnd.setHours(17, 0, 0, 0);
 
                 const fullSchedule = [
-                    { start: new Date(currentDate).setHours(0,0,0,0), end: workDayStart, type: 'block' }, // Bloqueio antes das 8h
+                    { start: new Date(currentDate).setHours(0,0,0,0), end: workDayStart, type: 'block' },
                     ...techSchedule,
-                    { start: workDayEnd, end: new Date(currentDate).setHours(23,59,59,999), type: 'block' } // Bloqueio após as 17h
+                    { start: workDayEnd, end: new Date(currentDate).setHours(23,59,59,999), type: 'block' }
                 ];
 
-                // REGRA: Gera slots candidatos em intervalos de 1h, a partir das 09:00
                 for (let hour = 9; hour < 17; hour++) {
                     const candidateStartTime = new Date(currentDate);
                     candidateStartTime.setHours(hour, 0, 0, 0);
 
-                    // Encontra o evento anterior ao slot candidato
                     let previousEvent = { end: workDayStart, zip: tech.zipCode };
                     for(const event of fullSchedule) {
                         if (event.end <= candidateStartTime) {
@@ -203,21 +184,17 @@ export default async function handler(req, res) {
                         }
                     }
 
-                    // Calcula o tempo de viagem a partir do evento anterior
                     const travelFrom = await getTravelTime(previousEvent.zip || tech.zipCode, zipCode);
-                    if (travelFrom === Infinity) continue; // Pula se não houver rota
+                    if (travelFrom === Infinity) continue;
 
                     const proposedStartTime = new Date(candidateStartTime.getTime());
                     if (proposedStartTime < new Date(previousEvent.end.getTime() + travelFrom * 60000)) {
-                        // O candidato não é válido pois o tempo de viagem a partir do evento anterior o empurra para depois do início do slot
                         continue;
                     }
 
-                    // Calcula a duração total necessária no local
                     const totalRequiredDuration = travelFrom + appointmentDuration + marginDuration;
                     const proposedEndTime = new Date(proposedStartTime.getTime() + totalRequiredDuration * 60000);
 
-                    // Verifica se o slot proposto conflita com algum evento
                     let hasConflict = false;
                     for(const event of fullSchedule) {
                         if (proposedStartTime < event.end && proposedEndTime > event.start) {
@@ -252,7 +229,7 @@ export default async function handler(req, res) {
         }
 
         const sortedOptions = Array.from(allOptions.values())
-            .filter(opt => opt.availableSlots.length > 0) // Garante que só mostramos opções com slots
+            .filter(opt => opt.availableSlots.length > 0)
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
         return res.status(200).json({ success: true, options: sortedOptions });
