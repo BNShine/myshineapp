@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         let percentage = 0;
         if (goal > 0) {
-            // A variável totalAppointments agora representa Total Pets, conforme a chamada na função applyFilters
             percentage = Math.min(100, (totalAppointments / goal) * 100);
         }
         
@@ -136,9 +135,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4 text-center"></td>
             </tr>
         `;
-        
-        // Mantido apenas para a lógica dos cards se necessário, mas o principal está no applyFilters
-        // updateGoalPercentage(totalCloserAppointments, parseInt(goalInput.value, 10));
     }
     
     // Function to render the advanced dashboard cards
@@ -177,10 +173,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     function populateFranchiseModal(closerName) {
         if (!franchiseModal || !modalContent) return;
         
-        // Filtrar agendamentos onde o closer é o Closer (1) ou Closer (2)
         const closerAppointments = allAppointmentsData.filter(app => app.closer1 === closerName || app.closer2 === closerName);
         
-        // Contar a frequência de cada franquia para os agendamentos encontrados
         const franchiseCounts = closerAppointments.reduce((acc, app) => {
             const franchise = app.franchise || 'Unknown';
             acc[franchise] = (acc[franchise] || 0) + 1;
@@ -215,8 +209,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Function to apply all filters and render all sections
     function applyFilters() {
-        const selectedMonth = monthFilter.value;
-        const selectedYear = yearFilter.value;
+        // **MODIFICAÇÃO AQUI: Se o filtro de mês estiver vazio, usa o mês atual como padrão.**
+        const selectedMonth = monthFilter.value || (new Date().getMonth() + 1).toString();
+        // **MODIFICAÇÃO AQUI: Se o filtro de ano estiver vazio, usa o ano atual como padrão.**
+        const selectedYear = yearFilter.value || new Date().getFullYear().toString();
 
         const filteredData = allAppointmentsData.filter(appointment => {
             const matchesMonth = selectedMonth === '' || (appointment.month && appointment.month.toString() === selectedMonth);
@@ -235,7 +231,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalPetsCount.textContent = totalPetsInPeriod;
         }
 
-        // Calculate data for the tables and advanced dashboard
         const closerPerformanceData = {};
         allEmployees.forEach(closer => {
             closerPerformanceData[closer] = { totalCloser: 0, totalInTeam: 0 };
@@ -258,7 +253,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         renderTable(filteredData, allEmployees);
         renderAdvancedDashboard(performanceData);
-        // MODIFICAÇÃO AQUI: Passa totalPetsInPeriod para o cálculo da meta.
         updateGoalPercentage(totalPetsInPeriod, parseInt(goalInput.value, 10)); 
     }
 
@@ -276,6 +270,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         populateDropdowns(monthFilter, lists.months);
         populateDropdowns(yearFilter, lists.years);
+        
+        // **NOVA LÓGICA: Define o valor padrão dos filtros para o mês e ano atuais**
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        const currentYear = today.getFullYear();
+
+        monthFilter.value = currentMonth.toString();
+        yearFilter.value = currentYear.toString();
     }
 
     // Main function to fetch data and initialize the dashboard
@@ -291,8 +293,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const appointmentsData = await appointmentsResponse.json();
             allAppointmentsData = appointmentsData.customers;
 
+            // Popula os filtros e define os padrões
             await populateFilters();
 
+            // Aplica os filtros (que agora terão os valores padrão do mês/ano atuais)
             applyFilters();
             
         } catch (error) {
@@ -310,4 +314,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initDashboard();
 });
-
