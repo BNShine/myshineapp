@@ -11,10 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const optimizeItineraryBtn = document.getElementById('optimize-itinerary-btn');
     const itineraryResults = document.getElementById('itinerary-results');
     const itineraryList = document.getElementById('itinerary-list');
+    const mapContainer = document.getElementById('map'); // Adicionado
 
     let techData = [];
     let clientData = [{ nome: "", zip_code: "" }];
     let directionsService, directionsRenderer;
+    let routeMap; // Variável para o mapa desta seção
     const showToast = (message, type) => alert(type.toUpperCase() + ": " + message);
 
     // --- Funções Auxiliares de Geolocalização ---
@@ -101,18 +103,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (status === 'OK') {
                 itineraryResults.classList.remove('hidden');
                 directionsRenderer.setDirections(response);
-                // ... (O restante da lógica para exibir os resultados da rota permanece o mesmo) ...
+
                 const route = response.routes[0];
                 let listHtml = '<p class="font-bold">Optimized Stop Sequence:</p>';
                 const orderedClients = route.waypoint_order.map(i => validClients[i]);
+
                 route.legs.forEach((leg, i) => {
                     const clientName = (i < orderedClients.length) ? orderedClients[i].nome : "Return to Origin";
                     listHtml += `<div class="border-b border-muted py-2"><p class="font-bold text-base">${i + 1}. ${clientName} (${leg.end_address})</p><p class="ml-4 text-sm">Travel: ${leg.duration.text} | ${leg.distance.text}</p></div>`;
                 });
+
                 const totalDuration = route.legs.reduce((sum, leg) => sum + leg.duration.value, 0);
                 const totalDistance = route.legs.reduce((sum, leg) => sum + leg.distance.value, 0);
                 listHtml += `<div class="mt-4 font-bold text-lg text-brand-primary">Total Estimated Travel: ${Math.round(totalDuration / 60)} min / ${(totalDistance / 1609.34).toFixed(1)} mi</div>`;
                 itineraryList.innerHTML = listHtml;
+
             } else {
                 showToast(`Google Maps route request failed. Status: ${status}`, 'error');
             }
@@ -127,15 +132,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Listeners de Eventos ---
-    document.addEventListener('techDataLoaded', (event) => init(event.detail.techData));
-    document.addEventListener('techDataUpdated', (event) => { // Ouve atualizações do editor de técnicos
+    document.addEventListener('techDataLoaded', (event) => {
+        init(event.detail.techData);
+    });
+    
+    document.addEventListener('techDataUpdated', (event) => {
         techData = event.detail.techData;
         populateTechSelect();
     });
     
     document.addEventListener('googleMapsLoaded', () => {
+        if (mapContainer && !routeMap) {
+            routeMap = new google.maps.Map(mapContainer, {
+                center: { lat: 39.8283, lng: -98.5795 }, zoom: 4, streetViewControl: false, fullscreenControl: false
+            });
+        }
         directionsService = new google.maps.DirectionsService();
-        // O renderer é inicializado no routes-manager
+        directionsRenderer = new google.maps.DirectionsRenderer({ map: routeMap });
     });
     
     verifyZipBtn.addEventListener('click', handleVerifyZipCode);
