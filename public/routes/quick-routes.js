@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const techSelect = document.getElementById('tech-select');
     const addClientRowBtn = document.getElementById('add-client-row-btn');
     const optimizeItineraryBtn = document.getElementById('optimize-itinerary-btn');
+    const itineraryResults = document.getElementById('itinerary-results'); // Section container
     const itineraryList = document.getElementById('itinerary-list');
     const mapContainer = document.getElementById('map');
 
@@ -30,22 +31,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Utility Functions (Simulated/Required) ---
     
-    // Simulação de funções utilitárias que devem ser implementadas externamente
-    const showLoading = () => {
-        // Exibe um spinner ou mensagem de carregamento, se disponível
-        console.log("LOADING...");
-    };
+    const showLoading = () => console.log("LOADING...");
     const hideLoading = () => console.log("LOADED.");
     const showToast = (message, type) => alert(type.toUpperCase() + ": " + message);
     
-    // Função para carregar a chave e o script do Google Maps
     async function fetchGoogleMapsApiKey() {
         try {
             const response = await fetch('/api/get-google-maps-api-key');
             if (response.ok) {
                 const data = await response.json();
                 GOOGLE_MAPS_API_KEY = data.apiKey;
-                // Carrega o script do Google Maps dinamicamente
                 if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
                     const script = document.createElement('script');
                     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
@@ -65,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function getLatLon(zipCode) {
         if (!zipCode) return [null, null, null, null];
         try {
-            // API pública para consulta de Zip Codes dos EUA
             const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
             if (!response.ok) return [null, null, null, null];
             const data = await response.json();
@@ -77,7 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Calcula a distância euclidiana (aproximação para comparação de proximidade)
     function calculateDistance(lat1, lon1, lat2, lon2) {
         return Math.sqrt(Math.pow(lat1 - lat2, 2) + Math.pow(lon1 - lon2, 2));
     }
@@ -87,7 +80,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     async function loadInitialData() {
         showLoading();
-        // 1. Tenta buscar dados frescos do Google Sheets
         try {
             const response = await fetch('/api/get-tech-coverage'); 
             if (response.ok) {
@@ -103,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             console.error('Falha ao carregar dados de cobertura do Sheets:', error);
-            // 2. Se falhar, tenta usar o cache local
             const cachedData = localStorage.getItem('tech_data_cache');
             if (cachedData) {
                 techData = JSON.parse(cachedData);
@@ -188,7 +179,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             techTableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-muted-foreground">Nenhum técnico cadastrado.</td></tr>';
         }
 
-        // Add listeners for input fields and dropdowns
         techTableBody.querySelectorAll('input:not([data-key="new_city"]), select').forEach(element => {
             element.addEventListener('change', (e) => {
                 const index = parseInt(e.target.dataset.index, 10);
@@ -197,7 +187,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
         
-        // Listener para abrir o modal de edição de cidades
         techTableBody.querySelectorAll('.view-edit-cities-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const index = parseInt(e.target.dataset.index, 10);
@@ -205,7 +194,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Listener para deletar técnico
         techTableBody.querySelectorAll('.delete-tech-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const index = parseInt(e.target.dataset.index, 10);
@@ -215,8 +203,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
     }
-    
-    // --- Lógica do Modal de Cidades ---
     
     function showCitiesModal(index) {
         const tech = techData[index];
@@ -238,12 +224,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const textarea = document.getElementById('modal-cities-textarea');
             const newCitiesString = textarea.value;
             
-            // Converte a string de volta para array
             const newCitiesArray = newCitiesString.split(',').map(s => s.trim()).filter(s => s.length > 0);
             
             techData[index].cidades = newCitiesArray;
             
-            // Oculta o modal e atualiza a interface
             citiesModal.classList.add('hidden');
             renderTechTable();
         };
@@ -271,7 +255,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             clientTableBody.appendChild(row);
         });
 
-        // Add listeners for client inputs
         clientTableBody.querySelectorAll('input').forEach(input => {
             input.addEventListener('change', (e) => {
                 const index = parseInt(e.target.dataset.index, 10);
@@ -280,7 +263,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Listener para deletar cliente
         clientTableBody.querySelectorAll('.delete-client-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const index = parseInt(e.target.dataset.index, 10);
@@ -332,10 +314,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const availableTechs = [];
         const techsWithCoords = [];
 
-        // 1. Filtra técnicos que atendem a cidade E obtém suas coordenadas
         for (const tech of techData) {
-            // Verifica se a cidade está na lista de cobertura (comparação case-insensitive)
-            if (tech.cidades.some(c => c.trim().toLowerCase() === city.trim().toLowerCase())) {
+            if ((tech.cidades || []).some(c => c.trim().toLowerCase() === city.trim().toLowerCase())) {
                 availableTechs.push(tech);
                 
                 if (tech.zip_code) {
@@ -350,7 +330,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const techNames = availableTechs.map(tech => tech.nome).join(', ');
         zipCodeResults.innerHTML += `<p class="mt-2"><strong>Técnicos em área de cobertura:</strong> ${techNames || 'Nenhum'}</p>`;
 
-        // 2. Encontra o técnico mais próximo DENTRO dos disponíveis
         if (techsWithCoords.length > 0) {
             let closestTech = null;
             let minDistance = Infinity;
@@ -375,8 +354,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function handleOptimizeItinerary() {
         itineraryList.innerHTML = '';
+        itineraryResults.classList.add('hidden'); // Hide results initially
         
-        // CORREÇÃO: Limpa a rota anterior sem apagar o mapa
         if (directionsRenderer) {
             directionsRenderer.setDirections(null);
         }
@@ -393,7 +372,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        // 1. Valida e obtém coordenadas dos clientes
         const validClients = [];
         for (const client of clientData.filter(c => c.zip_code)) {
             const [lat, lon, city] = await getLatLon(client.zip_code);
@@ -409,7 +387,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // 2. Lógica do Caixeiro Viajante (Nearest Neighbor Aproximation)
         let currentOriginZip = selectedTech.zip_code;
         let [currentLat, currentLon] = await getLatLon(currentOriginZip);
 
@@ -433,7 +410,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             unvisitedClients = unvisitedClients.filter(c => c !== closestClient);
         }
 
-        // 3. Monta a requisição para o Google Maps Directions (com otimização nativa)
         const origin = selectedTech.zip_code;
         const destination = optimizedItinerary[optimizedItinerary.length - 1].zip_code;
         const waypoints = optimizedItinerary.slice(0, -1).map(c => ({
@@ -441,7 +417,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             stopover: true
         }));
         
-        if (waypoints.length > 23) { // Limite da API do Google Maps é 25 pontos (origem + destino + 23 waypoints)
+        if (waypoints.length > 23) { 
             alert("Aviso: O Google Maps suporta um número limitado de paradas. A rota pode não ser otimizada corretamente pela API do Google.");
         }
 
@@ -453,23 +429,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             travelMode: google.maps.TravelMode.DRIVING
         };
         
-        // 4. Exibe a rota no mapa
         directionsService.route(request, (response, status) => {
             if (status === 'OK') {
+                itineraryResults.classList.remove('hidden'); // Show results section
                 directionsRenderer.setDirections(response);
 
                 let totalDistance = 0;
                 let totalDuration = 0;
-
                 const route = response.routes[0];
-                
                 itineraryList.innerHTML = `<p class="font-bold">A melhor sequência de atendimento é:</p>`;
                 
-                // Mapeia a ordem otimizada do Google Maps de volta para a lista de clientes original
                 const orderedWaypoints = route.waypoint_order.map(i => optimizedItinerary[i]);
                 const finalRoute = [
                     ...orderedWaypoints,
-                    optimizedItinerary[optimizedItinerary.length - 1] // O último elemento
+                    optimizedItinerary[optimizedItinerary.length - 1]
                 ];
 
                 route.legs.forEach((leg, i) => {
@@ -493,10 +466,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Initialize Map Function (Global callback for Google Maps API)
     window.initMap = function() {
         map = new google.maps.Map(mapContainer, {
-            center: { lat: 39.8283, lng: -98.5795 }, // Centro dos EUA
+            center: { lat: 39.8283, lng: -98.5795 },
             zoom: 4,
             streetViewControl: false,
             fullscreenControl: false,
@@ -505,10 +477,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
     }
 
-
-    // --- Event Listeners and Initial Setup ---
-    
-    // Add Tech Row Listener
     addTechRowBtn.addEventListener('click', () => {
         if (!techData) techData = [];
         techData.push({ nome: "", categoria: "", tipo_atendimento: "", zip_code: "", cidades: [] });
@@ -516,24 +484,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         populateTechSelect();
     });
     
-    // Save Data Listener
     saveTechDataBtn.addEventListener('click', handleSaveTechData);
     
-    // Add Client Row Listener
     addClientRowBtn.addEventListener('click', () => {
         clientData.push({ nome: "", zip_code: "" });
         renderClientTable();
     });
 
-    // Main Initialization Function
     const init = async () => {
         await fetchGoogleMapsApiKey();
         await loadInitialData();
-        renderClientTable(); // Renderiza a tabela de clientes inicial
+        renderClientTable();
     }
 
-
-    // Event Listeners for Actions
     verifyZipBtn.addEventListener('click', handleVerifyZipCode);
     optimizeItineraryBtn.addEventListener('click', handleOptimizeItinerary);
 
