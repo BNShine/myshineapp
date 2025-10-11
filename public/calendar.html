@@ -1,558 +1,407 @@
-// public/calendar/schedule.js (Controlador Principal Refatorado)
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technician Scheduler</title>
+    <link href="output.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos do Calendário Principal */
+        .scheduler-grid { display: grid; grid-template-columns: 80px repeat(7, minmax(150px, 1fr)); grid-auto-rows: minmax(60px, auto); overflow-x: auto; min-width: 100%; }
+        .time-slot { height: 60px; position: relative; }
+        .appointment-block { width: 150px; position: absolute; left: 0; top: 0; box-sizing: border-box; z-index: 10; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+        .timeline-header { grid-column: 1; position: sticky; left: 0; background-color: hsl(var(--card)); z-index: 20; }
+        .day-column-header { text-align: center; }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // --- 1. Seletores de Elementos Principais ---
-    const techSelectDropdown = document.getElementById('tech-select-dropdown');
-    const selectedTechDisplay = document.getElementById('selected-tech-display');
-    const loadingOverlay = document.getElementById('loading-overlay');
-    const schedulerHeader = document.getElementById('scheduler-header');
-    const schedulerBody = document.getElementById('scheduler-body');
-    const currentWeekDisplay = document.getElementById('current-week-display');
-    const prevWeekBtn = document.getElementById('prev-week');
-    const nextWeekBtn = document.getElementById('next-week');
-    const todayBtn = document.getElementById('today-btn');
-    const addTimeBlockBtn = document.getElementById('add-time-block-btn');
-    const miniCalendarContainer = document.getElementById('mini-calendar-container');
+        .bg-custom-primary { background-color: #ffeef4; }
+        .bg-green-600 { background-color: rgb(22 163 74); }
+        .bg-cherry-red { background-color: hsl(0 84% 45%); }
+        .bg-yellow-confirmed { background-color: #f9d872; }
+        
+        /* NOVO STATUS */
+        .bg-blue-missing-data { background-color: #a0c4ff; } /* Azul claro */
+        .bg-margin-blue-missing-data { background-color: #8ab7ff; }
+        .bg-travel-blue-missing-data { background-color: #74a9ff; }
 
-    // --- 2. Variáveis Globais de Estado ---
-    let allAppointments = [];
-    let allTechnicians = [];
-    let allTechCoverage = [];
-    let techAvailabilityBlocks = [];
-    let selectedTechnician = '';
-    let currentWeekStart = getStartOfWeek(new Date());
-    let miniCalDate = new Date();
+        /* Cores de Margem Dinâmicas (intermediárias) */
+        .bg-margin-primary { background-color: #ffdce9; } 
+        .bg-margin-green { background-color: rgb(21 128 61); } 
+        .bg-margin-red { background-color: hsl(0 84% 35%); } 
+        .bg-margin-yellow { background-color: #f5c740; } 
 
-    // --- 3. Constantes ---
-    const SLOT_HEIGHT_PX = 60;
-    const TIME_SLOTS = Array.from({ length: 15 }, (_, i) => `${(7 + i).toString().padStart(2, '0')}:00`);
-    const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const MIN_HOUR = 7;
-    const MAX_HOUR = 21;
-    
-    // --- 4. Lógica do Mini Calendário ---
-    function renderMiniCalendar() {
-        if (!miniCalendarContainer) return;
-        const month = miniCalDate.getMonth();
-        const year = miniCalDate.getFullYear();
-        const firstDayOfMonth = new Date(year, month, 1);
-        const lastDayOfMonth = new Date(year, month + 1, 0);
-        const firstDayOfWeek = firstDayOfMonth.getDay();
-        let datesHtml = Array(firstDayOfWeek).fill('<div class="date-cell other-month"></div>').join('');
-        for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
-            const currentDate = new Date(year, month, i);
-            const isToday = currentDate.toDateString() === new Date().toDateString();
-            const weekEnd = new Date(currentWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-            const isSelected = currentDate >= currentWeekStart && currentDate < weekEnd;
-            let cellClass = 'date-cell';
-            if (isToday) cellClass += ' today';
-            if (isSelected) cellClass += ' selected';
-            datesHtml += `<div class="${cellClass}" data-date="${currentDate.toISOString()}">${i}</div>`;
-        }
-        const monthName = miniCalDate.toLocaleString('en-US', { month: 'long' });
-        miniCalendarContainer.innerHTML = `
-            <div id="mini-calendar">
-                <div class="header">
-                    <button class="nav-btn" id="mini-cal-prev-month"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-                    <span class="font-semibold">${monthName} ${year}</span>
-                    <button class="nav-btn" id="mini-cal-next-month"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        /* Cores de Viagem Dinâmicas (mais escuras) */
+        .bg-travel-primary { background-color: #ffc7e0; }
+        .bg-travel-green { background-color: rgb(22 107 55); }
+        .bg-travel-red { background-color: hsl(0 84% 25%); }
+        .bg-travel-yellow { background-color: #f2b518; }
+        
+        /* Estilos do Modal e Feedback */
+        .modal-overlay-fixed { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 1000; }
+        body.modal-open { overflow: hidden !important; }
+        .hidden { display: none !important; }
+        tr.is-saving { background-color: hsl(var(--secondary) / 0.1); transition: background-color 0.3s; }
+        tr.is-success { background-color: hsl(142.1 76.2% 36.3% / 0.15); transition: background-color 0.3s; }
+        tr.is-error { background-color: hsl(0 84.2% 60.2% / 0.15); transition: background-color 0.3s; }
+        
+        /* Mini Calendário */
+        #mini-calendar .header { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+        #mini-calendar .days-grid, #mini-calendar .dates-grid { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+        #mini-calendar .day-name { font-size: 0.75rem; font-weight: 600; color: hsl(var(--muted-foreground)); padding: 4px 0; }
+        #mini-calendar .date-cell { font-size: 0.8rem; padding: 6px 0; cursor: pointer; border-radius: 9999px; transition: background-color 0.2s; }
+        #mini-calendar .date-cell:hover { background-color: hsl(var(--muted)); }
+        #mini-calendar .date-cell.other-month { color: hsl(var(--muted-foreground) / 0.5); }
+        #mini-calendar .date-cell.today::after { content: ''; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background-color: hsl(var(--brand-primary)); }
+        #mini-calendar .date-cell.selected { background-color: hsl(217.2 91.2% 59.8%); color: white; font-weight: bold; }
+        #mini-calendar .date-cell.selected:hover { background-color: hsl(217.2 91.2% 55%); }
+        #mini-calendar .nav-btn { padding: 4px; border-radius: 6px; }
+        #mini-calendar .nav-btn:hover { background-color: hsl(var(--muted)); }
+    </style>
+</head>
+<body class="min-h-screen bg-background text-foreground">
+    <div class="flex">
+        <aside class="sidebar">
+            <div class="flex h-20 items-center justify-center border-b px-6">
+                <a class="flex items-center gap-2 font-semibold" href="appointments.html">
+                    <img src="https://i.imgur.com/bW695v3.png" alt="Logo" class="h-12 w-auto"/>
+                </a>
+            </div>
+            <nav class="flex-1 overflow-auto p-4">
+                <ul class="grid items-start gap-1 text-sm font-medium">
+                    <li><a class="sidebar-link" href="appointments.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>Sales</a></li>
+                    <li><a class="sidebar-link" href="customers.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Customers</a></li>
+                    <li><a class="sidebar-link" href="analytics.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a></li>
+                    <li><a class="sidebar-link active" href="calendar.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>Calendar</a></li>
+                    <li><a class="sidebar-link" href="quick-routes.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>Routes</a></li>
+                    <li><a class="sidebar-link" href="finance.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>Finance</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <div class="main-content flex flex-col flex-1">
+            <header class="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card px-6">
+                <div class="text-sm text-muted-foreground">
+                    <span class="font-semibold text-foreground">Scheduler</span> / Technician Calendar
                 </div>
-                <div class="days-grid">${['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => `<div class="day-name">${d}</div>`).join('')}</div>
-                <div class="dates-grid">${datesHtml}</div>
-            </div>`;
-        document.getElementById('mini-cal-prev-month').addEventListener('click', () => { miniCalDate.setMonth(miniCalDate.getMonth() - 1); renderMiniCalendar(); });
-        document.getElementById('mini-cal-next-month').addEventListener('click', () => { miniCalDate.setMonth(miniCalDate.getMonth() + 1); renderMiniCalendar(); });
-        miniCalendarContainer.querySelectorAll('.date-cell[data-date]').forEach(cell => {
-            cell.addEventListener('click', (e) => {
-                currentWeekStart = getStartOfWeek(new Date(e.currentTarget.dataset.date));
-                updateAllComponents();
-                renderMiniCalendar();
-            });
-        });
-    }
-
-    // --- 5. Funções de Manipulação de Dados (API Calls) ---
-    async function handleSaveAppointment() {
-        const modalSaveBtn = document.getElementById('modal-save-btn');
-        modalSaveBtn.disabled = true;
-        modalSaveBtn.textContent = 'Saving...';
-
-        try {
-            const apptId = parseInt(document.getElementById('modal-appt-id').value, 10);
-            const newDate = new Date(document.getElementById('modal-date').value);
-            const newPets = parseInt(document.getElementById('modal-pets').value, 10);
-            const newMargin = parseInt(document.getElementById('modal-margin').value, 10);
-            const newTechnician = document.getElementById('modal-technician').value;
-            const newVerification = document.getElementById('modal-verification').value;
-
-            if (isNaN(newDate.getTime())) throw new Error("Invalid date/time selected.");
-
-            const newDurationWithoutTravel = (newPets * 60) + newMargin; 
-            const newEndTime = new Date(newDate.getTime() + newDurationWithoutTravel * 60000);
-
-            const conflictingAppointment = allAppointments.find(a => {
-                if (a.id === apptId || a.technician !== newTechnician) return false;
-                const existingDate = parseSheetDate(a.appointmentDate);
-                const existingEndTime = new Date(existingDate.getTime() + (parseInt(a.duration, 10) * 60000));
-                return (newDate < existingEndTime && newEndTime > existingDate);
-            });
-
-            if (conflictingAppointment) throw new Error(`Error: This time slot conflicts with another appointment for ${newTechnician}.`);
-
-            const appointmentsOnDay = allAppointments
-                .filter(a => a.technician === newTechnician && parseSheetDate(a.appointmentDate).toDateString() === newDate.toDateString() && a.id !== apptId)
-                .sort((a, b) => parseSheetDate(a.appointmentDate) - parseSheetDate(b.appointmentDate));
-
-            let previousAppointmentZip = (allTechCoverage.find(t => t.nome === newTechnician) || {}).zip_code || null;
-            for (const appt of appointmentsOnDay) {
-                if (parseSheetDate(appt.appointmentDate) < newDate) {
-                    previousAppointmentZip = appt.zipCode;
-                }
-            }
+                <div class="ml-auto flex items-center gap-2">
+                    <button id="dark-mode-toggle" class="btn btn-ghost w-10 h-10 p-0">
+                        <svg class="w-5 h-5 block dark:hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                        <svg class="w-5 h-5 hidden dark:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                    </button>
+                </div>
+            </header>
             
-            const appointmentToUpdate = allAppointments.find(a => a.id === apptId);
-            const newTravelTime = await getTravelTime(previousAppointmentZip, appointmentToUpdate.zipCode);
-
-            const apiFormattedDate = `${String(newDate.getMonth() + 1).padStart(2, '0')}/${String(newDate.getDate()).padStart(2, '0')}/${newDate.getFullYear()} ${getTimeHHMM(newDate)}`;
-
-            const dataToUpdate = {
-                rowIndex: apptId, appointmentDate: apiFormattedDate, verification: newVerification,
-                technician: newTechnician, pets: newPets, margin: newMargin, travelTime: newTravelTime,
-            };
-
-            const response = await fetch('/api/update-appointment-showed-data', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataToUpdate),
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-
-            document.dispatchEvent(new CustomEvent('appointmentUpdated'));
-
-        } catch (error) {
-            alert(`Error saving appointment: ${error.message}`);
-        } finally {
-            modalSaveBtn.disabled = false;
-            modalSaveBtn.textContent = 'Save Changes';
-            window.closeEditModal();
-        }
-    }
-    
-    async function handleSaveTimeBlock() {
-        if (!selectedTechnician) {
-            alert("No technician selected.");
-            return;
-        }
-
-        const dateInput = document.getElementById('block-date');
-        const startHourInput = document.getElementById('block-start-hour');
-        const endHourInput = document.getElementById('block-end-hour');
-        const notesInput = document.getElementById('block-notes');
-        const blockSaveBtn = document.getElementById('block-save-btn');
-
-        if (!dateInput.value || !startHourInput.value || !endHourInput.value) {
-            alert("Date, Start Time, and End Time are required.");
-            return;
-        }
-        
-        const [year, month, day] = dateInput.value.split('-');
-        const formattedDate = `${month}/${day}/${year}`;
-
-        const dataToSend = {
-            technicianName: selectedTechnician,
-            date: formattedDate,
-            startHour: startHourInput.value,
-            endHour: endHourInput.value,
-            notes: notesInput.value || '',
-        };
-
-        blockSaveBtn.disabled = true;
-        blockSaveBtn.textContent = "Saving...";
-
-        try {
-            const response = await fetch('/api/manage-technician-availability', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataToSend),
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-            
-            await fetchAvailabilityForSelectedTech();
-            updateAllComponents();
-            window.closeTimeBlockModal();
-            alert("Time block saved successfully!");
-
-        } catch (error) {
-            console.error("Error saving time block:", error);
-            alert(`Failed to save time block: ${error.message}`);
-        } finally {
-            blockSaveBtn.disabled = false;
-            blockSaveBtn.textContent = "Save Block";
-        }
-    }
-
-    async function handleUpdateTimeBlock() {
-        const editBlockRowNumberInput = document.getElementById('edit-block-row-number');
-        const editBlockDateInput = document.getElementById('edit-block-date');
-        const editBlockStartInput = document.getElementById('edit-block-start-hour');
-        const editBlockEndInput = document.getElementById('edit-block-end-hour');
-        const editBlockNotesInput = document.getElementById('edit-block-notes');
-        const editBlockSaveBtn = document.getElementById('edit-block-save-btn');
-        
-        const rowNumber = parseInt(editBlockRowNumberInput.value, 10);
-        const dateValue = editBlockDateInput.value;
-        const startHour = editBlockStartInput.value;
-        const endHour = editBlockEndInput.value;
-        const notes = editBlockNotesInput.value;
-
-        if (!rowNumber || !dateValue || !startHour || !endHour) {
-            alert("All fields are required to update.");
-            return;
-        }
-        
-        const [year, month, day] = dateValue.split('-');
-        const formattedDate = `${month}/${day}/${year}`;
-
-        const dataToUpdate = {
-            rowNumber,
-            date: formattedDate,
-            startHour,
-            endHour,
-            notes
-        };
-
-        editBlockSaveBtn.disabled = true;
-        editBlockSaveBtn.textContent = "Saving...";
-
-        try {
-            const response = await fetch('/api/manage-technician-availability', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataToUpdate),
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-
-            await fetchAvailabilityForSelectedTech();
-            updateAllComponents();
-            window.closeEditTimeBlockModal();
-            alert("Time block updated successfully!");
-        } catch (error) {
-            console.error("Error updating time block:", error);
-            alert(`Failed to update time block: ${error.message}`);
-        } finally {
-            editBlockSaveBtn.disabled = false;
-            editBlockSaveBtn.textContent = "Save Changes";
-        }
-    }
-
-    async function handleDeleteTimeBlock() {
-        const editBlockRowNumberInput = document.getElementById('edit-block-row-number');
-        const editBlockDeleteBtn = document.getElementById('edit-block-delete-btn');
-        
-        const rowNumber = parseInt(editBlockRowNumberInput.value, 10);
-        if (!rowNumber) {
-            alert("Could not find the time block to delete.");
-            return;
-        }
-
-        if (!confirm("Are you sure you want to delete this time block?")) {
-            return;
-        }
-
-        editBlockDeleteBtn.disabled = true;
-        editBlockDeleteBtn.textContent = "Deleting...";
-
-        try {
-            const response = await fetch('/api/manage-technician-availability', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rowNumber }),
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-
-            await fetchAvailabilityForSelectedTech();
-            updateAllComponents();
-            window.closeEditTimeBlockModal();
-            alert("Time block deleted successfully!");
-        } catch (error) {
-            console.error("Error deleting time block:", error);
-            alert(`Failed to delete time block: ${error.message}`);
-        } finally {
-            editBlockDeleteBtn.disabled = false;
-            editBlockDeleteBtn.textContent = "Delete";
-        }
-    }
-
-    async function fetchAvailabilityForSelectedTech() {
-        if (!selectedTechnician) {
-            techAvailabilityBlocks = [];
-            return;
-        }
-        try {
-            const response = await fetch(`/api/manage-technician-availability?technicianName=${encodeURIComponent(selectedTechnician)}`);
-            if (!response.ok) throw new Error('Could not fetch availability.');
-            const data = await response.json();
-            techAvailabilityBlocks = data.availability || [];
-        } catch (error) {
-            console.error('Error fetching availability:', error);
-            techAvailabilityBlocks = [];
-        }
-    }
-    
-    // --- 6. Funções de Renderização ---
-    function renderScheduler() {
-        if (!schedulerHeader || !schedulerBody) return;
-        schedulerHeader.innerHTML = '<div class="timeline-header p-2 font-semibold">Time</div>';
-        schedulerBody.innerHTML = '';
-        loadingOverlay.classList.toggle('hidden', !!selectedTechnician);
-        updateWeekDisplay();
-
-        TIME_SLOTS.forEach((time, rowIndex) => {
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'time-slot timeline-header p-2 text-xs font-medium border-t border-border flex items-center justify-center';
-            timeDiv.textContent = time;
-            timeDiv.style.gridRow = `${rowIndex + 1} / span 1`;
-            schedulerBody.appendChild(timeDiv);
-        });
-        
-        DAY_NAMES.forEach((dayName, dayIndex) => {
-            const date = new Date(currentWeekStart);
-            date.setDate(date.getDate() + dayIndex);
-            const column = dayIndex + 2;
-            const header = document.createElement('div');
-            header.className = 'day-column-header p-2 font-semibold border-l border-border';
-            header.style.gridColumn = column;
-            header.textContent = `${dayName} ${date.getDate()}`;
-            schedulerHeader.appendChild(header);
-            const dayContainer = document.createElement('div');
-            dayContainer.className = 'relative border-r border-border';
-            dayContainer.style.gridColumn = column;
-            dayContainer.style.gridRow = `1 / span ${TIME_SLOTS.length}`;
-            dayContainer.dataset.dateKey = formatDateToYYYYMMDD(date);
-            
-            TIME_SLOTS.forEach((_, rowIndex) => {
-                 const line = document.createElement('div');
-                 line.className = 'absolute w-full border-t border-border/50';
-                 line.style.height = '1px';
-                 line.style.top = `${(rowIndex + 1) * SLOT_HEIGHT_PX}px`;
-                 line.style.zIndex = '1';
-                 dayContainer.appendChild(line);
-            });
-            schedulerBody.appendChild(dayContainer);
-        });
-
-        if (selectedTechnician) {
-            renderAppointments();
-            renderTimeBlocks();
-        }
-    }
-
-    function renderAppointments() {
-        const weekEnd = new Date(currentWeekStart);
-        weekEnd.setDate(weekEnd.getDate() + 7);
-        const appointmentsToRender = allAppointments.filter(appt => appt.technician.trim() === selectedTechnician.trim());
-        
-        appointmentsToRender.forEach(appt => {
-            const apptDate = parseSheetDate(appt.appointmentDate);
-            if (!apptDate || apptDate < currentWeekStart || apptDate >= weekEnd) return;
-            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(apptDate)}"]`);
-            if (!dayContainer) return;
-            const startHour = apptDate.getHours();
-            if (startHour < MIN_HOUR || startHour >= MAX_HOUR) return;
-            const topOffset = (startHour - MIN_HOUR) * SLOT_HEIGHT_PX + (apptDate.getMinutes() / 60 * SLOT_HEIGHT_PX);
-            
-            let appointmentBgColor = 'bg-custom-primary';
-            let marginBgColor = 'bg-margin-primary';
-            let travelBgColor = 'bg-travel-primary';
-            let appointmentTextColor = 'text-foreground';
-            let marginTextColor = 'text-foreground';
-
-            if (appt.verification === 'Canceled') {
-                appointmentBgColor = 'bg-cherry-red';
-                marginBgColor = 'bg-margin-red';
-                travelBgColor = 'bg-travel-red';
-                appointmentTextColor = 'text-white';
-                marginTextColor = 'text-white';
-            } else if (appt.verification === 'Showed') {
-                appointmentBgColor = 'bg-green-600';
-                marginBgColor = 'bg-margin-green';
-                travelBgColor = 'bg-travel-green';
-                appointmentTextColor = 'text-white';
-                marginTextColor = 'text-white';
-            } else if (appt.verification === 'Confirmed') {
-                appointmentBgColor = 'bg-yellow-confirmed';
-                marginBgColor = 'bg-margin-yellow';
-                travelBgColor = 'bg-travel-yellow';
-                appointmentTextColor = 'text-black';
-                marginTextColor = 'text-black';
-            } else if (appt.verification === 'Missing Data') {
-                appointmentBgColor = 'bg-blue-missing-data';
-                marginBgColor = 'bg-margin-blue-missing-data';
-                travelBgColor = 'bg-travel-blue-missing-data';
-                appointmentTextColor = 'text-black';
-                marginTextColor = 'text-black';
-            }
-
-            const totalDuration = parseInt(appt.duration, 10) || 120;
-            const travelTime = parseInt(appt.travelTime, 10) || 0;
-            const marginTime = parseInt(appt.margin, 10) || 0;
-            const appointmentTime = Math.max(0, totalDuration - travelTime - marginTime);
-            const travelPercent = totalDuration > 0 ? (travelTime / totalDuration) * 100 : 0;
-            const appointmentPercent = totalDuration > 0 ? (appointmentTime / totalDuration) * 100 : 0;
-            const marginPercent = totalDuration > 0 ? (marginTime / totalDuration) * 100 : 0;
-            const blockHeight = (totalDuration / 60) * SLOT_HEIGHT_PX;
-            const block = document.createElement('div');
-            
-            block.className = `appointment-block rounded-md shadow-soft cursor-pointer transition-colors hover:shadow-lg`;
-            block.dataset.id = appt.id;
-            block.style.top = `${topOffset}px`;
-            block.style.height = `${blockHeight}px`;
-            const endTime = new Date(apptDate.getTime() + totalDuration * 60 * 1000);
-            
-            block.innerHTML = `
-                ${travelTime > 0 ? `<div class="${travelBgColor} text-white" style="height: ${travelPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Travel</span></div>` : ''}
-                <div class="${appointmentBgColor} ${appointmentTextColor}" style="height: ${appointmentPercent}%; padding: 4px 8px; display: flex; justify-content: space-between; flex-grow: 1;">
-                    <div class="flex-grow overflow-hidden">
-                        <p class="text-xs font-semibold">${getTimeHHMM(apptDate)} - ${getTimeHHMM(endTime)}</p>
-                        <p class="text-sm font-bold truncate">${appt.customers}</p>
-                        <p class="text-xs font-medium opacity-80">${appt.verification}</p>
-                        <p class="text-xs font-medium opacity-80">Pets: ${appt.pets || 'N/A'}</p>
+            <main class="flex-1 p-4 sm:p-6 space-y-6">
+                <div class="card-base p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-2">
+                            <button id="today-btn" class="btn-outline h-9 px-4 text-sm">Today</button>
+                            <div class="flex items-center border rounded-md">
+                                <button id="prev-week" class="btn btn-ghost h-9 w-9 p-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+                                <span id="current-week-display" class="font-semibold text-sm px-3 text-center w-48">Loading...</span>
+                                <button id="next-week" class="btn btn-ghost h-9 w-9 p-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <label for="tech-select-dropdown" class="text-sm font-medium text-muted-foreground">Technician:</label>
+                                <select id="tech-select-dropdown" class="input-base h-9 w-48 text-sm">
+                                     <option value="">Loading Technicians...</option>
+                                </select>
+                            </div>
+                            <a href="appointments.html" class="btn-primary h-9 px-4 text-sm">
+                                <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                New
+                            </a>
+                        </div>
                     </div>
-                    <div style="display: flex; align-items: center; justify-content: center;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Appointment</span></div>
                 </div>
-                ${marginTime > 0 ? `<div class="${marginBgColor} ${marginTextColor}" style="height: ${marginPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Margin</span></div>` : ''}`;
-            
-            block.addEventListener('click', () => window.openEditModal(appt, allTechnicians));
-            dayContainer.appendChild(block);
-        });
-    }
 
-    function renderTimeBlocks() {
-        const weekEnd = new Date(currentWeekStart);
-        weekEnd.setDate(weekEnd.getDate() + 7);
-        techAvailabilityBlocks.forEach(block => {
-            if (!block || typeof block.date !== 'string' || block.date.trim() === '') return;
-            const parts = block.date.split('/');
-            if (parts.length !== 3) return;
-            const [M, D, Y] = parts;
-            const blockDate = new Date(`${Y}-${M.padStart(2, '0')}-${D.padStart(2, '0')}T00:00:00`);
+                <section class="card-base">
+                    <div class="flex">
+                        <div id="tech-filter-panel" class="w-64 border-r p-4 space-y-4 flex-shrink-0">
+                            <div id="mini-calendar-container" class="mb-4"></div>
+                            <h3 class="text-lg font-semibold">Technician Details</h3>
+                            <div id="selected-tech-display" class="p-3 border-l-4 border-brand-primary bg-brand-primary/10 rounded-r-lg">
+                                <p class="font-bold text-brand-primary">No Technician Selected</p>
+                                <p class="text-sm text-muted-foreground">Select a technician from the top bar to view their schedule.</p>
+                            </div>
+                            <button id="add-time-block-btn" class="btn-outline w-full h-9 text-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                                Add Time Block
+                            </button>
+                        </div>
+                        
+                        <div class="flex-1 overflow-x-auto">
+                            <div id="scheduler-header" class="scheduler-grid border-b"></div>
+                            <div id="scheduler-body-wrapper" class="relative">
+                                <div id="scheduler-body" class="scheduler-grid relative min-w-full"></div>
+                                <div id="loading-overlay" class="absolute inset-0 bg-card/70 flex items-center justify-center z-30">
+                                    <p class="text-lg font-semibold text-muted-foreground">Please select a technician.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="day-itinerary-section" class="card-base p-6">
+                    <h2 class="text-section-title mb-4">Daily Itinerary and Optimization</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div>
+                            <label for="day-filter" class="text-label mb-2 block">Select Day (of the current week)</label>
+                            <select id="day-filter" class="input-base text-sm">
+                                <option value="">Select a Day...</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                                <option value="0">Sunday</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4 mt-4 mb-4">
+                        <button id="optimize-itinerary-btn" class="btn-primary h-11 px-6 text-sm" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M3 3v18h18"/><path d="m21 7-5 5h5"/><path d="m11 11-3 3h3"/><path d="m11 7-5 5h5"/></svg>
+                            Itinerary Optimizer (Nearest)
+                        </button>
+                        <button id="itinerary-reverser-btn" class="btn-outline h-11 px-6 text-sm" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg>
+                            Itinerary Reverser (Farthest)
+                        </button>
+                    </div>
+                    
+                    <h3 class="text-card-title mt-8 mb-4">Appointments for the Day</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-muted text-muted-foreground uppercase text-xs font-semibold whitespace-nowrap">
+                                <tr>
+                                    <th class="p-4 border-b">Time</th>
+                                    <th class="p-4 border-b">Customers</th>
+                                    <th class="p-4 border-b">Phone</th>
+                                    <th class="p-4 border-b">Zip Code</th>
+                                    <th class="p-4 border-b">Code</th>
+                                    <th class="p-4 border-b">Verification</th>
+                                    <th class="p-4 border-b">Technician</th>
+                                </tr>
+                            </thead>
+                            <tbody id="day-itinerary-table-body" class="text-foreground text-sm">
+                                <tr><td colspan="7" class="p-4 text-center text-muted-foreground">Select a day and a technician to view appointments.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <h3 class="text-card-title mt-8 mb-4">Optimized Route Results</h3>
+                    
+                    <div id="scheduling-controls" class="p-4 border rounded-lg bg-muted/50 mb-6 hidden">
+                        <h4 class="text-lg font-semibold mb-3">Apply Optimized Route to Calendar</h4>
+                        <div class="flex flex-wrap items-end gap-4">
+                            <div class="flex-1 min-w-[200px]">
+                                <label for="first-schedule-select" class="text-label mb-2 block">First Schedule Slot (07:00 - 21:00)</label>
+                                <select id="first-schedule-select" class="input-base text-sm"></select>
+                            </div>
+                            <button id="apply-route-btn" class="btn h-11 px-6 text-sm bg-success text-success-foreground hover:bg-success/90">
+                                Apply Route
+                            </button>
+                        </div>
+                    </div>
+                    <div id="itinerary-results-list" class="mt-4 space-y-2 text-sm text-muted-foreground">
+                        No route calculated.
+                    </div>
+                </section>
 
-            if (isNaN(blockDate.getTime()) || blockDate < currentWeekStart || blockDate >= weekEnd) return;
-            
-            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(blockDate)}"]`);
-            if (!dayContainer) return;
+                <section id="manage-showed-wrapper" class="card-base">
+                    <div id="manage-showed-lock-screen" class="p-6 text-center">
+                        <h2 class="text-section-title mb-4">Manage Showed Appointments</h2>
+                        <p class="text-body mb-6">This section is password protected.</p>
+                        <button id="access-password-btn" class="btn-primary h-11 px-6 text-sm">Access with Password</button>
+                    </div>
 
-            const [startH, startM] = block.startHour.split(':').map(Number);
-            const [endH, endM] = block.endHour.split(':').map(Number);
-            const topOffset = ((startH - MIN_HOUR) * SLOT_HEIGHT_PX) + (startM / 60 * SLOT_HEIGHT_PX);
-            const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-            const height = (durationMinutes / 60) * SLOT_HEIGHT_PX;
-            
-            const blockEl = document.createElement('div');
-            blockEl.className = 'appointment-block rounded-md';
-            blockEl.style.height = `${height}px`;
-            blockEl.style.backgroundColor = 'rgba(107, 114, 128, 0.7)';
-            blockEl.style.zIndex = '5';
-            blockEl.style.cursor = 'pointer';
-            blockEl.style.padding = '4px 8px';
-            blockEl.style.top = `${topOffset}px`;
-            blockEl.innerHTML = `<p class="text-xs font-semibold text-white truncate">${block.notes || 'Blocked'}</p><p class="text-xs text-white/80">${block.startHour} - ${block.endHour}</p>`;
-            blockEl.addEventListener('click', () => window.openEditTimeBlockModal(block));
-            dayContainer.appendChild(blockEl);
-        });
-    }
+                    <div id="manage-showed-content" class="hidden">
+                        <div class="p-6">
+                            <h2 class="text-section-title">Manage Showed Appointments (Current Week)</h2>
+                        </div>
+                        <div class="p-6 pt-0 overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-muted text-muted-foreground uppercase text-xs font-semibold">
+                                    <tr>
+                                        <th class="p-4 border-b">Appointment Date</th>
+                                        <th class="p-4 border-b">Customers</th>
+                                        <th class="p-4 border-b">Code</th>
+                                        <th class="p-4 border-b">Technician</th>
+                                        <th class="p-4 border-b">Pet Showed</th>
+                                        <th class="p-4 border-b">Service Showed</th>
+                                        <th class="p-4 border-b">Tips</th>
+                                        <th class="p-4 border-b">Percentage</th>
+                                        <th class="p-4 border-b">Method</th>
+                                        <th class="p-4 border-b">Verification</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="showed-appointments-table-body" class="text-foreground text-sm">
+                                    <tr><td colspan="10" class="p-4 text-center">Select a technician to see appointments.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
 
-    function updateWeekDisplay() {
-        if (!currentWeekDisplay || !(currentWeekStart instanceof Date)) return;
-        const endOfWeek = new Date(currentWeekStart);
-        endOfWeek.setDate(endOfWeek.getDate() + 6);
-        currentWeekDisplay.textContent = `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}`;
-    }
+                <section id="travel-cost-calculator" class="card-base p-6">
+                    <h2 class="text-section-title mb-4">Resumo de Viagens e Custo de Combustível</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 border rounded-lg bg-muted/50">
+                        <div>
+                            <label for="mpg-input" class="text-label mb-2 block">Eficiência do Veículo (Milhas por Galão)</label>
+                            <input type="number" id="mpg-input" class="input-base h-9 text-sm" value="25">
+                        </div>
+                        <div>
+                            <label for="fuel-cost-input" class="text-label mb-2 block">Custo do Combustível (por Galão)</label>
+                            <input type="number" id="fuel-cost-input" class="input-base h-9 text-sm" value="3.50" step="0.01">
+                        </div>
+                        <div class="md:col-span-1 flex items-end">
+                             <button id="calculate-fuel-cost-btn" class="btn-primary h-9 px-4 text-sm w-full">Calcular Custos</button>
+                        </div>
+                    </div>
 
-    // --- 7. Inicialização e Lógica de Controle ---
-    async function loadInitialData(isReload = false) {
-        if (!isReload) loadingOverlay.classList.remove('hidden');
-        try {
-            const [techResult, apptResult, coverageResult] = await Promise.all([
-                fetch('/api/get-dashboard-data').then(res => res.json()),
-                fetch('/api/get-technician-appointments').then(res => res.json()),
-                fetch('/api/get-tech-coverage').then(res => res.json())
-            ]);
-            allTechnicians = (techResult.technicians || []).map(t => t.trim()).filter(Boolean);
-            allAppointments = (apptResult.appointments || []).filter(a => a.appointmentDate && parseSheetDate(a.appointmentDate));
-            allTechCoverage = coverageResult || [];
-        } catch (error) {
-            console.error('A critical error occurred during data loading:', error);
-        } finally {
-            if (!isReload) populateTechSelects();
-            updateAllComponents();
-            if (!isReload) renderMiniCalendar();
-        }
-    }
+                    <div id="daily-summary-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                        </div>
 
-    function populateTechSelects() {
-        if (!techSelectDropdown) return;
-        const currentSelection = techSelectDropdown.value;
-        techSelectDropdown.innerHTML = '<option value="">Select Technician...</option>';
-        allTechnicians.forEach(tech => {
-            const option = new Option(tech, tech);
-            techSelectDropdown.add(option);
-        });
-        if (allTechnicians.includes(currentSelection)) techSelectDropdown.value = currentSelection;
-    }
+                     <div class="mt-6 p-4 border-t border-border">
+                        <h3 class="text-card-title">Resumo Semanal</h3>
+                        <div class="flex justify-between items-center mt-2">
+                            <p class="text-body">Distância Total da Semana:</p>
+                            <p id="weekly-total-distance" class="text-lg font-bold">0 mi</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <p class="text-body">Custo Total de Combustível da Semana:</p>
+                            <p id="weekly-total-cost" class="text-lg font-bold text-success">$0.00</p>
+                        </div>
+                    </div>
+                </section>
 
-    async function handleTechSelectionChange(event) {
-        selectedTechnician = event.target.value;
-        if (selectedTechnician) {
-            selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">${selectedTechnician}</p> <p class="text-sm text-muted-foreground">Schedule and details below.</p>`;
-            await fetchAvailabilityForSelectedTech();
-        } else {
-            selectedTechDisplay.innerHTML = `<p class="font-bold text-brand-primary">No Technician Selected</p><p class="text-sm text-muted-foreground">Select a technician from the top bar to view their schedule.</p>`;
-            techAvailabilityBlocks = [];
-        }
-        updateAllComponents();
-    }
-
-    function updateAllComponents() {
-        renderScheduler();
-        const eventDetail = { detail: { technician: selectedTechnician, weekStart: currentWeekStart, allAppointments, allTechCoverage } };
-        document.dispatchEvent(new CustomEvent('stateUpdated', eventDetail));
-    }
-
-    // --- BINDING DOS EVENTOS ---
-    techSelectDropdown.addEventListener('change', handleTechSelectionChange);
+            </main>
+        </div>
+    </div>
     
-    prevWeekBtn.addEventListener('click', () => {
-        currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-        updateAllComponents();
-        renderMiniCalendar();
-    });
+    <div id="edit-appointment-modal" class="modal-overlay-fixed hidden">
+        <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-lg relative">
+            <button type="button" class="absolute top-4 right-4 text-muted-foreground hover:text-foreground" id="modal-close-x-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+            <h3 class="text-xl font-bold text-foreground mb-4">Edit Appointment Details</h3>
+            <form id="appointment-edit-form" class="space-y-4">
+                <input type="hidden" id="modal-appt-id">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="modal-technician" class="text-label mb-2 block">Technician</label>
+                        <select id="modal-technician" name="technician" class="input-base text-sm"></select>
+                    </div>
+                    <div>
+                        <label for="modal-pets" class="text-label mb-2 block">Number of Pets</label>
+                        <input type="number" id="modal-pets" name="pets" min="1" class="input-base text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="modal-date" class="text-label mb-2 block">Date and Time</label>
+                    <input type="datetime-local" id="modal-date" name="appointmentDate" required class="input-base text-sm">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="modal-verification" class="text-label mb-2 block">Status</label>
+                        <select id="modal-verification" name="verification" class="input-base text-sm"></select>
+                    </div>
+                     <div>
+                        <label for="modal-margin" class="text-label mb-2 block">Scheduling Margin</label>
+                        <select id="modal-margin" name="margin" class="input-base text-sm">
+                            <option value="10">10 minutes</option>
+                            <option value="20">20 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="40">40 minutes</option>
+                            <option value="50">50 minutes</option>
+                            <option value="60">60 minutes</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="modal-cancel-btn" type="button" class="btn-outline h-11 px-6 text-sm">Cancel</button>
+                <button id="modal-save-btn" type="button" class="btn-primary h-11 px-6 text-sm">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="time-block-modal" class="modal-overlay-fixed hidden">
+        <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-md relative">
+            <h3 class="text-xl font-bold text-foreground mb-4">Add New Time Block</h3>
+            <form id="time-block-form" class="space-y-4">
+                <div>
+                    <label for="block-date" class="text-label mb-2 block">Date</label>
+                    <input type="date" id="block-date" required class="input-base text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="block-start-hour" class="text-label mb-2 block">Start Time</label>
+                        <input type="time" id="block-start-hour" required class="input-base text-sm">
+                    </div>
+                    <div>
+                        <label for="block-end-hour" class="text-label mb-2 block">End Time</label>
+                        <input type="time" id="block-end-hour" required class="input-base text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="block-notes" class="text-label mb-2 block">Notes (Reason)</label>
+                    <textarea id="block-notes" rows="3" class="input-base text-sm" placeholder="Ex: Lunch, Personal appointment..."></textarea>
+                </div>
+            </form>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="block-cancel-btn" type="button" class="btn-outline h-11 px-6 text-sm">Cancel</button>
+                <button id="block-save-btn" type="button" class="btn-primary h-11 px-6 text-sm">Save Block</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-time-block-modal" class="modal-overlay-fixed hidden">
+        <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-md relative">
+            <h3 class="text-xl font-bold text-foreground mb-4">Edit Time Block Details</h3>
+            <form id="edit-time-block-form" class="space-y-4">
+                <input type="hidden" id="edit-block-row-number">
+                <div>
+                    <label for="edit-block-date" class="text-label mb-2 block">Date</label>
+                    <input type="date" id="edit-block-date" required class="input-base text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="edit-block-start-hour" class="text-label mb-2 block">Start Time</label>
+                        <input type="time" id="edit-block-start-hour" required class="input-base text-sm">
+                    </div>
+                    <div>
+                        <label for="edit-block-end-hour" class="text-label mb-2 block">End Time</label>
+                        <input type="time" id="edit-block-end-hour" required class="input-base text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="edit-block-notes" class="text-label mb-2 block">Notes (Reason)</label>
+                    <textarea id="edit-block-notes" rows="3" class="input-base text-sm" placeholder="Ex: Lunch, Personal appointment..."></textarea>
+                </div>
+            </form>
+            <div class="mt-6 flex justify-between items-center">
+                <button id="edit-block-delete-btn" type="button" class="btn bg-destructive text-destructive-foreground hover:bg-destructive/90 h-11 px-6 text-sm">Delete</button>
+                <div class="flex gap-3">
+                    <button id="edit-block-cancel-btn" type="button" class="btn-outline h-11 px-6 text-sm">Cancel</button>
+                    <button id="edit-block-save-btn" type="button" class="btn-primary h-11 px-6 text-sm">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    nextWeekBtn.addEventListener('click', () => {
-        currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-        updateAllComponents();
-        renderMiniCalendar();
-    });
-
-    todayBtn.addEventListener('click', () => {
-        currentWeekStart = getStartOfWeek(new Date());
-        miniCalDate = new Date();
-        updateAllComponents();
-        renderMiniCalendar();
-    });
-    
-    // Listeners dos botões dos modais
-    document.getElementById('modal-save-btn')?.addEventListener('click', handleSaveAppointment);
-    addTimeBlockBtn?.addEventListener('click', () => window.openTimeBlockModal(selectedTechnician));
-    document.getElementById('block-save-btn')?.addEventListener('click', handleSaveTimeBlock);
-    document.getElementById('block-cancel-btn')?.addEventListener('click', window.closeTimeBlockModal);
-    document.getElementById('edit-block-save-btn')?.addEventListener('click', handleUpdateTimeBlock);
-    document.getElementById('edit-block-delete-btn')?.addEventListener('click', handleDeleteTimeBlock);
-    document.getElementById('edit-block-cancel-btn')?.addEventListener('click', window.closeEditTimeBlockModal);
-
-    document.addEventListener('appointmentUpdated', () => loadInitialData(true));
-
-    loadInitialData();
-});
+    <script>
+        document.getElementById('dark-mode-toggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+    </script>
+<script src="calendar/calendarUtils.js"></script>
+<script src="calendar/schedule.js"></script>     
+<script src="calendar/modalManager.js"></script>  
+<script src="calendar/manageShowed.js"></script>
+<script src="calendar/itinerary.js"></script>
+<script src="calendar/fuelCalculator.js"></script>
+</body>
+</html>
