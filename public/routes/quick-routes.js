@@ -47,11 +47,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.head.appendChild(script);
                 }
             } else {
-                console.error('Falha ao buscar a chave da API do Google Maps.');
-                showToast('Erro: Chave da Google Maps API não carregada.', 'error');
+                console.error('Failed to fetch Google Maps API key.');
+                showToast('Error: Google Maps API key not loaded.', 'error');
             }
         } catch (error) {
-            console.error('Erro ao buscar a chave da API do Google Maps:', error);
+            console.error('Error fetching Google Maps API key:', error);
         }
     }
 
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const place = data.places[0];
             return [parseFloat(place.latitude), parseFloat(place.longitude), place['place name'], place['state abbreviation']];
         } catch (error) {
-            console.error('Erro ao buscar dados de zip code:', error);
+            console.error('Error fetching zip code data:', error);
             return [null, null, null, null];
         }
     }
@@ -88,19 +88,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     techData = apiData.filter(t => t.nome);
                     localStorage.setItem('tech_data_cache', JSON.stringify(techData));
                 } else {
-                    throw new Error('Formato de dados inesperado da API.');
+                    throw new Error('Unexpected data format from API.');
                 }
             } else {
-                 throw new Error('Falha na resposta da API de leitura. Status: ' + response.status);
+                 throw new Error('Failed API read response. Status: ' + response.status);
             }
         } catch (error) {
-            console.error('Falha ao carregar dados de cobertura do Sheets:', error);
+            console.error('Failed to load coverage data from Sheets:', error);
             const cachedData = localStorage.getItem('tech_data_cache');
             if (cachedData) {
                 techData = JSON.parse(cachedData);
-                showToast('Usando dados em cache devido a erro de conexão.', 'warning');
+                showToast('Using cached data due to connection error.', 'warning');
             } else {
-                 showToast('Erro crítico ao carregar dados de técnicos.', 'error');
+                 showToast('Critical error loading technician data.', 'error');
                  techData = [];
             }
         } finally {
@@ -122,14 +122,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await response.json();
 
             if (result.success) {
-                showToast('Dados salvos no Google Sheets com sucesso!', 'success');
+                showToast('Data saved to Google Sheets successfully!', 'success');
                 localStorage.setItem('tech_data_cache', JSON.stringify(techData));
             } else {
-                showToast('Erro ao salvar dados no Sheets: ' + result.message, 'error');
+                showToast('Error saving data to Sheets: ' + result.message, 'error');
             }
         } catch (error) {
-            showToast('Erro de conexão ao tentar salvar. Verifique a rede ou a API.', 'error');
-            console.error('Erro ao salvar dados:', error);
+            showToast('Connection error while trying to save. Check the network or API.', 'error');
+            console.error('Error saving data:', error);
         } finally {
             hideLoading();
         }
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td class="p-4"><input type="text" class="w-full bg-transparent border-none focus:outline-none" value="${tech.nome}" data-key="nome" data-index="${i}"></td>
                     <td class="p-4">
                         <select class="w-full bg-transparent border-none focus:outline-none" data-key="categoria" data-index="${i}">
-                            <option value="">Selecionar</option>
+                            <option value="">Select</option>
                             ${categoryOptionsHtml}
                         </select>
                     </td>
@@ -165,10 +165,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td class="p-4">
                         <div class="flex flex-wrap gap-1 mb-2 max-h-16 overflow-y-auto">
                             ${visibleCities.map(city => `<span class="city-tag bg-brand-primary/10 text-brand-primary px-2 py-1 rounded-full text-xs">${city}</span>`).join('')}
-                            ${hiddenCount > 0 ? `<span class="city-tag bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs">+ ${hiddenCount} mais</span>` : ''}
+                            ${hiddenCount > 0 ? `<span class="city-tag bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs">+ ${hiddenCount} more</span>` : ''}
                         </div>
                         <button class="text-sm font-semibold text-brand-primary hover:text-brand-primary/80 view-edit-cities-btn" data-index="${i}">
-                            Ver/Editar (${(tech.cidades || []).length} cidades)
+                            View/Edit (${(tech.cidades || []).length} cities)
                         </button>
                     </td>
                     <td class="p-4"><button data-index="${i}" class="text-red-600 hover:text-red-800 delete-tech-btn">🗑️</button></td>
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 techTableBody.appendChild(row);
             });
         } else {
-            techTableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-muted-foreground">Nenhum técnico cadastrado.</td></tr>';
+            techTableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-muted-foreground">No technicians registered.</td></tr>';
         }
 
         techTableBody.querySelectorAll('input:not([data-key="new_city"]), select').forEach(element => {
@@ -210,10 +210,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         modalContentArea.innerHTML = `
             <div class="mb-4">
-                <p class="text-sm font-semibold">Técnico:</p>
-                <p class="text-lg font-bold text-brand-primary">${tech.nome || 'Novo Técnico'}</p>
+                <p class="text-sm font-semibold">Technician:</p>
+                <p class="text-lg font-bold text-brand-primary">${tech.nome || 'New Technician'}</p>
             </div>
-            <p class="text-sm text-muted-foreground mb-2">Edite a lista de cidades separando-as por vírgula (,). A ordem não importa.</p>
+            <p class="text-sm text-muted-foreground mb-2">Edit the list of cities, separating them with a comma (,). The order does not matter.</p>
             <textarea id="modal-cities-textarea" 
                       class="w-full p-3 border border-border rounded-md focus:ring-2 focus:ring-brand-primary" 
                       rows="10"
@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4"><input type="text" class="w-full bg-transparent border-none focus:outline-none" value="${client.nome}" data-key="nome" data-index="${i}"></td>
                 <td class="p-4"><input type="text" class="w-full bg-transparent border-none focus:outline-none" value="${client.zip_code}" data-key="zip_code" data-index="${i}" maxlength="5"></td>
                 <td class="p-4">
-                    ${i > 0 ? `<button data-index="${i}" class="text-red-600 hover:text-red-800 delete-client-btn">🗑️</button>` : 'Principal'}
+                    ${i > 0 ? `<button data-index="${i}" class="text-red-600 hover:text-red-800 delete-client-btn">🗑️</button>` : 'Main'}
                 </td>
             `;
             clientTableBody.appendChild(row);
@@ -273,12 +273,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function populateTechSelect() {
-        techSelect.innerHTML = '<option value="">Selecione um técnico para otimizar</option>';
+        techSelect.innerHTML = '<option value="">Select a technician to optimize</option>';
         if (techData && techData.length > 0) {
             techData.forEach(tech => {
                 const option = document.createElement('option');
                 option.value = tech.nome;
-                option.textContent = `${tech.nome} (${tech.zip_code || 'Sem Zip'})`;
+                option.textContent = `${tech.nome} (${tech.zip_code || 'No Zip'})`;
                 techSelect.appendChild(option);
             });
         }
@@ -291,23 +291,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const zipCode = zipCodeInput.value.trim();
         zipCodeResults.innerHTML = '';
         if (!zipCode) {
-            zipCodeResults.innerHTML = `<p class="text-red-600">Por favor, insira um Zip Code.</p>`;
+            zipCodeResults.innerHTML = `<p class="text-red-600">Please, enter a Zip Code.</p>`;
             return;
         }
 
         const [lat, lon, city, state] = await getLatLon(zipCode);
         if (!city) {
-            zipCodeResults.innerHTML = `<p class="text-red-600">Zip Code não encontrado ou inválido.</p>`;
+            zipCodeResults.innerHTML = `<p class="text-red-600">Zip Code not found or invalid.</p>`;
             return;
         }
 
         zipCodeResults.innerHTML = `
-            <p class="text-green-600 font-bold">Zip Code Encontrado!</p>
-            <p><strong>Cidade:</strong> ${city}, ${state} (Geolocalização: ${lat.toFixed(4)}, ${lon.toFixed(4)})</p>
+            <p class="text-green-600 font-bold">Zip Code Found!</p>
+            <p><strong>City:</strong> ${city}, ${state} (Geolocation: ${lat.toFixed(4)}, ${lon.toFixed(4)})</p>
         `;
         
         if (!techData || techData.length === 0) {
-            zipCodeResults.innerHTML += `<p class="text-red-600 mt-2">Nenhum técnico cadastrado para verificar a cobertura.</p>`;
+            zipCodeResults.innerHTML += `<p class="text-red-600 mt-2">No technicians registered to check coverage.</p>`;
             return;
         }
 
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const techNames = availableTechs.map(tech => tech.nome).join(', ');
-        zipCodeResults.innerHTML += `<p class="mt-2"><strong>Técnicos em área de cobertura:</strong> ${techNames || 'Nenhum'}</p>`;
+        zipCodeResults.innerHTML += `<p class="mt-2"><strong>Technicians in coverage area:</strong> ${techNames || 'None'}</p>`;
 
         if (techsWithCoords.length > 0) {
             let closestTech = null;
@@ -343,12 +343,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (closestTech) {
                 zipCodeResults.innerHTML += `
-                    <p><strong>Técnico mais próximo (por Zip Origem):</strong> <span class="font-bold">${closestTech.nome}</span></p>
-                    <p class="text-sm text-muted-foreground"><strong>Restrições:</strong> ${closestTech.tipo_atendimento || 'Nenhuma restrição especificada'}</p>
+                    <p><strong>Closest technician (by Origin Zip):</strong> <span class="font-bold">${closestTech.nome}</span></p>
+                    <p class="text-sm text-muted-foreground"><strong>Restrictions:</strong> ${closestTech.tipo_atendimento || 'No restrictions specified'}</p>
                 `;
             }
         } else {
-             zipCodeResults.innerHTML += `<p class="text-red-600 mt-2">Nenhum técnico disponível com Zip Code de origem válido para cálculo de proximidade.</p>`;
+             zipCodeResults.innerHTML += `<p class="text-red-600 mt-2">No technician available with a valid origin Zip Code for proximity calculation.</p>`;
         }
     }
 
@@ -361,14 +361,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         if (!GOOGLE_MAPS_API_KEY || !directionsService) {
-            alert('Erro: O serviço Google Maps (DirectionsService) não foi inicializado. Verifique a chave da API.');
+            alert('Error: Google Maps service (DirectionsService) has not been initialized. Check the API key.');
             return;
         }
 
         const selectedTech = techData.find(tech => tech.nome === techSelect.value);
         
         if (!selectedTech || !selectedTech.zip_code) {
-            alert('Erro: Selecione um técnico válido com Zip Code de Origem cadastrado.');
+            alert('Error: Select a valid technician with a registered Origin Zip Code.');
             return;
         }
         
@@ -378,12 +378,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (lat !== null) {
                 validClients.push({ nome: client.nome, zip_code: client.zip_code, lat, lon });
             } else {
-                itineraryList.innerHTML += `<p class="text-red-600">Aviso: Cliente ${client.nome} tem Zip Code inválido (${client.zip_code}) e foi ignorado.</p>`;
+                itineraryList.innerHTML += `<p class="text-red-600">Warning: Client ${client.nome} has an invalid Zip Code (${client.zip_code}) and has been ignored.</p>`;
             }
         }
 
         if (validClients.length < 2) {
-            alert('Adicione pelo menos 2 clientes com Zip Codes válidos para otimizar a rota.');
+            alert('Add at least 2 clients with valid Zip Codes to optimize the route.');
             return;
         }
 
@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }));
         
         if (waypoints.length > 23) { 
-            alert("Aviso: O Google Maps suporta um número limitado de paradas. A rota pode não ser otimizada corretamente pela API do Google.");
+            alert("Warning: Google Maps supports a limited number of stops. The route may not be properly optimized by the Google API.");
         }
 
         const request = {
@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let totalDistance = 0;
                 let totalDuration = 0;
                 const route = response.routes[0];
-                itineraryList.innerHTML = `<p class="font-bold">A melhor sequência de atendimento é:</p>`;
+                itineraryList.innerHTML = `<p class="font-bold">The best service sequence is:</p>`;
                 
                 const orderedWaypoints = route.waypoint_order.map(i => optimizedItinerary[i]);
                 const finalRoute = [
@@ -453,15 +453,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     itineraryList.innerHTML += `
                         <div class="border-b border-muted py-2">
                             <p class="font-bold text-lg">${i + 1}. ${client.nome}</p>
-                            <p class="ml-4 text-sm">Tempo: ${leg.duration.text} | Distância: ${leg.distance.text}</p>
+                            <p class="ml-4 text-sm">Time: ${leg.duration.text} | Distance: ${leg.distance.text}</p>
                         </div>
                     `;
                 });
 
-                itineraryList.innerHTML += `<div class="mt-4 font-bold text-lg text-brand-primary">Total Estimado: ${Math.round(totalDuration / 60)} min / ${(totalDistance / 1000).toFixed(2)} km</div>`;
+                itineraryList.innerHTML += `<div class="mt-4 font-bold text-lg text-brand-primary">Estimated Total: ${Math.round(totalDuration / 60)} min / ${(totalDistance / 1000).toFixed(2)} km</div>`;
                 
             } else {
-                alert('Falha na requisição de rotas do Google Maps devido ao status: ' + status);
+                alert('Google Maps route request failed due to status: ' + status);
             }
         });
     }
