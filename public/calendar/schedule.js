@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // --- 6. Funções de Renderização ---
+    // --- 6. Funções de Renderização e Drag & Drop ---
     function renderScheduler() {
         if (!schedulerHeader || !schedulerBody) return;
         schedulerHeader.innerHTML = '<div class="timeline-header p-2 font-semibold">Time</div>';
@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             dayContainer.className = 'relative border-r border-border';
             dayContainer.style.gridColumn = column;
             dayContainer.style.gridRow = `1 / span ${TIME_SLOTS.length}`;
-            dayContainer.dataset.dateKey = formatDateToYYYYMMDD(date);
+            dayContainer.dataset.dateKey = formatDateToYYYYMMDD(date).replace(/\//g, '-');
             
             TIME_SLOTS.forEach((_, rowIndex) => {
                  const line = document.createElement('div');
@@ -370,6 +370,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                  line.style.zIndex = '1';
                  dayContainer.appendChild(line);
             });
+            
+            // Adiciona ouvintes de drop zone
+            dayContainer.addEventListener('dragover', (e) => {
+                if(isDragDropEnabled) e.preventDefault();
+            });
+
+            dayContainer.addEventListener('drop', (e) => {
+                if(!isDragDropEnabled) return;
+                e.preventDefault();
+                
+                const apptId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                const appointment = allAppointments.find(a => a.id === apptId);
+                if (!appointment) return;
+
+                // Calcula a nova hora baseada na posição Y do drop
+                const bounds = dayContainer.getBoundingClientRect();
+                const y = e.clientY - bounds.top;
+                const totalMinutes = Math.round((y / SLOT_HEIGHT_PX) * 60);
+                const hours = MIN_HOUR + Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                const [year, month, day] = dayContainer.dataset.dateKey.split('-').map(Number);
+                const newDate = new Date(year, month - 1, day, hours, minutes);
+
+                // Abre o modal e preenche com a nova data
+                window.openEditModal(appointment, allTechnicians);
+                document.getElementById('modal-date').value = formatDateTimeForInput(newDate.toISOString());
+            });
+
             schedulerBody.appendChild(dayContainer);
         });
 
@@ -387,8 +416,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         appointmentsToRender.forEach(appt => {
             const apptDate = parseSheetDate(appt.appointmentDate);
             if (!apptDate || apptDate < currentWeekStart || apptDate >= weekEnd) return;
-            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(apptDate)}"]`);
+            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(apptDate).replace(/\//g, '-')}"]`);
             if (!dayContainer) return;
+
             const startHour = apptDate.getHours();
             if (startHour < MIN_HOUR || startHour >= MAX_HOUR) return;
             const topOffset = (startHour - MIN_HOUR) * SLOT_HEIGHT_PX + (apptDate.getMinutes() / 60 * SLOT_HEIGHT_PX);
@@ -400,29 +430,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             let marginTextColor = 'text-foreground';
 
             if (appt.verification === 'Canceled') {
-                appointmentBgColor = 'bg-cherry-red';
-                marginBgColor = 'bg-margin-red';
-                travelBgColor = 'bg-travel-red';
-                appointmentTextColor = 'text-white';
-                marginTextColor = 'text-white';
+                appointmentBgColor = 'bg-cherry-red'; marginBgColor = 'bg-margin-red'; travelBgColor = 'bg-travel-red';
+                appointmentTextColor = 'text-white'; marginTextColor = 'text-white';
             } else if (appt.verification === 'Showed') {
-                appointmentBgColor = 'bg-green-600';
-                marginBgColor = 'bg-margin-green';
-                travelBgColor = 'bg-travel-green';
-                appointmentTextColor = 'text-white';
-                marginTextColor = 'text-white';
+                appointmentBgColor = 'bg-green-600'; marginBgColor = 'bg-margin-green'; travelBgColor = 'bg-travel-green';
+                appointmentTextColor = 'text-white'; marginTextColor = 'text-white';
             } else if (appt.verification === 'Confirmed') {
-                appointmentBgColor = 'bg-yellow-confirmed';
-                marginBgColor = 'bg-margin-yellow';
-                travelBgColor = 'bg-travel-yellow';
-                appointmentTextColor = 'text-black';
-                marginTextColor = 'text-black';
+                appointmentBgColor = 'bg-yellow-confirmed'; marginBgColor = 'bg-margin-yellow'; travelBgColor = 'bg-travel-yellow';
+                appointmentTextColor = 'text-black'; marginTextColor = 'text-black';
             } else if (appt.verification === 'Missing Data') {
-                appointmentBgColor = 'bg-blue-missing-data';
-                marginBgColor = 'bg-margin-blue-missing-data';
-                travelBgColor = 'bg-travel-blue-missing-data';
-                appointmentTextColor = 'text-black';
-                marginTextColor = 'text-black';
+                appointmentBgColor = 'bg-blue-missing-data'; marginBgColor = 'bg-margin-blue-missing-data'; travelBgColor = 'bg-travel-blue-missing-data';
+                appointmentTextColor = 'text-black'; marginTextColor = 'text-black';
             }
 
             const totalDuration = parseInt(appt.duration, 10) || 120;
@@ -435,7 +453,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const blockHeight = (totalDuration / 60) * SLOT_HEIGHT_PX;
             const block = document.createElement('div');
             
-            block.className = `appointment-block rounded-md shadow-soft cursor-pointer transition-colors hover:shadow-lg`;
+            block.className = `appointment-block rounded-md shadow-soft transition-colors hover:shadow-lg`;
+            if(isDragDropEnabled) {
+                block.draggable = true;
+                block.style.cursor = 'grab';
+            } else {
+                block.draggable = false;
+                block.style.cursor = 'pointer';
+            }
+
             block.dataset.id = appt.id;
             block.style.top = `${topOffset}px`;
             block.style.height = `${blockHeight}px`;
@@ -455,6 +481,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ${marginTime > 0 ? `<div class="${marginBgColor} ${marginTextColor}" style="height: ${marginPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Margin</span></div>` : ''}`;
             
             block.addEventListener('click', () => window.openEditModal(appt, allTechnicians));
+
+            block.addEventListener('dragstart', (e) => {
+                if(!isDragDropEnabled) {
+                    e.preventDefault();
+                    return;
+                }
+                e.dataTransfer.setData('text/plain', appt.id);
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
             dayContainer.appendChild(block);
         });
     }
@@ -471,7 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (isNaN(blockDate.getTime()) || blockDate < currentWeekStart || blockDate >= weekEnd) return;
             
-            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(blockDate)}"]`);
+            const dayContainer = schedulerBody.querySelector(`[data-date-key="${formatDateToYYYYMMDD(blockDate).replace(/\//g, '-')}"]`);
             if (!dayContainer) return;
 
             const [startH, startM] = block.startHour.split(':').map(Number);
@@ -485,11 +521,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             blockEl.style.height = `${height}px`;
             blockEl.style.backgroundColor = 'rgba(107, 114, 128, 0.7)';
             blockEl.style.zIndex = '5';
-            blockEl.style.cursor = 'pointer';
             blockEl.style.padding = '4px 8px';
             blockEl.style.top = `${topOffset}px`;
+            
+            if(isDragDropEnabled) {
+                blockEl.draggable = true;
+                blockEl.style.cursor = 'grab';
+            } else {
+                blockEl.draggable = false;
+                blockEl.style.cursor = 'pointer';
+            }
+
             blockEl.innerHTML = `<p class="text-xs font-semibold text-white truncate">${block.notes || 'Blocked'}</p><p class="text-xs text-white/80">${block.startHour} - ${block.endHour}</p>`;
+            
             blockEl.addEventListener('click', () => window.openEditTimeBlockModal(block));
+            
+            // Adicionar dragstart para time blocks também
+            blockEl.addEventListener('dragstart', (e) => {
+                if(!isDragDropEnabled) {
+                    e.preventDefault();
+                    return;
+                }
+                // Usaremos um identificador especial para time blocks
+                e.dataTransfer.setData('text/plain', `block_${block.rowNumber}`);
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            
             dayContainer.appendChild(blockEl);
         });
     }
@@ -555,8 +612,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(dragDropToggle) {
         dragDropToggle.addEventListener('change', (e) => {
             isDragDropEnabled = e.target.checked;
-            // A lógica de drag-and-drop real seria ativada/desativada aqui
-            console.log("Drag and Drop enabled:", isDragDropEnabled);
+            // Re-renderiza o calendário para adicionar ou remover os atributos 'draggable'
+            renderScheduler(); 
         });
     }
 
