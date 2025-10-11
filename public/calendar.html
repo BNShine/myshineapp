@@ -246,6 +246,39 @@
                         </div>
                     </div>
                 </section>
+
+                <section id="travel-cost-calculator" class="card-base p-6">
+                    <h2 class="text-section-title mb-4">Resumo de Viagens e Custo de Combustível</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 border rounded-lg bg-muted/50">
+                        <div>
+                            <label for="mpg-input" class="text-label mb-2 block">Eficiência do Veículo (Milhas por Galão)</label>
+                            <input type="number" id="mpg-input" class="input-base h-9 text-sm" value="25">
+                        </div>
+                        <div>
+                            <label for="fuel-cost-input" class="text-label mb-2 block">Custo do Combustível (por Galão)</label>
+                            <input type="number" id="fuel-cost-input" class="input-base h-9 text-sm" value="3.50" step="0.01">
+                        </div>
+                        <div class="md:col-span-1 flex items-end">
+                             <button id="calculate-fuel-cost-btn" class="btn-primary h-9 px-4 text-sm w-full">Calcular Custos</button>
+                        </div>
+                    </div>
+
+                    <div id="daily-summary-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                        </div>
+
+                     <div class="mt-6 p-4 border-t border-border">
+                        <h3 class="text-card-title">Resumo Semanal</h3>
+                        <div class="flex justify-between items-center mt-2">
+                            <p class="text-body">Distância Total da Semana:</p>
+                            <p id="weekly-total-distance" class="text-lg font-bold">0 mi</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <p class="text-body">Custo Total de Combustível da Semana:</p>
+                            <p id="weekly-total-cost" class="text-lg font-bold text-success">$0.00</p>
+                        </div>
+                    </div>
+                </section>
+
             </main>
         </div>
     </div>
@@ -369,5 +402,6 @@
 <script src="calendar/modalManager.js"></script>  
 <script src="calendar/manageShowed.js"></script>
 <script src="calendar/itinerary.js"></script>
+<script src="calendar/fuelCalculator.js"></script>
 </body>
 </html>
