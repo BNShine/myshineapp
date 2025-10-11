@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const todayBtn = document.getElementById('today-btn');
     const addTimeBlockBtn = document.getElementById('add-time-block-btn');
     const miniCalendarContainer = document.getElementById('mini-calendar-container');
+    const dragDropToggle = document.getElementById('drag-drop-toggle');
 
     // --- 2. Variáveis Globais de Estado ---
     let allAppointments = [];
@@ -22,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedTechnician = '';
     let currentWeekStart = getStartOfWeek(new Date());
     let miniCalDate = new Date();
+    let isDragDropEnabled = false;
 
     // --- 3. Constantes ---
     const SLOT_HEIGHT_PX = 60;
@@ -79,45 +81,73 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const apptId = parseInt(document.getElementById('modal-appt-id').value, 10);
-            const newDate = new Date(document.getElementById('modal-date').value);
+            const proposedStartDate = new Date(document.getElementById('modal-date').value);
             const newPets = parseInt(document.getElementById('modal-pets').value, 10);
             const newMargin = parseInt(document.getElementById('modal-margin').value, 10);
             const newTechnician = document.getElementById('modal-technician').value;
             const newVerification = document.getElementById('modal-verification').value;
 
-            if (isNaN(newDate.getTime())) throw new Error("Invalid date/time selected.");
+            if (isNaN(proposedStartDate.getTime())) throw new Error("Invalid date/time selected.");
 
-            const newDurationWithoutTravel = (newPets * 60) + newMargin; 
-            const newEndTime = new Date(newDate.getTime() + newDurationWithoutTravel * 60000);
-
-            const conflictingAppointment = allAppointments.find(a => {
-                if (a.id === apptId || a.technician !== newTechnician) return false;
-                const existingDate = parseSheetDate(a.appointmentDate);
-                const existingEndTime = new Date(existingDate.getTime() + (parseInt(a.duration, 10) * 60000));
-                return (newDate < existingEndTime && newEndTime > existingDate);
-            });
-
-            if (conflictingAppointment) throw new Error(`Error: This time slot conflicts with another appointment for ${newTechnician}.`);
-
+            const appointmentToUpdate = allAppointments.find(a => a.id === apptId);
+            if (!appointmentToUpdate) throw new Error("Appointment not found.");
+            
+            // Encontra os vizinhos no mesmo dia e para o mesmo técnico
             const appointmentsOnDay = allAppointments
-                .filter(a => a.technician === newTechnician && parseSheetDate(a.appointmentDate).toDateString() === newDate.toDateString() && a.id !== apptId)
+                .filter(a => a.id !== apptId && a.technician === newTechnician && parseSheetDate(a.appointmentDate).toDateString() === proposedStartDate.toDateString())
                 .sort((a, b) => parseSheetDate(a.appointmentDate) - parseSheetDate(b.appointmentDate));
 
-            let previousAppointmentZip = (allTechCoverage.find(t => t.nome === newTechnician) || {}).zip_code || null;
-            for (const appt of appointmentsOnDay) {
-                if (parseSheetDate(appt.appointmentDate) < newDate) {
-                    previousAppointmentZip = appt.zipCode;
-                }
+            const previousAppointment = appointmentsOnDay.filter(a => parseSheetDate(a.appointmentDate) < proposedStartDate).pop();
+            const nextAppointment = appointmentsOnDay.find(a => parseSheetDate(a.appointmentDate) > proposedStartDate);
+
+            const previousAppZip = previousAppointment ? previousAppointment.zipCode : (allTechCoverage.find(t => t.nome === newTechnician) || {}).zip_code;
+            const newTravelTime = await getTravelTime(previousAppZip, appointmentToUpdate.zipCode);
+            
+            const serviceDuration = newPets * 60;
+            const totalAppointmentDuration = newTravelTime + serviceDuration + newMargin;
+            
+            let finalStartDate = new Date(proposedStartDate);
+
+            // Calcula os limites dos vizinhos
+            const previousEndTime = previousAppointment ? new Date(parseSheetDate(previousAppointment.appointmentDate).getTime() + (parseInt(previousAppointment.duration, 10) * 60000)) : null;
+            const nextStartTime = nextAppointment ? parseSheetDate(nextAppointment.appointmentDate) : null;
+
+            const proposedTravelStart = new Date(finalStartDate.getTime() - newTravelTime * 60000);
+            const proposedMarginEnd = new Date(finalStartDate.getTime() + (serviceDuration + newMargin) * 60000);
+
+            // 1. Verificação de colisão total (Hard Collision)
+            if (previousEndTime && nextStartTime && proposedTravelStart < previousEndTime && proposedMarginEnd > nextStartTime) {
+                throw new Error("No available space. The new time conflicts with both the preceding and succeeding appointments.");
+            }
+
+            // 3. Colisão com o anterior
+            if (previousEndTime && proposedTravelStart < previousEndTime) {
+                finalStartDate = new Date(previousEndTime.getTime() + newTravelTime * 60000);
             }
             
-            const appointmentToUpdate = allAppointments.find(a => a.id === apptId);
-            const newTravelTime = await getTravelTime(previousAppointmentZip, appointmentToUpdate.zipCode);
+            // 4. Colisão com o posterior
+            const adjustedMarginEnd = new Date(finalStartDate.getTime() + (serviceDuration + newMargin) * 60000);
+            if (nextStartTime && adjustedMarginEnd > nextStartTime) {
+                // Se a colisão com o posterior AINDA existir (ou existia desde o início), ajusta
+                finalStartDate = new Date(nextStartTime.getTime() - (serviceDuration + newMargin) * 60000);
+            }
 
-            const apiFormattedDate = `${String(newDate.getMonth() + 1).padStart(2, '0')}/${String(newDate.getDate()).padStart(2, '0')}/${newDate.getFullYear()} ${getTimeHHMM(newDate)}`;
+            // Verificação final de sanidade: após todos os ajustes, o início ainda colide com o fim do anterior?
+            // Isso pode acontecer se o espaço entre os dois for menor que a duração total do agendamento movido.
+            if (previousEndTime && new Date(finalStartDate.getTime() - newTravelTime * 60000) < previousEndTime) {
+                 throw new Error("Automatic adjustment failed. The available slot is smaller than the total duration of the appointment.");
+            }
+
+            const apiFormattedDate = `${String(finalStartDate.getMonth() + 1).padStart(2, '0')}/${String(finalStartDate.getDate()).padStart(2, '0')}/${finalStartDate.getFullYear()} ${getTimeHHMM(finalStartDate)}`;
 
             const dataToUpdate = {
-                rowIndex: apptId, appointmentDate: apiFormattedDate, verification: newVerification,
-                technician: newTechnician, pets: newPets, margin: newMargin, travelTime: newTravelTime,
+                rowIndex: apptId, 
+                appointmentDate: apiFormattedDate, 
+                verification: newVerification,
+                technician: newTechnician, 
+                pets: newPets, 
+                margin: newMargin, 
+                travelTime: newTravelTime,
             };
 
             const response = await fetch('/api/update-appointment-showed-data', {
@@ -522,6 +552,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- BINDING DOS EVENTOS ---
+    if(dragDropToggle) {
+        dragDropToggle.addEventListener('change', (e) => {
+            isDragDropEnabled = e.target.checked;
+            // A lógica de drag-and-drop real seria ativada/desativada aqui
+            console.log("Drag and Drop enabled:", isDragDropEnabled);
+        });
+    }
+
     techSelectDropdown.addEventListener('change', handleTechSelectionChange);
     
     prevWeekBtn.addEventListener('click', () => {
