@@ -516,8 +516,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Listeners dos botões dos modais
     document.getElementById('modal-save-btn')?.addEventListener('click', handleSaveAppointment);
-    document.getElementById('modal-cancel-btn')?.addEventListener('click', window.closeEditModal);
-    document.getElementById('modal-close-x-btn')?.addEventListener('click', window.closeEditModal);
     addTimeBlockBtn?.addEventListener('click', () => window.openTimeBlockModal(selectedTechnician));
     document.getElementById('block-save-btn')?.addEventListener('click', handleSaveTimeBlock);
     document.getElementById('block-cancel-btn')?.addEventListener('click', window.closeTimeBlockModal);
