@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (isSelected) cellClass += ' selected';
             datesHtml += `<div class="${cellClass}" data-date="${currentDate.toISOString()}">${i}</div>`;
         }
-        const monthName = miniCalDate.toLocaleString('default', { month: 'long' });
+        const monthName = miniCalDate.toLocaleString('en-US', { month: 'long' });
         miniCalendarContainer.innerHTML = `
             <div id="mini-calendar">
                 <div class="header">
