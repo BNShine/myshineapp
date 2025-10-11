@@ -92,7 +92,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const appointmentToUpdate = allAppointments.find(a => a.id === apptId);
             if (!appointmentToUpdate) throw new Error("Appointment not found.");
             
-            // Encontra os vizinhos no mesmo dia e para o mesmo técnico
             const appointmentsOnDay = allAppointments
                 .filter(a => a.id !== apptId && a.technician === newTechnician && parseSheetDate(a.appointmentDate).toDateString() === proposedStartDate.toDateString())
                 .sort((a, b) => parseSheetDate(a.appointmentDate) - parseSheetDate(b.appointmentDate));
@@ -108,32 +107,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             let finalStartDate = new Date(proposedStartDate);
 
-            // Calcula os limites dos vizinhos
             const previousEndTime = previousAppointment ? new Date(parseSheetDate(previousAppointment.appointmentDate).getTime() + (parseInt(previousAppointment.duration, 10) * 60000)) : null;
             const nextStartTime = nextAppointment ? parseSheetDate(nextAppointment.appointmentDate) : null;
 
             const proposedTravelStart = new Date(finalStartDate.getTime() - newTravelTime * 60000);
             const proposedMarginEnd = new Date(finalStartDate.getTime() + (serviceDuration + newMargin) * 60000);
 
-            // 1. Verificação de colisão total (Hard Collision)
             if (previousEndTime && nextStartTime && proposedTravelStart < previousEndTime && proposedMarginEnd > nextStartTime) {
                 throw new Error("No available space. The new time conflicts with both the preceding and succeeding appointments.");
             }
 
-            // 3. Colisão com o anterior
             if (previousEndTime && proposedTravelStart < previousEndTime) {
                 finalStartDate = new Date(previousEndTime.getTime() + newTravelTime * 60000);
             }
             
-            // 4. Colisão com o posterior
             const adjustedMarginEnd = new Date(finalStartDate.getTime() + (serviceDuration + newMargin) * 60000);
             if (nextStartTime && adjustedMarginEnd > nextStartTime) {
-                // Se a colisão com o posterior AINDA existir (ou existia desde o início), ajusta
                 finalStartDate = new Date(nextStartTime.getTime() - (serviceDuration + newMargin) * 60000);
             }
 
-            // Verificação final de sanidade: após todos os ajustes, o início ainda colide com o fim do anterior?
-            // Isso pode acontecer se o espaço entre os dois for menor que a duração total do agendamento movido.
             if (previousEndTime && new Date(finalStartDate.getTime() - newTravelTime * 60000) < previousEndTime) {
                  throw new Error("Automatic adjustment failed. The available slot is smaller than the total duration of the appointment.");
             }
@@ -371,7 +363,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                  dayContainer.appendChild(line);
             });
             
-            // Adiciona ouvintes de drop zone
             dayContainer.addEventListener('dragover', (e) => {
                 if(isDragDropEnabled) e.preventDefault();
             });
@@ -384,7 +375,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const appointment = allAppointments.find(a => a.id === apptId);
                 if (!appointment) return;
 
-                // Calcula a nova hora baseada na posição Y do drop
                 const bounds = dayContainer.getBoundingClientRect();
                 const y = e.clientY - bounds.top;
                 const totalMinutes = Math.round((y / SLOT_HEIGHT_PX) * 60);
@@ -394,7 +384,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const [year, month, day] = dayContainer.dataset.dateKey.split('-').map(Number);
                 const newDate = new Date(year, month - 1, day, hours, minutes);
 
-                // Abre o modal e preenche com a nova data
                 window.openEditModal(appointment, allTechnicians);
                 document.getElementById('modal-date').value = formatDateTimeForInput(newDate.toISOString());
             });
@@ -536,13 +525,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             blockEl.addEventListener('click', () => window.openEditTimeBlockModal(block));
             
-            // Adicionar dragstart para time blocks também
             blockEl.addEventListener('dragstart', (e) => {
                 if(!isDragDropEnabled) {
                     e.preventDefault();
                     return;
                 }
-                // Usaremos um identificador especial para time blocks
                 e.dataTransfer.setData('text/plain', `block_${block.rowNumber}`);
                 e.dataTransfer.effectAllowed = 'move';
             });
@@ -612,7 +599,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(dragDropToggle) {
         dragDropToggle.addEventListener('change', (e) => {
             isDragDropEnabled = e.target.checked;
-            // Re-renderiza o calendário para adicionar ou remover os atributos 'draggable'
             renderScheduler(); 
         });
     }
