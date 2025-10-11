@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
     const modalCloseXBtn = document.getElementById('modal-close-x-btn');
 
+    // Seletor para o botão de cancelar do modal "Edit Time Block"
+    const editBlockCancelBtn = document.getElementById('edit-block-cancel-btn');
+
     // Funções para abrir/fechar os modais
     window.openEditModal = (appt, allTechnicians) => {
         if (!editModal) return;
@@ -42,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalCloseXBtn) {
         modalCloseXBtn.addEventListener('click', window.closeEditModal);
     }
-    // --- Fim da correção ---
 
     window.openTimeBlockModal = (selectedTechnician) => {
         if (!timeBlockModal) return;
@@ -74,4 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (editTimeBlockModal) editTimeBlockModal.classList.add('hidden');
         document.body.classList.remove('modal-open');
     };
+    
+    // Adicionar o ouvinte de evento para o botão de cancelar do modal de edição de time block
+    if (editBlockCancelBtn) {
+        editBlockCancelBtn.addEventListener('click', window.closeEditTimeBlockModal);
+    }
 });
