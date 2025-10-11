@@ -1,4 +1,4 @@
-// public/calendar/schedule.js (Controlador Principal Refatorado)
+// public/calendar/schedule.js (Controlador Principal Refatorado e Otimizado)
 
 document.addEventListener('DOMContentLoaded', async () => {
     // --- 1. Seletores de Elementos Principais ---
@@ -324,12 +324,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // --- 6. Funções de Renderização e Drag & Drop ---
-    function renderScheduler() {
+    function setupSchedulerGrid() {
         if (!schedulerHeader || !schedulerBody) return;
+        
         schedulerHeader.innerHTML = '<div class="timeline-header p-2 font-semibold">Time</div>';
         schedulerBody.innerHTML = '';
-        loadingOverlay.classList.toggle('hidden', !!selectedTechnician);
-        updateWeekDisplay();
 
         TIME_SLOTS.forEach((time, rowIndex) => {
             const timeDiv = document.createElement('div');
@@ -340,19 +339,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         
         DAY_NAMES.forEach((dayName, dayIndex) => {
-            const date = new Date(currentWeekStart);
-            date.setDate(date.getDate() + dayIndex);
             const column = dayIndex + 2;
             const header = document.createElement('div');
             header.className = 'day-column-header p-2 font-semibold border-l border-border';
             header.style.gridColumn = column;
-            header.textContent = `${dayName} ${date.getDate()}`;
+            header.id = `header-day-${dayIndex}`; 
             schedulerHeader.appendChild(header);
+
             const dayContainer = document.createElement('div');
             dayContainer.className = 'relative border-r border-border';
             dayContainer.style.gridColumn = column;
             dayContainer.style.gridRow = `1 / span ${TIME_SLOTS.length}`;
-            dayContainer.dataset.dateKey = formatDateToYYYYMMDD(date).replace(/\//g, '-');
+            dayContainer.id = `day-container-${dayIndex}`;
             
             TIME_SLOTS.forEach((_, rowIndex) => {
                  const line = document.createElement('div');
@@ -390,12 +388,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             schedulerBody.appendChild(dayContainer);
         });
+    }
 
+    function renderEvents() {
+        // Limpa apenas os eventos, não a estrutura do grid
+        schedulerBody.querySelectorAll('.appointment-block').forEach(el => el.remove());
+        
+        updateDayHeaders();
+        loadingOverlay.classList.toggle('hidden', !!selectedTechnician);
+        
         if (selectedTechnician) {
             renderAppointments();
             renderTimeBlocks();
         }
     }
+
+    function updateDayHeaders() {
+        DAY_NAMES.forEach((dayName, dayIndex) => {
+            const date = new Date(currentWeekStart);
+            date.setDate(date.getDate() + dayIndex);
+            
+            const header = document.getElementById(`header-day-${dayIndex}`);
+            if(header) header.textContent = `${dayName} ${date.getDate()}`;
+            
+            const dayContainer = document.getElementById(`day-container-${dayIndex}`);
+            if(dayContainer) dayContainer.dataset.dateKey = formatDateToYYYYMMDD(date).replace(/\//g, '-');
+        });
+        updateWeekDisplay();
+    }
+
 
     function renderAppointments() {
         const weekEnd = new Date(currentWeekStart);
@@ -547,7 +568,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 7. Inicialização e Lógica de Controle ---
     async function loadInitialData(isReload = false) {
-        if (!isReload) loadingOverlay.classList.remove('hidden');
+        if (!isReload) {
+            loadingOverlay.classList.remove('hidden');
+            setupSchedulerGrid(); // Executa a criação do grid apenas uma vez
+        }
         try {
             const [techResult, apptResult, coverageResult] = await Promise.all([
                 fetch('/api/get-dashboard-data').then(res => res.json()),
@@ -560,9 +584,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('A critical error occurred during data loading:', error);
         } finally {
-            if (!isReload) populateTechSelects();
+            if (!isReload) {
+                populateTechSelects();
+                renderMiniCalendar();
+            }
             updateAllComponents();
-            if (!isReload) renderMiniCalendar();
         }
     }
 
@@ -590,7 +616,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function updateAllComponents() {
-        renderScheduler();
+        renderEvents(); // Agora chama a função otimizada
         const eventDetail = { detail: { technician: selectedTechnician, weekStart: currentWeekStart, allAppointments, allTechCoverage } };
         document.dispatchEvent(new CustomEvent('stateUpdated', eventDetail));
     }
@@ -599,7 +625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(dragDropToggle) {
         dragDropToggle.addEventListener('change', (e) => {
             isDragDropEnabled = e.target.checked;
-            renderScheduler(); 
+            renderEvents(); // Re-renderiza os eventos para atualizar o estado draggable
         });
     }
 
