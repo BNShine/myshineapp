@@ -1,7 +1,7 @@
 // public/calendar/fuelCalculator.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. Seletores ---
+    // --- 1. Selectors ---
     const dailyGrid = document.getElementById('daily-summary-grid');
     const mpgInput = document.getElementById('mpg-input');
     const fuelCostInput = document.getElementById('fuel-cost-input');
@@ -9,9 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const weeklyDistanceEl = document.getElementById('weekly-total-distance');
     const weeklyCostEl = document.getElementById('weekly-total-cost');
 
-    if (!calculateBtn) return; // Não executa se a seção não existir na página
+    if (!calculateBtn) return; // Don't run if the section doesn't exist
 
-    // --- 2. Variáveis de Estado ---
+    // --- 2. State Variables ---
     let localAppointments = [];
     let localTechCoverage = [];
     let localCurrentWeekStart = new Date();
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const DAY_NAMES_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    // --- 3. Funções Auxiliares ---
+    // --- 3. Helper Functions ---
     const getDayOfWeekDate = (startOfWeekDate, dayIndex) => {
         const date = new Date(startOfWeekDate);
         date.setDate(date.getDate() + dayIndex);
@@ -36,13 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Date(year, month - 1, day, hour, minute);
     };
 
-    // --- 4. Lógica Principal de Cálculo ---
+    // --- 4. Core Calculation Logic ---
     async function calculateDailyDistance(originZip, appointmentsForDay) {
         if (appointmentsForDay.length === 0) {
             return 0;
         }
 
-        // Cria uma lista de todas as paradas do dia
+        // Create a list of all stops for the day
         const waypoints = appointmentsForDay.map(appt => ({ zipCode: appt.zipCode }));
 
         try {
@@ -52,25 +52,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     originZip: originZip,
                     waypoints: waypoints,
-                    isReversed: true, // Importante: Calcula a rota na ordem cronológica, sem otimizar
+                    isReversed: true, // IMPORTANT: This tells the API to calculate the route in the given order, not optimize it.
                 }),
             });
 
             const result = await response.json();
             if (!result.success || !result.routeData || result.routeData.routes.length === 0) {
-                console.error("Falha ao calcular a rota para o dia:", result.message);
+                console.error("Failed to calculate route for a day:", result.message);
                 return 0;
             }
 
-            // Soma a distância de todas as "pernas" da viagem (incluindo a volta para a origem)
+            // Sum the distance of all legs of the journey (including the return to origin)
             const totalMeters = result.routeData.routes[0].legs.reduce((sum, leg) => sum + leg.distance.value, 0);
             
-            // Converte metros para milhas
+            // Convert meters to miles
             const totalMiles = totalMeters / 1609.34;
             return totalMiles;
 
         } catch (error) {
-            console.error("Erro ao chamar a API de rota para cálculo de distância:", error);
+            console.error("Error calling route optimization API for distance calculation:", error);
             return 0;
         }
     }
@@ -78,24 +78,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function calculateAndRenderCosts() {
         if (!localSelectedTechnician) {
-            dailyGrid.innerHTML = `<p class="col-span-full text-center text-muted-foreground">Por favor, selecione um técnico para calcular os custos.</p>`;
+            dailyGrid.innerHTML = `<p class="col-span-full text-center text-muted-foreground">Please select a technician to calculate costs.</p>`;
             weeklyDistanceEl.textContent = '0 mi';
             weeklyCostEl.textContent = '$0.00';
             return;
         }
 
         calculateBtn.disabled = true;
-        calculateBtn.textContent = 'Calculando...';
-        dailyGrid.innerHTML = ''; // Limpa resultados anteriores
+        calculateBtn.textContent = 'Calculating...';
+        dailyGrid.innerHTML = ''; // Clear previous results
 
         const mpg = parseFloat(mpgInput.value) || 25;
         const fuelCost = parseFloat(fuelCostInput.value) || 3.50;
         const techOrigin = localTechCoverage.find(t => t.nome === localSelectedTechnician)?.zip_code;
 
         if (!techOrigin) {
-            dailyGrid.innerHTML = `<p class="col-span-full text-center text-destructive">O técnico não possui um ZIP Code de origem. Não é possível calcular a viagem.</p>`;
+            dailyGrid.innerHTML = `<p class="col-span-full text-center text-destructive">Technician has no origin ZIP code set. Cannot calculate travel.</p>`;
             calculateBtn.disabled = false;
-            calculateBtn.textContent = 'Calcular Custos';
+            calculateBtn.textContent = 'Calculate Costs';
             return;
         }
 
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < 7; i++) {
             const dayDate = getDayOfWeekDate(localCurrentWeekStart, i);
             
-            // Renderiza um card de "carregando"
+            // Render a skeleton card first
             const dayCard = document.createElement('div');
             dayCard.className = 'card-base p-3 space-y-2 animate-pulse';
             dayCard.innerHTML = `
@@ -130,15 +130,15 @@ document.addEventListener('DOMContentLoaded', () => {
             weeklyTotalDistance += dailyDistance;
             weeklyTotalCost += dailyCost;
 
-            // Atualiza o card com os dados reais
+            // Update the card with real data
             dayCard.classList.remove('animate-pulse');
             dayCard.innerHTML = `
                 <div class="flex justify-between items-center">
                     <p class="font-bold text-foreground">${DAY_NAMES_SHORT[i]}</p>
                     <p class="text-xs text-muted-foreground">${dayDate.getDate()}</p>
                 </div>
-                <p class="text-sm">Distância: <span class="font-semibold">${dailyDistance.toFixed(1)} mi</span></p>
-                <p class="text-sm">Custo: <span class="font-semibold text-success">${dailyCost.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span></p>
+                <p class="text-sm">Distance: <span class="font-semibold">${dailyDistance.toFixed(1)} mi</span></p>
+                <p class="text-sm">Fuel Cost: <span class="font-semibold text-success">${dailyCost.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span></p>
             `;
         }
         
@@ -146,17 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
         weeklyCostEl.textContent = weeklyTotalCost.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
         calculateBtn.disabled = false;
-        calculateBtn.textContent = 'Calcular Custos';
+        calculateBtn.textContent = 'Calculate Costs';
     }
 
 
-    // --- 5. Ouvintes de Eventos ---
+    // --- 5. Event Listeners ---
     document.addEventListener('stateUpdated', (e) => {
         localAppointments = e.detail.allAppointments;
         localTechCoverage = e.detail.allTechCoverage;
         localSelectedTechnician = e.detail.technician;
         localCurrentWeekStart = e.detail.weekStart;
-        // Recalcula automaticamente quando o técnico ou a semana mudam
+        // Automatically recalculate when technician or week changes
         calculateAndRenderCosts();
     });
 
