@@ -362,6 +362,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             const startHour = apptDate.getHours();
             if (startHour < MIN_HOUR || startHour >= MAX_HOUR) return;
             const topOffset = (startHour - MIN_HOUR) * SLOT_HEIGHT_PX + (apptDate.getMinutes() / 60 * SLOT_HEIGHT_PX);
+            
+            let appointmentBgColor = 'bg-custom-primary';
+            let marginBgColor = 'bg-margin-primary';
+            let appointmentTextColor = 'text-foreground';
+            let marginTextColor = 'text-foreground';
+
+            if (appt.verification === 'Canceled') {
+                appointmentBgColor = 'bg-cherry-red';
+                marginBgColor = 'bg-margin-red';
+                appointmentTextColor = 'text-white';
+                marginTextColor = 'text-white';
+            } else if (appt.verification === 'Showed') {
+                appointmentBgColor = 'bg-green-600';
+                marginBgColor = 'bg-margin-green';
+                appointmentTextColor = 'text-white';
+                marginTextColor = 'text-white';
+            } else if (appt.verification === 'Confirmed') {
+                appointmentBgColor = 'bg-yellow-confirmed';
+                marginBgColor = 'bg-margin-yellow';
+                appointmentTextColor = 'text-black';
+                marginTextColor = 'text-black';
+            }
+
             const totalDuration = parseInt(appt.duration, 10) || 120;
             const travelTime = parseInt(appt.travelTime, 10) || 0;
             const marginTime = parseInt(appt.margin, 10) || 0;
@@ -371,11 +394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const marginPercent = totalDuration > 0 ? (marginTime / totalDuration) * 100 : 0;
             const blockHeight = (totalDuration / 60) * SLOT_HEIGHT_PX;
             const block = document.createElement('div');
-            let appointmentBgColor = 'bg-custom-primary';
-            let textColor = 'text-white';
-            if (appt.verification === 'Canceled') appointmentBgColor = 'bg-cherry-red';
-            else if (appt.verification === 'Showed') appointmentBgColor = 'bg-green-600';
-            else if (appt.verification === 'Confirmed') { appointmentBgColor = 'bg-yellow-confirmed'; textColor = 'text-black'; }
+            
             block.className = `appointment-block rounded-md shadow-soft cursor-pointer transition-colors hover:shadow-lg`;
             block.dataset.id = appt.id;
             block.style.top = `${topOffset}px`;
@@ -383,8 +402,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const endTime = new Date(apptDate.getTime() + totalDuration * 60 * 1000);
             
             block.innerHTML = `
-                ${travelTime > 0 ? `<div class="bg-travel ${textColor}" style="height: ${travelPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Travel</span></div>` : ''}
-                <div class="${appointmentBgColor} ${textColor}" style="height: ${appointmentPercent}%; padding: 4px 8px; display: flex; justify-content: space-between; flex-grow: 1;">
+                ${travelTime > 0 ? `<div class="bg-travel text-white" style="height: ${travelPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Travel</span></div>` : ''}
+                <div class="${appointmentBgColor} ${appointmentTextColor}" style="height: ${appointmentPercent}%; padding: 4px 8px; display: flex; justify-content: space-between; flex-grow: 1;">
                     <div class="flex-grow overflow-hidden">
                         <p class="text-xs font-semibold">${getTimeHHMM(apptDate)} - ${getTimeHHMM(endTime)}</p>
                         <p class="text-sm font-bold truncate">${appt.customers}</p>
@@ -393,7 +412,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                     <div style="display: flex; align-items: center; justify-content: center;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Appointment</span></div>
                 </div>
-                ${marginTime > 0 ? `<div class="bg-margin ${textColor}" style="height: ${marginPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Margin</span></div>` : ''}`;
+                ${marginTime > 0 ? `<div class="${marginBgColor} ${marginTextColor}" style="height: ${marginPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Margin</span></div>` : ''}`;
             
             block.addEventListener('click', () => window.openEditModal(appt, allTechnicians));
             dayContainer.appendChild(block);
