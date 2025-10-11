@@ -390,12 +390,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 const [year, month, day] = dayContainer.dataset.dateKey.split('-').map(Number);
                 const newDate = new Date(year, month - 1, day, hours, minutes);
-                
+
                 window.openEditModal(appointment, allTechnicians);
                 const modalDateField = document.getElementById('modal-date');
                 if(modalDateField) {
-                    // CORREÇÃO: Passa o objeto Date para a função de formatação
-                    modalDateField.value = formatDateTimeForInput(parseSheetDate(`${String(newDate.getMonth() + 1).padStart(2, '0')}/${String(newDate.getDate()).padStart(2, '0')}/${newDate.getFullYear()} ${getTimeHHMM(newDate)}`));
+                    const year = newDate.getFullYear();
+                    const month = (newDate.getMonth() + 1).toString().padStart(2, '0');
+                    const day = newDate.getDate().toString().padStart(2, '0');
+                    const hour = newDate.getHours().toString().padStart(2, '0');
+                    const minute = newDate.getMinutes().toString().padStart(2, '0');
+                    modalDateField.value = `${year}-${month}-${day}T${hour}:${minute}`;
                 }
             });
 
