@@ -387,6 +387,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 travelBgColor = 'bg-travel-yellow';
                 appointmentTextColor = 'text-black';
                 marginTextColor = 'text-black';
+            } else if (appt.verification === 'Missing Data') {
+                appointmentBgColor = 'bg-blue-missing-data';
+                marginBgColor = 'bg-margin-blue-missing-data';
+                travelBgColor = 'bg-travel-blue-missing-data';
+                appointmentTextColor = 'text-black';
+                marginTextColor = 'text-black';
             }
 
             const totalDuration = parseInt(appt.duration, 10) || 120;
