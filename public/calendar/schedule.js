@@ -103,7 +103,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const newTravelTime = await getTravelTime(previousAppZip, appointmentToUpdate.zipCode);
             
             const serviceDuration = newPets * 60;
-            const totalAppointmentDuration = newTravelTime + serviceDuration + newMargin;
             
             let finalStartDate = new Date(proposedStartDate);
 
@@ -361,13 +360,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                  dayContainer.appendChild(line);
             });
             
+            dayContainer.addEventListener('dragenter', (e) => {
+                if(isDragDropEnabled) {
+                    e.preventDefault();
+                    dayContainer.classList.add('drop-target-highlight');
+                }
+            });
             dayContainer.addEventListener('dragover', (e) => {
                 if(isDragDropEnabled) e.preventDefault();
+            });
+            dayContainer.addEventListener('dragleave', (e) => {
+                if(isDragDropEnabled) dayContainer.classList.remove('drop-target-highlight');
             });
 
             dayContainer.addEventListener('drop', (e) => {
                 if(!isDragDropEnabled) return;
                 e.preventDefault();
+                dayContainer.classList.remove('drop-target-highlight');
                 
                 const apptId = parseInt(e.dataTransfer.getData('text/plain'), 10);
                 const appointment = allAppointments.find(a => a.id === apptId);
@@ -381,9 +390,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 const [year, month, day] = dayContainer.dataset.dateKey.split('-').map(Number);
                 const newDate = new Date(year, month - 1, day, hours, minutes);
-
+                
                 window.openEditModal(appointment, allTechnicians);
-                document.getElementById('modal-date').value = formatDateTimeForInput(newDate.toISOString());
+                const modalDateField = document.getElementById('modal-date');
+                if(modalDateField) {
+                    // CORREÇÃO: Passa o objeto Date para a função de formatação
+                    modalDateField.value = formatDateTimeForInput(parseSheetDate(`${String(newDate.getMonth() + 1).padStart(2, '0')}/${String(newDate.getDate()).padStart(2, '0')}/${newDate.getFullYear()} ${getTimeHHMM(newDate)}`));
+                }
             });
 
             schedulerBody.appendChild(dayContainer);
@@ -391,7 +404,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderEvents() {
-        // Limpa apenas os eventos, não a estrutura do grid
         schedulerBody.querySelectorAll('.appointment-block').forEach(el => el.remove());
         
         updateDayHeaders();
@@ -570,7 +582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadInitialData(isReload = false) {
         if (!isReload) {
             loadingOverlay.classList.remove('hidden');
-            setupSchedulerGrid(); // Executa a criação do grid apenas uma vez
+            setupSchedulerGrid(); 
         }
         try {
             const [techResult, apptResult, coverageResult] = await Promise.all([
@@ -616,7 +628,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function updateAllComponents() {
-        renderEvents(); // Agora chama a função otimizada
+        renderEvents(); 
         const eventDetail = { detail: { technician: selectedTechnician, weekStart: currentWeekStart, allAppointments, allTechCoverage } };
         document.dispatchEvent(new CustomEvent('stateUpdated', eventDetail));
     }
@@ -625,7 +637,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(dragDropToggle) {
         dragDropToggle.addEventListener('change', (e) => {
             isDragDropEnabled = e.target.checked;
-            renderEvents(); // Re-renderiza os eventos para atualizar o estado draggable
+            renderEvents(); 
         });
     }
 
