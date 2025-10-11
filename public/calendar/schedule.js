@@ -365,22 +365,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             let appointmentBgColor = 'bg-custom-primary';
             let marginBgColor = 'bg-margin-primary';
+            let travelBgColor = 'bg-travel-primary';
             let appointmentTextColor = 'text-foreground';
             let marginTextColor = 'text-foreground';
 
             if (appt.verification === 'Canceled') {
                 appointmentBgColor = 'bg-cherry-red';
                 marginBgColor = 'bg-margin-red';
+                travelBgColor = 'bg-travel-red';
                 appointmentTextColor = 'text-white';
                 marginTextColor = 'text-white';
             } else if (appt.verification === 'Showed') {
                 appointmentBgColor = 'bg-green-600';
                 marginBgColor = 'bg-margin-green';
+                travelBgColor = 'bg-travel-green';
                 appointmentTextColor = 'text-white';
                 marginTextColor = 'text-white';
             } else if (appt.verification === 'Confirmed') {
                 appointmentBgColor = 'bg-yellow-confirmed';
                 marginBgColor = 'bg-margin-yellow';
+                travelBgColor = 'bg-travel-yellow';
                 appointmentTextColor = 'text-black';
                 marginTextColor = 'text-black';
             }
@@ -402,7 +406,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const endTime = new Date(apptDate.getTime() + totalDuration * 60 * 1000);
             
             block.innerHTML = `
-                ${travelTime > 0 ? `<div class="bg-travel text-white" style="height: ${travelPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Travel</span></div>` : ''}
+                ${travelTime > 0 ? `<div class="${travelBgColor} text-white" style="height: ${travelPercent}%; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span class="text-xs font-semibold transform -rotate-90 origin-center whitespace-nowrap">Travel</span></div>` : ''}
                 <div class="${appointmentBgColor} ${appointmentTextColor}" style="height: ${appointmentPercent}%; padding: 4px 8px; display: flex; justify-content: space-between; flex-grow: 1;">
                     <div class="flex-grow overflow-hidden">
                         <p class="text-xs font-semibold">${getTimeHHMM(apptDate)} - ${getTimeHHMM(endTime)}</p>
