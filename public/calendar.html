@@ -19,18 +19,17 @@
         .bg-cherry-red { background-color: hsl(0 84% 45%); }
         .bg-yellow-confirmed { background-color: #f9d872; }
         
-        /* NOVO STATUS */
-        .bg-blue-missing-data { background-color: #a0c4ff; } /* Azul claro */
+        .bg-blue-missing-data { background-color: #a0c4ff; }
         .bg-margin-blue-missing-data { background-color: #8ab7ff; }
         .bg-travel-blue-missing-data { background-color: #74a9ff; }
 
-        /* Cores de Margem Dinâmicas (intermediárias) */
+        /* Cores de Margem Dinâmicas */
         .bg-margin-primary { background-color: #ffdce9; } 
         .bg-margin-green { background-color: rgb(21 128 61); } 
         .bg-margin-red { background-color: hsl(0 84% 35%); } 
         .bg-margin-yellow { background-color: #f5c740; } 
 
-        /* Cores de Viagem Dinâmicas (mais escuras) */
+        /* Cores de Viagem Dinâmicas */
         .bg-travel-primary { background-color: #ffc7e0; }
         .bg-travel-green { background-color: rgb(22 107 55); }
         .bg-travel-red { background-color: hsl(0 84% 25%); }
@@ -40,9 +39,6 @@
         .modal-overlay-fixed { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 1000; }
         body.modal-open { overflow: hidden !important; }
         .hidden { display: none !important; }
-        tr.is-saving { background-color: hsl(var(--secondary) / 0.1); transition: background-color 0.3s; }
-        tr.is-success { background-color: hsl(142.1 76.2% 36.3% / 0.15); transition: background-color 0.3s; }
-        tr.is-error { background-color: hsl(0 84.2% 60.2% / 0.15); transition: background-color 0.3s; }
         
         /* Mini Calendário */
         #mini-calendar .header { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
@@ -53,9 +49,11 @@
         #mini-calendar .date-cell.other-month { color: hsl(var(--muted-foreground) / 0.5); }
         #mini-calendar .date-cell.today::after { content: ''; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background-color: hsl(var(--brand-primary)); }
         #mini-calendar .date-cell.selected { background-color: hsl(217.2 91.2% 59.8%); color: white; font-weight: bold; }
-        #mini-calendar .date-cell.selected:hover { background-color: hsl(217.2 91.2% 55%); }
         #mini-calendar .nav-btn { padding: 4px; border-radius: 6px; }
         #mini-calendar .nav-btn:hover { background-color: hsl(var(--muted)); }
+
+        /* Estilos para o Toggle Switch */
+        .switch{position:relative;display:inline-block;width:52px;height:28px}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:.4s;border-radius:28px}.slider:before{position:absolute;content:"";height:20px;width:20px;left:4px;bottom:4px;background-color:#fff;transition:.4s;border-radius:50%}input:checked+.slider{background-color:hsl(var(--brand-primary))}input:checked+.slider:before{transform:translateX(24px)}
     </style>
 </head>
 <body class="min-h-screen bg-background text-foreground">
@@ -103,6 +101,13 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm font-medium text-muted-foreground">Drag & Drop:</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="drag-drop-toggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                             <div class="flex items-center gap-2">
                                 <label for="tech-select-dropdown" class="text-sm font-medium text-muted-foreground">Technician:</label>
                                 <select id="tech-select-dropdown" class="input-base h-9 w-48 text-sm">
@@ -212,41 +217,6 @@
                     </div>
                 </section>
 
-                <section id="manage-showed-wrapper" class="card-base">
-                    <div id="manage-showed-lock-screen" class="p-6 text-center">
-                        <h2 class="text-section-title mb-4">Manage Showed Appointments</h2>
-                        <p class="text-body mb-6">This section is password protected.</p>
-                        <button id="access-password-btn" class="btn-primary h-11 px-6 text-sm">Access with Password</button>
-                    </div>
-
-                    <div id="manage-showed-content" class="hidden">
-                        <div class="p-6">
-                            <h2 class="text-section-title">Manage Showed Appointments (Current Week)</h2>
-                        </div>
-                        <div class="p-6 pt-0 overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead class="bg-muted text-muted-foreground uppercase text-xs font-semibold">
-                                    <tr>
-                                        <th class="p-4 border-b">Appointment Date</th>
-                                        <th class="p-4 border-b">Customers</th>
-                                        <th class="p-4 border-b">Code</th>
-                                        <th class="p-4 border-b">Technician</th>
-                                        <th class="p-4 border-b">Pet Showed</th>
-                                        <th class="p-4 border-b">Service Showed</th>
-                                        <th class="p-4 border-b">Tips</th>
-                                        <th class="p-4 border-b">Percentage</th>
-                                        <th class="p-4 border-b">Method</th>
-                                        <th class="p-4 border-b">Verification</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="showed-appointments-table-body" class="text-foreground text-sm">
-                                    <tr><td colspan="10" class="p-4 text-center">Select a technician to see appointments.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
                 <section id="travel-cost-calculator" class="card-base p-6">
                     <h2 class="text-section-title mb-4">Travel & Fuel Cost Summary</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 border rounded-lg bg-muted/50">
@@ -310,6 +280,41 @@
                         <div class="flex justify-between items-center mt-1">
                             <p class="text-body">Total Weekly Fuel Cost:</p>
                             <p id="weekly-total-cost" class="text-lg font-bold text-success">$0.00</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="manage-showed-wrapper" class="card-base">
+                    <div id="manage-showed-lock-screen" class="p-6 text-center">
+                        <h2 class="text-section-title mb-4">Manage Showed Appointments</h2>
+                        <p class="text-body mb-6">This section is password protected.</p>
+                        <button id="access-password-btn" class="btn-primary h-11 px-6 text-sm">Access with Password</button>
+                    </div>
+
+                    <div id="manage-showed-content" class="hidden">
+                        <div class="p-6">
+                            <h2 class="text-section-title">Manage Showed Appointments (Current Week)</h2>
+                        </div>
+                        <div class="p-6 pt-0 overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-muted text-muted-foreground uppercase text-xs font-semibold">
+                                    <tr>
+                                        <th class="p-4 border-b">Appointment Date</th>
+                                        <th class="p-4 border-b">Customers</th>
+                                        <th class="p-4 border-b">Code</th>
+                                        <th class="p-4 border-b">Technician</th>
+                                        <th class="p-4 border-b">Pet Showed</th>
+                                        <th class="p-4 border-b">Service Showed</th>
+                                        <th class="p-4 border-b">Tips</th>
+                                        <th class="p-4 border-b">Percentage</th>
+                                        <th class="p-4 border-b">Method</th>
+                                        <th class="p-4 border-b">Verification</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="showed-appointments-table-body" class="text-foreground text-sm">
+                                    <tr><td colspan="10" class="p-4 text-center">Select a technician to see appointments.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </section>
