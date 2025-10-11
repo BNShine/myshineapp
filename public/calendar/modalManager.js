@@ -26,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
         techSelect.innerHTML = allTechnicians.map(t => `<option value="${t}" ${t === technician ? 'selected' : ''}>${t}</option>`).join('');
 
         const verificationSelect = document.getElementById('modal-verification');
-        const statusOptions = ["Scheduled", "Confirmed", "Showed", "Canceled"];
+        // A NOVA OPÇÃO FOI ADICIONADA A ESTA LISTA
+        const statusOptions = ["Scheduled", "Confirmed", "Showed", "Canceled", "Missing Data"];
         verificationSelect.innerHTML = statusOptions.map(opt => `<option value="${opt}" ${verification === opt ? 'selected' : ''}>${opt}</option>`).join('');
         
         editModal.classList.remove('hidden');
@@ -77,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('modal-open');
     };
     
-    // Adicionar o ouvinte de evento para o botão de cancelar do modal de edição de time block
+    // Adicionar o ouvinte de evento para o botão de cancelar
     if (editBlockCancelBtn) {
         editBlockCancelBtn.addEventListener('click', window.closeEditTimeBlockModal);
     }
