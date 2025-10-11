@@ -15,12 +15,12 @@
         .day-column-header { text-align: center; }
 
         /* Cores dos Blocos */
-        .bg-custom-primary { background-color: hsl(337 100% 67%); }
-        .bg-green-600 { background-color: rgb(22 163 74); }
-        .bg-cherry-red { background-color: hsl(0 84% 45%); }
-        .bg-yellow-confirmed { background-color: #f9d872; }
-        .bg-travel { background-color: hsl(337 100% 80%); }
-        .bg-margin { background-color: hsl(337 100% 50%); }
+        .bg-custom-primary { background-color: rgb(64 135 197); }
+        .bg-green-600 { background-color: rgb(19 111 100); }
+        .bg-cherry-red { background-color: rgb(208 0 0); }
+        .bg-yellow-confirmed { background-color: rgb(255 186 7); }
+        .bg-travel { background-color: rgb(3 43 68); }
+        .bg-margin { background-color: rgb(1 0 40); }
         
         /* Estilos do Modal e Feedback */
         .modal-overlay-fixed { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 1000; }
@@ -316,7 +316,25 @@
             <h3 class="text-xl font-bold text-foreground mb-4">Edit Time Block Details</h3>
             <form id="edit-time-block-form" class="space-y-4">
                 <input type="hidden" id="edit-block-row-number">
-                </form>
+                <div>
+                    <label for="edit-block-date" class="text-label mb-2 block">Date</label>
+                    <input type="date" id="edit-block-date" required class="input-base text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="edit-block-start-hour" class="text-label mb-2 block">Start Time</label>
+                        <input type="time" id="edit-block-start-hour" required class="input-base text-sm">
+                    </div>
+                    <div>
+                        <label for="edit-block-end-hour" class="text-label mb-2 block">End Time</label>
+                        <input type="time" id="edit-block-end-hour" required class="input-base text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label for="edit-block-notes" class="text-label mb-2 block">Notes (Reason)</label>
+                    <textarea id="edit-block-notes" rows="3" class="input-base text-sm" placeholder="Ex: Lunch, Personal appointment..."></textarea>
+                </div>
+            </form>
             <div class="mt-6 flex justify-between items-center">
                 <button id="edit-block-delete-btn" type="button" class="btn bg-destructive text-destructive-foreground hover:bg-destructive/90 h-11 px-6 text-sm">Delete</button>
                 <div class="flex gap-3">
