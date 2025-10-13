@@ -7,7 +7,6 @@ import { SHEET_NAME_APPOINTMENTS, SHEET_NAME_TECH_COVERAGE, SHEET_NAME_AVAILABIL
 
 dotenv.config();
 
-// --- Autenticação e Configuração do Google Sheets ---
 const serviceAccountAuth = new JWT({
     email: process.env.CLIENT_EMAIL,
     key: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -30,53 +29,39 @@ const parseSheetDate = (dateStr) => {
 };
 
 const getCityFromZip = async (zipCode) => {
-    console.log(`[LOG] Buscando cidade para o CEP: ${zipCode}`);
     try {
         const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-        if (!response.ok) {
-            console.error(`[LOG] Erro na API Zippopotam para o CEP ${zipCode}. Status: ${response.status}`);
-            return null;
-        }
+        if (!response.ok) return null;
         const data = await response.json();
-        const cityName = data.places?.[0]?.['place name'] || null;
-        console.log(`[LOG] Cidade encontrada para ${zipCode}: ${cityName}`);
-        return cityName;
+        return data.places?.[0]?.['place name'] || null;
     } catch (error) {
-        console.error(`[LOG] Erro crítico na API Zippopotam para o CEP ${zipCode}:`, error);
+        console.error(`Zippopotam API error for zip ${zipCode}:`, error);
         return null;
     }
 };
 
 const getTravelTime = async (originZip, destinationZip) => {
-    // ... (nenhuma alteração necessária aqui, os logs existentes são suficientes)
     if (!GOOGLE_MAPS_API_KEY) {
         throw new Error("Google Maps API key is not configured on the server.");
     }
-    if (originZip === destinationZip) {
-        return 0;
-    }
+    if (originZip === destinationZip) return 0;
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=zip%20${originZip}&destinations=zip%20${destinationZip}&key=${GOOGLE_MAPS_API_KEY}`;
     try {
         const response = await fetch(url);
         const data = await response.json();
         if (data.status !== 'OK' || !data.rows[0].elements[0].duration) {
-            console.warn(`[LOG] Google Maps API não pôde calcular o tempo de viagem entre ${originZip} e ${destinationZip}. Status: ${data.status}`);
             return Infinity;
         }
-        return data.rows[0].elements[0].duration.value / 60; // Retorna em minutos
+        return data.rows[0].elements[0].duration.value / 60;
     } catch (error) {
-        console.error(`[LOG] Falha na requisição da API do Google Maps:`, error);
         return Infinity;
     }
 };
 
 const getAllData = async () => {
-    console.log('[LOG] Iniciando busca de todos os dados das planilhas...');
     const docAppointments = new GoogleSpreadsheet(SPREADSHEET_ID_APPOINTMENTS, serviceAccountAuth);
     const docData = new GoogleSpreadsheet(SPREADSHEET_ID_DATA, serviceAccountAuth);
-
     await Promise.all([docAppointments.loadInfo(), docData.loadInfo()]);
-    console.log('[LOG] Planilhas carregadas com sucesso.');
 
     const techSheet = docData.sheetsByTitle[SHEET_NAME_TECH_COVERAGE];
     const availabilitySheet = docData.sheetsByTitle[SHEET_NAME_AVAILABILITY];
@@ -89,29 +74,22 @@ const getAllData = async () => {
         restrictions: row.get('Restrictions'),
         cities: JSON.parse(row.get('Cities') || '[]'),
     })).filter(t => t.name && t.zipCode);
-    console.log(`[LOG] ${technicians.length} técnicos carregados.`);
 
     const availabilityRows = await availabilitySheet.getRows();
     const availabilityBlocks = availabilityRows.map(row => ({
-        technician: row.get('TechnicianName'),
-        date: row.get('Date'),
-        start: row.get('StartHour'),
-        end: row.get('EndHour'),
+        technician: row.get('TechnicianName'), date: row.get('Date'),
+        start: row.get('StartHour'), end: row.get('EndHour'),
     }));
-    console.log(`[LOG] ${availabilityBlocks.length} blocos de disponibilidade carregados.`);
 
     const appointmentRows = await appointmentSheet.getRows();
     const appointments = appointmentRows.map(row => ({
-        technician: row.get('Technician'),
-        zipCode: row.get('Zip Code'),
+        technician: row.get('Technician'), zipCode: row.get('Zip Code'),
         dateTime: parseSheetDate(row.get('Date (Appointment)')),
         duration: parseInt(row.get('Duration'), 10) || 120,
     })).filter(a => a.technician && a.dateTime);
-    console.log(`[LOG] ${appointments.length} agendamentos carregados.`);
 
     return { technicians, availabilityBlocks, appointments };
 };
-
 
 // --- Handler Principal da API ---
 export default async function handler(req, res) {
@@ -121,8 +99,7 @@ export default async function handler(req, res) {
 
     try {
         const { zipCode, numPets, margin } = req.body;
-        console.log(`\n\n--- [LOG] Nova Requisição de Disponibilidade ---`);
-        console.log(`[LOG] Inputs: CEP=${zipCode}, Pets=${numPets}, Margem=${margin}`);
+        console.log(`\n--- [LOG] INICIANDO NOVA VERIFICAÇÃO DE DISPONIBILIDADE PARA CEP: ${zipCode} ---`);
 
         const appointmentDuration = (60 * parseInt(numPets, 10));
         const marginDuration = parseInt(margin, 10);
@@ -133,23 +110,40 @@ export default async function handler(req, res) {
         ]);
 
         if (!customerCity) {
-            console.error(`[LOG] ERRO: Não foi possível encontrar a cidade para o CEP ${zipCode}.`);
+            console.error(`[LOG] ERRO FATAL: Não foi possível encontrar a cidade para o CEP ${zipCode}.`);
             return res.status(404).json({ success: false, message: `Could not find city for Zip Code ${zipCode}.` });
         }
-        console.log(`[LOG] Cidade do cliente: ${customerCity}`);
+        console.log(`[LOG] Cidade do cliente identificada como: "${customerCity}"`);
+        console.log(`[LOG] Total de técnicos para verificar: ${technicians.length}`);
 
+        // --- INÍCIO DO NOVO LOG DE DEPURAÇÃO ---
         const qualifiedTechs = technicians.filter(tech => {
             const serviceAreas = (tech.cities || []).map(area => String(area).toLowerCase().trim());
-            return serviceAreas.includes(String(zipCode).toLowerCase().trim()) || serviceAreas.includes(String(customerCity).toLowerCase().trim());
+            const customerCityLower = String(customerCity).toLowerCase().trim();
+            const zipCodeLower = String(zipCode).toLowerCase().trim();
+
+            const isCityMatch = serviceAreas.includes(customerCityLower);
+            const isZipMatch = serviceAreas.includes(zipCodeLower);
+
+            // Log detalhado para cada técnico
+            console.log(`\n[DEPURAÇÃO] Verificando Técnico: ${tech.name}`);
+            console.log(` -> Áreas de Serviço (da planilha): [${serviceAreas.join(', ')}]`);
+            console.log(` -> Comparando com a cidade: "${customerCityLower}" -> Encontrou? ${isCityMatch ? 'SIM' : 'NÃO'}`);
+            console.log(` -> Comparando com o CEP: "${zipCodeLower}" -> Encontrou? ${isZipMatch ? 'SIM' : 'NÃO'}`);
+            
+            return isCityMatch || isZipMatch;
         });
+        // --- FIM DO NOVO LOG DE DEPURAÇÃO ---
 
         if (qualifiedTechs.length === 0) {
-            console.warn(`[LOG] AVISO: Nenhum técnico qualificado encontrado para a cidade "${customerCity}" ou CEP "${zipCode}".`);
+            console.warn(`[LOG] AVISO: Nenhum técnico qualificado encontrado para a cidade "${customerCity}" ou CEP "${zipCode}". Verifique os logs de depuração acima.`);
             return res.status(200).json({ options: [] });
         }
-        console.log(`[LOG] Técnicos qualificados encontrados: ${qualifiedTechs.map(t => t.name).join(', ')}`);
+        
+        console.log(`[LOG] Técnicos QUALIFICADOS encontrados: ${qualifiedTechs.map(t => t.name).join(', ')}`);
         
         const allOptions = new Map();
+        // ... (o restante do código permanece o mesmo)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -158,13 +152,10 @@ export default async function handler(req, res) {
             currentDate.setDate(today.getDate() + i);
 
             if (currentDate.getDay() === 0) {
-                console.log(`[LOG] Pulando dia ${currentDate.toDateString()} (Domingo).`);
                 continue;
             }
-            console.log(`\n[LOG] Verificando data: ${currentDate.toDateString()}`);
 
             for (const tech of qualifiedTechs) {
-                console.log(`[LOG] Verificando técnico: ${tech.name}`);
                 const techSchedule = [];
                 
                 appointments.forEach(appt => {
@@ -191,17 +182,12 @@ export default async function handler(req, res) {
                 });
 
                 techSchedule.sort((a, b) => a.start - b.start);
-                if (techSchedule.length > 0) {
-                    console.log(`[LOG] Agenda de ${tech.name} para ${currentDate.toDateString()}:`, techSchedule.map(s => ({ type: s.type, start: s.start.toLocaleTimeString(), end: s.end.toLocaleTimeString() })));
-                } else {
-                    console.log(`[LOG] Agenda de ${tech.name} para ${currentDate.toDateString()} está vazia.`);
-                }
 
                 const workDayStart = new Date(currentDate);
                 workDayStart.setHours(8, 0, 0, 0);
                 const workDayEnd = new Date(currentDate);
                 workDayEnd.setHours(17, 0, 0, 0);
-
+                
                 const startOfDay = new Date(currentDate);
                 startOfDay.setHours(0, 0, 0, 0);
                 const endOfDay = new Date(currentDate);
@@ -216,7 +202,6 @@ export default async function handler(req, res) {
                 for (let hour = 9; hour < 17; hour++) {
                     const candidateStartTime = new Date(currentDate);
                     candidateStartTime.setHours(hour, 0, 0, 0);
-                    console.log(`[LOG] -- Verificando slot candidato: ${candidateStartTime.toLocaleTimeString()}`);
 
                     let previousEvent = { end: workDayStart, zip: tech.zipCode };
                     for(const event of fullSchedule) {
@@ -226,36 +211,27 @@ export default async function handler(req, res) {
                             break;
                         }
                     }
-                    console.log(`[LOG] ---- Evento anterior termina às: ${previousEvent.end.toLocaleTimeString()} no CEP ${previousEvent.zip || tech.zipCode}`);
 
                     const travelFrom = await getTravelTime(previousEvent.zip || tech.zipCode, zipCode);
-                    if (travelFrom === Infinity) {
-                         console.log(`[LOG] ---- SEM ROTA do evento anterior para o cliente. Pulando slot.`);
-                        continue;
-                    }
-                     console.log(`[LOG] ---- Tempo de viagem do evento anterior: ${Math.round(travelFrom)} min.`);
+                    if (travelFrom === Infinity) continue;
 
                     const proposedStartTime = new Date(candidateStartTime.getTime());
                     if (proposedStartTime < new Date(previousEvent.end.getTime() + travelFrom * 60000)) {
-                        console.log(`[LOG] ---- CONFLITO DE VIAGEM: O slot candidato (${proposedStartTime.toLocaleTimeString()}) é antes do fim do evento anterior + viagem (${new Date(previousEvent.end.getTime() + travelFrom * 60000).toLocaleTimeString()}).`);
                         continue;
                     }
 
                     const totalRequiredDuration = travelFrom + appointmentDuration + marginDuration;
                     const proposedEndTime = new Date(proposedStartTime.getTime() + totalRequiredDuration * 60000);
-                     console.log(`[LOG] ---- Duração total necessária: ${totalRequiredDuration} min. Fim proposto: ${proposedEndTime.toLocaleTimeString()}`);
 
                     let hasConflict = false;
                     for(const event of fullSchedule) {
                         if (proposedStartTime < event.end && proposedEndTime > event.start) {
-                            console.log(`[LOG] ---- CONFLITO DE AGENDA: O slot proposto (${proposedStartTime.toLocaleTimeString()} - ${proposedEndTime.toLocaleTimeString()}) conflita com um evento existente (${event.start.toLocaleTimeString()} - ${event.end.toLocaleTimeString()}).`);
                             hasConflict = true;
                             break;
                         }
                     }
                     
                     if (!hasConflict) {
-                        console.log(`[LOG] ✅ SUCESSO! Slot encontrado para ${tech.name} às ${proposedStartTime.toLocaleTimeString()}`);
                         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
                         const key = `${tech.name}|${dateStr}`;
                         
@@ -284,11 +260,10 @@ export default async function handler(req, res) {
             .filter(opt => opt.availableSlots.length > 0)
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
-        console.log(`[LOG] FINAL: Retornando ${sortedOptions.length} opções de agendamento.`);
         return res.status(200).json({ success: true, options: sortedOptions });
 
     } catch (error) {
-        console.error('[LOG] ERRO CRÍTICO na API /api/find-availability:', error);
+        console.error('CRITICAL ERROR in /api/find-availability:', error);
         return res.status(500).json({ success: false, message: 'An internal server error occurred while finding availability.' });
     }
 }
