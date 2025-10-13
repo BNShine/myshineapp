@@ -108,9 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function displayCurrentOption(originalZip, numPets, margin) {
         if (availabilityData.length === 0) {
-            resultsDiv.innerHTML = `<p class="text-destructive font-semibold text-center p-4">No suitable slots found with the given travel constraints.</p>`;
-            return;
-        }
+        resultsDiv.innerHTML = `<p class="text-destructive font-semibold text-center p-4">No suitable slots found with the given travel constraints. Please check the technician's service area and availability, and try a different zip code or date range.</p>`;
+        return;
+}
         const data = availabilityData[currentOptionIndex];
         const { technician, restrictions, date, availableSlots } = data;
         const friendlyDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
