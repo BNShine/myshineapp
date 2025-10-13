@@ -182,14 +182,19 @@ export default async function handler(req, res) {
 
                 // Adiciona início e fim do dia de trabalho como bloqueios para simplificar a lógica
                 const workDayStart = new Date(currentDate);
-                workDayStart.setHours(8, 0, 0, 0);
+                workDayStart.setHours(7, 0, 0, 0);
                 const workDayEnd = new Date(currentDate);
                 workDayEnd.setHours(17, 0, 0, 0);
 
+                const startOfDay = new Date(currentDate);
+                    startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = new Date(currentDate);
+                endOfDay.setHours(23, 59, 59, 999);
+
                 const fullSchedule = [
-                    { start: new Date(currentDate).setHours(0,0,0,0), end: workDayStart, type: 'block' }, // Bloqueio antes das 8h
-                    ...techSchedule,
-                    { start: workDayEnd, end: new Date(currentDate).setHours(23,59,59,999), type: 'block' } // Bloqueio após as 17h
+                { start: startOfDay, end: workDayStart, type: 'block' }, // Bloqueio antes das 8h
+                  ...techSchedule,
+                    { start: workDayEnd, end: endOfDay, type: 'block' } // Bloqueio após as 17h
                 ];
 
                 // REGRA: Gera slots candidatos em intervalos de 1h, a partir das 09:00
