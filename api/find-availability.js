@@ -182,7 +182,7 @@ export default async function handler(req, res) {
 
                 // Adiciona início e fim do dia de trabalho como bloqueios para simplificar a lógica
                 const workDayStart = new Date(currentDate);
-                workDayStart.setHours(7, 0, 0, 0);
+                workDayStart.setHours(9, 0, 0, 0);
                 const workDayEnd = new Date(currentDate);
                 workDayEnd.setHours(17, 0, 0, 0);
 
