@@ -7,6 +7,7 @@ import { SHEET_NAME_APPOINTMENTS, SHEET_NAME_TECH_COVERAGE, SHEET_NAME_AVAILABIL
 
 dotenv.config();
 
+// --- Autenticação e Configuração do Google Sheets ---
 const serviceAccountAuth = new JWT({
     email: process.env.CLIENT_EMAIL,
     key: process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -50,9 +51,10 @@ const getTravelTime = async (originZip, destinationZip) => {
         const response = await fetch(url);
         const data = await response.json();
         if (data.status !== 'OK' || !data.rows[0].elements[0].duration) {
+            console.warn(`[LOG] Google Maps API não pôde calcular o tempo de viagem entre ${originZip} e ${destinationZip}. Status: ${data.status}`);
             return Infinity;
         }
-        return data.rows[0].elements[0].duration.value / 60;
+        return data.rows[0].elements[0].duration.value / 60; // Retorna em minutos
     } catch (error) {
         return Infinity;
     }
@@ -99,7 +101,8 @@ export default async function handler(req, res) {
 
     try {
         const { zipCode, numPets, margin } = req.body;
-        console.log(`\n--- [LOG] INICIANDO NOVA VERIFICAÇÃO DE DISPONIBILIDADE PARA CEP: ${zipCode} ---`);
+        console.log(`\n\n--- [LOG] Nova Requisição de Disponibilidade ---`);
+        console.log(`[LOG] Inputs: CEP=${zipCode}, Pets=${numPets}, Margem=${margin}`);
 
         const appointmentDuration = (60 * parseInt(numPets, 10));
         const marginDuration = parseInt(margin, 10);
@@ -110,40 +113,22 @@ export default async function handler(req, res) {
         ]);
 
         if (!customerCity) {
-            console.error(`[LOG] ERRO FATAL: Não foi possível encontrar a cidade para o CEP ${zipCode}.`);
+            console.error(`[LOG] ERRO: Não foi possível encontrar a cidade para o CEP ${zipCode}.`);
             return res.status(404).json({ success: false, message: `Could not find city for Zip Code ${zipCode}.` });
         }
-        console.log(`[LOG] Cidade do cliente identificada como: "${customerCity}"`);
-        console.log(`[LOG] Total de técnicos para verificar: ${technicians.length}`);
 
-        // --- INÍCIO DO NOVO LOG DE DEPURAÇÃO ---
         const qualifiedTechs = technicians.filter(tech => {
             const serviceAreas = (tech.cities || []).map(area => String(area).toLowerCase().trim());
-            const customerCityLower = String(customerCity).toLowerCase().trim();
-            const zipCodeLower = String(zipCode).toLowerCase().trim();
-
-            const isCityMatch = serviceAreas.includes(customerCityLower);
-            const isZipMatch = serviceAreas.includes(zipCodeLower);
-
-            // Log detalhado para cada técnico
-            console.log(`\n[DEPURAÇÃO] Verificando Técnico: ${tech.name}`);
-            console.log(` -> Áreas de Serviço (da planilha): [${serviceAreas.join(', ')}]`);
-            console.log(` -> Comparando com a cidade: "${customerCityLower}" -> Encontrou? ${isCityMatch ? 'SIM' : 'NÃO'}`);
-            console.log(` -> Comparando com o CEP: "${zipCodeLower}" -> Encontrou? ${isZipMatch ? 'SIM' : 'NÃO'}`);
-            
-            return isCityMatch || isZipMatch;
+            return serviceAreas.includes(String(customerCity).toLowerCase().trim()) || serviceAreas.includes(String(zipCode).toLowerCase().trim());
         });
-        // --- FIM DO NOVO LOG DE DEPURAÇÃO ---
 
         if (qualifiedTechs.length === 0) {
-            console.warn(`[LOG] AVISO: Nenhum técnico qualificado encontrado para a cidade "${customerCity}" ou CEP "${zipCode}". Verifique os logs de depuração acima.`);
+            console.warn(`[LOG] AVISO: Nenhum técnico qualificado encontrado para a cidade "${customerCity}" ou CEP "${zipCode}".`);
             return res.status(200).json({ options: [] });
         }
-        
-        console.log(`[LOG] Técnicos QUALIFICADOS encontrados: ${qualifiedTechs.map(t => t.name).join(', ')}`);
+        console.log(`[LOG] Técnicos qualificados encontrados: ${qualifiedTechs.map(t => t.name).join(', ')}`);
         
         const allOptions = new Map();
-        // ... (o restante do código permanece o mesmo)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -151,11 +136,11 @@ export default async function handler(req, res) {
             const currentDate = new Date(today);
             currentDate.setDate(today.getDate() + i);
 
-            if (currentDate.getDay() === 0) {
-                continue;
-            }
+            if (currentDate.getDay() === 0) continue;
+            console.log(`\n[LOG] Verificando data: ${currentDate.toDateString()}`);
 
             for (const tech of qualifiedTechs) {
+                console.log(`[LOG] Verificando técnico: ${tech.name}`);
                 const techSchedule = [];
                 
                 appointments.forEach(appt => {
@@ -182,12 +167,17 @@ export default async function handler(req, res) {
                 });
 
                 techSchedule.sort((a, b) => a.start - b.start);
+                if (techSchedule.length > 0) {
+                    console.log(`[LOG] Agenda de ${tech.name} para ${currentDate.toDateString()}:`, techSchedule.map(s => ({ type: s.type, start: s.start.toLocaleTimeString(), end: s.end.toLocaleTimeString() })));
+                } else {
+                    console.log(`[LOG] Agenda de ${tech.name} para ${currentDate.toDateString()} está vazia.`);
+                }
 
                 const workDayStart = new Date(currentDate);
                 workDayStart.setHours(8, 0, 0, 0);
                 const workDayEnd = new Date(currentDate);
                 workDayEnd.setHours(17, 0, 0, 0);
-                
+
                 const startOfDay = new Date(currentDate);
                 startOfDay.setHours(0, 0, 0, 0);
                 const endOfDay = new Date(currentDate);
@@ -202,6 +192,7 @@ export default async function handler(req, res) {
                 for (let hour = 9; hour < 17; hour++) {
                     const candidateStartTime = new Date(currentDate);
                     candidateStartTime.setHours(hour, 0, 0, 0);
+                    console.log(`[LOG] -- Verificando slot candidato: ${candidateStartTime.toLocaleTimeString()}`);
 
                     let previousEvent = { end: workDayStart, zip: tech.zipCode };
                     for(const event of fullSchedule) {
@@ -211,27 +202,36 @@ export default async function handler(req, res) {
                             break;
                         }
                     }
+                    console.log(`[LOG] ---- Evento anterior termina às: ${previousEvent.end.toLocaleTimeString()} no CEP ${previousEvent.zip || tech.zipCode}`);
 
                     const travelFrom = await getTravelTime(previousEvent.zip || tech.zipCode, zipCode);
-                    if (travelFrom === Infinity) continue;
+                    if (travelFrom === Infinity) {
+                         console.log(`[LOG] ---- SEM ROTA do evento anterior para o cliente. Pulando slot.`);
+                        continue;
+                    }
+                     console.log(`[LOG] ---- Tempo de viagem do evento anterior: ${Math.round(travelFrom)} min.`);
 
                     const proposedStartTime = new Date(candidateStartTime.getTime());
                     if (proposedStartTime < new Date(previousEvent.end.getTime() + travelFrom * 60000)) {
+                        console.log(`[LOG] ---- CONFLITO DE VIAGEM: O slot candidato (${proposedStartTime.toLocaleTimeString()}) é antes do fim do evento anterior + viagem (${new Date(previousEvent.end.getTime() + travelFrom * 60000).toLocaleTimeString()}).`);
                         continue;
                     }
 
                     const totalRequiredDuration = travelFrom + appointmentDuration + marginDuration;
                     const proposedEndTime = new Date(proposedStartTime.getTime() + totalRequiredDuration * 60000);
+                     console.log(`[LOG] ---- Duração total necessária: ${totalRequiredDuration} min. Fim proposto: ${proposedEndTime.toLocaleTimeString()}`);
 
                     let hasConflict = false;
                     for(const event of fullSchedule) {
                         if (proposedStartTime < event.end && proposedEndTime > event.start) {
+                            console.log(`[LOG] ---- CONFLITO DE AGENDA: O slot proposto (${proposedStartTime.toLocaleTimeString()} - ${proposedEndTime.toLocaleTimeString()}) conflita com um evento existente (${event.start.toLocaleTimeString()} - ${event.end.toLocaleTimeString()}).`);
                             hasConflict = true;
                             break;
                         }
                     }
                     
                     if (!hasConflict) {
+                        console.log(`[LOG] ✅ SUCESSO! Slot encontrado para ${tech.name} às ${proposedStartTime.toLocaleTimeString()}`);
                         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
                         const key = `${tech.name}|${dateStr}`;
                         
@@ -260,6 +260,7 @@ export default async function handler(req, res) {
             .filter(opt => opt.availableSlots.length > 0)
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
+        console.log(`[LOG] FINAL: Retornando ${sortedOptions.length} opções de agendamento.`);
         return res.status(200).json({ success: true, options: sortedOptions });
 
     } catch (error) {
