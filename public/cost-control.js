@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toastContainer = document.getElementById('toast-container');
 
     let allCostData = [];
-    let techCarsData = []; // Armazenará dados da aba TechCars { tech_name, vin_number, car_plate }
+    let techCarsData = [];
 
     // Função para exibir notificações (toast)
     function showToast(message, type = 'info') {
@@ -342,7 +342,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                  vehicleAlertMessages.push(`No brake change record found`);
             }
 
-            // 3. Cria a caixa de alerta *se* houver mensagens para este veículo
             if (vehicleAlertMessages.length > 0) {
                 createAlert(plate, vehicleAlertMessages, highestSeverity);
                 hasAnyAlerts = true; // Marca que pelo menos um alerta foi gerado
