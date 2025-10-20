@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toastContainer = document.getElementById('toast-container');
 
     let allCostData = [];
-    let techCarsData = [];
+    let techCarsData = []; // Armazenará dados da aba TechCars { tech_name, vin_number, car_plate }
 
     // --- Funções Auxiliares ---
 
@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (dateInput.includes('-')) { // Já está em YYYY-MM-DD
                  const parts = dateInput.split('-');
                  if (parts.length === 3 && parts[0].length === 4) {
+                     // Check if it's a valid date string YYYY-MM-DD by creating a Date object
+                     // Adding T00:00:00 avoids potential timezone shifts affecting the date part
                      const tempDate = new Date(dateInput + "T00:00:00");
                      if (!isNaN(tempDate)) {
                          return dateInput; // Return as is if valid YYYY-MM-DD
@@ -97,12 +99,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const d = new Date(date); // Cria cópia da data original
         const originalDay = d.getDate(); // Guarda o dia original
         d.setMonth(d.getMonth() + months); // Adiciona os meses
+        // Se o dia mudou (ex: Jan 31 + 1 mês = Feb 28/29), ajusta para o último dia do mês alvo
         if (d.getDate() !== originalDay) {
           // Volta para o dia 0 do *próximo* mês, que é o último dia do mês alvo
           d.setDate(0);
         }
         return d;
     }
+
+    // Popula dropdowns (agora aceita array de objetos)
     function populateDropdown(selectElement, items, defaultText = 'Select...', valueKey = null, textKey = null) {
         selectElement.innerHTML = `<option value="">${defaultText}</option>`; // Limpa e adiciona opção padrão
         if (items && Array.isArray(items)) {
@@ -225,7 +230,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record.cost_type || ''}</td>
                 <td class="p-4">${record.subtype || ''}</td>
                 <td class="p-4">${record.technician || ''}</td>
+                {/* Exibe preço formatado se for número válido */}
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
+                {/* Usando descriptionShort e title para tooltip */}
                 <td class="p-4 max-w-[200px] truncate" title="${descriptionFull}">${descriptionShort}</td>
                 <td class="p-4 max-w-[150px] truncate" title="${record.business_name || ''}">${record.business_name || ''}</td>
                 <td class="p-4">${record.invoice_number || ''}</td>
@@ -237,10 +244,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Lógica de Alertas (Baseada em Tempo) ---
+    // --- Lógica de Alertas (AGRUPADA POR VEÍCULO) ---
     function renderAlerts(data) {
         alertsContent.innerHTML = ''; // Limpa alertas existentes
-        let hasAlerts = false;
+        let hasAnyAlerts = false; // Flag para saber se algum alerta foi gerado
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Zera a hora para comparar apenas datas
 
@@ -248,11 +255,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const OIL_INTERVAL_MONTHS = 2;
         const TIRE_INTERVAL_MONTHS = 6;
         const BRAKE_INTERVAL_MONTHS = 4;
-        const ALERT_THRESHOLD_DAYS = 15; // Avisar com 15 dias de antecedência
+        const ALERT_THRESHOLD_DAYS = 15; // Avisar com X dias de antecedência
 
         const vehicleData = {}; // Agrupa dados por placa
 
-        // Agrupa registros válidos por placa
+        // 1. Agrupa registros válidos por placa
         data.forEach(record => {
             if (record.license_plate) {
                 const plate = record.license_plate.toUpperCase().trim();
@@ -276,10 +283,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Ordena registros por data (mais recente primeiro) e verifica alertas
+        // 2. Processa cada veículo
         for (const plate in vehicleData) {
             const records = vehicleData[plate].sort((a, b) => b.date - a.date); // Mais recente primeiro
             if (records.length === 0) continue;
+
+            let vehicleAlertMessages = []; // Armazena mensagens para este veículo
+            let highestSeverity = 'info'; // Guarda a severidade mais alta (error > warning > info)
 
             // Encontra a última troca *válida* de cada item
             const lastOilChangeRecord = records.find(r => r.oil_and_filter_change);
@@ -297,78 +307,91 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Verifica Óleo
             if (oilDueDate && !isNaN(oilDueDate)) {
                 if (oilDueDate <= today) { // Vencido
-                    createAlert(plate, `Oil change is due. Last change on ${formatDateForDisplay(formatDateForInput(lastOilChangeRecord.date))}.`, 'error');
-                    hasAlerts = true;
+                    vehicleAlertMessages.push(`Oil change due (Last: ${formatDateForDisplay(formatDateForInput(lastOilChangeRecord.date))})`);
+                    highestSeverity = 'error'; // Prioridade máxima
                 } else if (oilDueDate <= alertThresholdDate) { // Próximo do vencimento
-                    createAlert(plate, `Oil change due soon (on ${formatDateForDisplay(formatDateForInput(oilDueDate))}). Last change on ${formatDateForDisplay(formatDateForInput(lastOilChangeRecord.date))}.`, 'warning');
-                    hasAlerts = true;
+                    vehicleAlertMessages.push(`Oil change soon (Due: ${formatDateForDisplay(formatDateForInput(oilDueDate))})`);
+                    if (highestSeverity !== 'error') highestSeverity = 'warning'; // Warning se não for error
                 }
             } else if (!lastOilChangeRecord) { // Apenas informa se NUNCA houve registro
-                 createAlert(plate, `No oil change record found. Recommend check/change.`, 'info');
-                 hasAlerts = true;
+                 vehicleAlertMessages.push(`No oil change record found`);
+                 // Mantém 'info' como severidade padrão se não houver outros alertas
             }
 
             // Verifica Pneus
             if (tireDueDate && !isNaN(tireDueDate)) {
                 if (tireDueDate <= today) {
-                    createAlert(plate, `Tire change/inspection is due. Last change on ${formatDateForDisplay(formatDateForInput(lastTireChangeRecord.date))}.`, 'error');
-                    hasAlerts = true;
+                    vehicleAlertMessages.push(`Tire check due (Last: ${formatDateForDisplay(formatDateForInput(lastTireChangeRecord.date))})`);
+                    highestSeverity = 'error';
                 } else if (tireDueDate <= alertThresholdDate) {
-                    createAlert(plate, `Tire change/inspection due soon (on ${formatDateForDisplay(formatDateForInput(tireDueDate))}). Last change on ${formatDateForDisplay(formatDateForInput(lastTireChangeRecord.date))}.`, 'warning');
-                    hasAlerts = true;
+                    vehicleAlertMessages.push(`Tire check soon (Due: ${formatDateForDisplay(formatDateForInput(tireDueDate))})`);
+                    if (highestSeverity !== 'error') highestSeverity = 'warning';
                 }
             } else if (!lastTireChangeRecord) {
-                 createAlert(plate, `No tire change record found. Recommend inspection.`, 'info');
-                 hasAlerts = true;
+                 vehicleAlertMessages.push(`No tire change record found`);
             }
 
             // Verifica Freios
             if (brakeDueDate && !isNaN(brakeDueDate)) {
                 if (brakeDueDate <= today) {
-                    createAlert(plate, `Brake inspection/change is due. Last change on ${formatDateForDisplay(formatDateForInput(lastBrakeChangeRecord.date))}.`, 'error');
-                    hasAlerts = true;
+                    vehicleAlertMessages.push(`Brake check due (Last: ${formatDateForDisplay(formatDateForInput(lastBrakeChangeRecord.date))})`);
+                    highestSeverity = 'error';
                 } else if (brakeDueDate <= alertThresholdDate) {
-                    createAlert(plate, `Brake inspection/change due soon (on ${formatDateForDisplay(formatDateForInput(brakeDueDate))}). Last change on ${formatDateForDisplay(formatDateForInput(lastBrakeChangeRecord.date))}.`, 'warning');
-                    hasAlerts = true;
+                    vehicleAlertMessages.push(`Brake check soon (Due: ${formatDateForDisplay(formatDateForInput(brakeDueDate))})`);
+                    if (highestSeverity !== 'error') highestSeverity = 'warning';
                 }
             } else if (!lastBrakeChangeRecord){
-                 createAlert(plate, `No brake change record found. Recommend inspection.`, 'info');
-                 hasAlerts = true;
+                 vehicleAlertMessages.push(`No brake change record found`);
             }
-        }
 
-        if (!hasAlerts) {
-            alertsContent.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts based on available data and time intervals.</p>';
+            // 3. Cria a caixa de alerta *se* houver mensagens para este veículo
+            if (vehicleAlertMessages.length > 0) {
+                createAlert(plate, vehicleAlertMessages, highestSeverity);
+                hasAnyAlerts = true; // Marca que pelo menos um alerta foi gerado
+            }
+        } // Fim do loop por veículo
+
+        // 4. Exibe mensagem se nenhum alerta foi gerado para nenhum veículo
+        if (!hasAnyAlerts) {
+            alertsContent.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts found based on time intervals.</p>';
         }
     }
 
-    // Função auxiliar para criar o HTML do alerta
-    function createAlert(plate, message, type) {
-         const alertDiv = document.createElement('div');
-         let borderColor = 'border-muted';
-         let bgColor = 'bg-muted/10';
-         let title = 'Info';
-         let titleColor = 'text-blue-700 dark:text-blue-300'; // Cor para info
+    // Função auxiliar para criar o HTML do alerta AGRUPADO E MINIMALISTA
+    function createAlert(plate, messages, type) {
+        const alertDiv = document.createElement('div');
+        let borderColor = 'border-muted';
+        let bgColor = 'bg-muted/10';
+        let title = 'Info';
+        let titleColor = 'text-blue-700 dark:text-blue-300'; // Cor para info
 
-         if (type === 'warning') {
-             borderColor = 'border-yellow-500'; // Tailwind padrão
-             bgColor = 'bg-yellow-500/10';
-             title = 'Warning';
-             titleColor = 'text-yellow-700 dark:text-yellow-300';
-         } else if (type === 'error') {
-             borderColor = 'border-destructive'; // Cor do tema
-             bgColor = 'bg-destructive/10';
-             title = 'Alert / Due'; // Título mais claro para erro
-             titleColor = 'text-destructive';
-         }
+        if (type === 'warning') {
+            borderColor = 'border-yellow-500'; // Tailwind padrão
+            bgColor = 'bg-yellow-500/10';
+            title = 'Warning';
+            titleColor = 'text-yellow-700 dark:text-yellow-300';
+        } else if (type === 'error') {
+            borderColor = 'border-destructive'; // Cor do tema
+            bgColor = 'bg-destructive/10';
+            title = 'Alert / Due'; // Título mais claro para erro
+            titleColor = 'text-destructive';
+        }
 
-        alertDiv.className = `p-4 border ${borderColor} rounded-lg ${bgColor}`;
-        alertDiv.innerHTML = `
-            <p class="font-semibold ${titleColor}">${title}: Vehicle ${plate}</p>
-            <p class="text-sm text-muted-foreground">${message}</p>
-        `;
-        alertsContent.appendChild(alertDiv);
+       // Estilo mais compacto: padding reduzido, margin-bottom
+       alertDiv.className = `p-3 border ${borderColor} rounded-lg ${bgColor} mb-2`;
+
+       // Cria string única com mensagens separadas por " • "
+       const messageString = messages.join(' • ');
+
+       alertDiv.innerHTML = `
+           <div class="flex justify-between items-center">
+                <span class="font-semibold text-sm ${titleColor}">${title}: Vehicle ${plate}</span>
+           </div>
+           <p class="text-xs text-muted-foreground mt-1">${messageString}</p>
+       `;
+       alertsContent.appendChild(alertDiv);
    }
+
 
     // --- Lógica de Autofill ---
     function handleTechnicianChange() {
@@ -401,7 +424,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Adiciona VIN e Placa manualmente (pois são readonly)
-        // Certifica-se que eles estão sendo pegos dos inputs atuais
         data['vin'] = vinInput.value;
         data['license_plate'] = licensePlateInput.value;
 
@@ -415,10 +437,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Please select a Technician (Driver).', 'error');
             return; // Impede o envio
         }
-        // Validação adicional: Placa e VIN não podem estar vazios (devem ser preenchidos pelo autofill)
+        // Validação adicional: Placa e VIN não podem estar vazios
          if (!data.license_plate || !data.vin) {
             showToast('VIN and License Plate must be autofilled by selecting a Technician.', 'error');
-            return; // Impede o envio se não foram preenchidos
+            return;
         }
 
 
