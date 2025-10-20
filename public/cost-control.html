@@ -7,6 +7,7 @@
     <link href="output.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Estilos adicionais, se necessário */
         .checkbox-label { @apply flex items-center space-x-2 text-sm; }
         .checkbox-input { @apply h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary; }
     </style>
@@ -15,6 +16,7 @@
 
     <div class="flex">
         <aside class="sidebar">
+            {/* --- BARRA LATERAL --- */}
             <div class="flex h-16 items-center justify-center border-b px-6">
                  <a class="flex items-center gap-2 font-semibold" href="appointments.html">
                     <img src="https://i.imgur.com/bW695v3.png" alt="Logo" class="h-10 w-auto"/>
@@ -23,15 +25,17 @@
             </div>
             <nav class="flex-1 overflow-auto p-4">
                 <ul class="grid items-start gap-1 text-sm font-medium">
+                    {/* Links para outras páginas (Certifique-se que os SVGs estão corretos) */}
                     <li><a class="sidebar-link" href="appointments.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>Sales</a></li>
                     <li><a class="sidebar-link" href="customers.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Customers</a></li>
                     <li><a class="sidebar-link" href="analytics.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a></li>
                     <li><a class="sidebar-link" href="calendar.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>Calendar</a></li>
                     <li><a class="sidebar-link" href="quick-routes.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>Routes</a></li>
                     <li><a class="sidebar-link" href="finance.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>Finance</a></li>
+                    {/* --- Link para Cost Control --- */}
                     <li>
                         <a class="sidebar-link active" href="cost-control.html">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"> {/* Verifique se h-4 w-4 está aqui */}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"> {/* Garanta h-4 w-4 */}
                                 <path d="M14 17.5V14a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3.5"/>
                                 <path d="M14 9V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v3"/>
                                 <rect width="18" height="18" x="3" y="4" rx="2"/>
@@ -42,6 +46,7 @@
                             Cost Control
                         </a>
                     </li>
+                    {/* --- Fim do Link --- */}
                 </ul>
             </nav>
         </aside>
@@ -60,6 +65,7 @@
             </header>
 
             <main class="flex-1 p-4 sm:p-6 space-y-6">
+                {/* --- Seção de Cadastro --- */}
                 <section id="registration-section" class="card-base">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Register New Maintenance Record</h2>
@@ -70,13 +76,24 @@
                                 <label for="date" class="text-label mb-2 block">Date</label>
                                 <input type="date" id="date" name="date" required class="input-base">
                             </div>
+                            {/* Technician (Driver) agora vem antes */}
                             <div>
-                                <label for="license_plate" class="text-label mb-2 block">License Plate</label>
-                                <input type="text" id="license_plate" name="license_plate" class="input-base" placeholder="ABC-1234">
+                                <label for="technician" class="text-label mb-2 block">Technician (Driver)</label>
+                                <select id="technician" name="technician" required class="input-base"> {/* Adicionado 'required' */}
+                                    <option value="">Select Technician...</option>
+                                    {/* Options populated by JS */}
+                                </select>
                             </div>
                             <div>
                                 <label for="vin" class="text-label mb-2 block">VIN</label>
-                                <input type="text" id="vin" name="vin" class="input-base" placeholder="Vehicle Identification Number">
+                                {/* readonly e bg-muted para indicar preenchimento automático */}
+                                <input type="text" id="vin" name="vin" class="input-base bg-muted" placeholder="Autofilled" readonly>
+                            </div>
+                            {/* License Plate agora vem depois */}
+                            <div>
+                                <label for="license_plate" class="text-label mb-2 block">License Plate</label>
+                                {/* readonly e bg-muted para indicar preenchimento automático */}
+                                <input type="text" id="license_plate" name="license_plate" class="input-base bg-muted" placeholder="Autofilled" readonly>
                             </div>
                              <div>
                                 <label for="odometer" class="text-label mb-2 block">Odometer</label>
@@ -96,13 +113,7 @@
                             </div>
                              <div>
                                 <label for="subtype" class="text-label mb-2 block">Subtype</label>
-                                <input type="text" id="subtype" name="subtype" class="input-base" placeholder="e.g., Oil Change, Tire Rotation">
-                            </div>
-                            <div>
-                                <label for="technician" class="text-label mb-2 block">Technician (Driver)</label>
-                                <select id="technician" name="technician" class="input-base">
-                                    <option value="">Select Technician...</option>
-                                </select>
+                                <input type="text" id="subtype" name="subtype" class="input-base" placeholder="e.g., Oil Change">
                             </div>
                              <div>
                                 <label for="price" class="text-label mb-2 block">Price ($)</label>
@@ -110,7 +121,7 @@
                             </div>
                             <div class="md:col-span-2 lg:col-span-4">
                                 <label for="description" class="text-label mb-2 block">Description</label>
-                                <textarea id="description" name="description" rows="3" class="input-base" placeholder="Detailed description of the service or cost..."></textarea>
+                                <textarea id="description" name="description" rows="3" class="input-base" placeholder="Detailed description..."></textarea>
                             </div>
                              <div>
                                 <label for="business_name" class="text-label mb-2 block">Business Name</label>
@@ -125,6 +136,7 @@
                                 <input type="text" id="invoice_number" name="invoice_number" class="input-base" placeholder="e.g., INV-001">
                             </div>
                         </div>
+                        {/* Checkboxes */}
                         <div class="flex flex-wrap gap-6 items-center pt-4 border-t mt-4">
                             <label class="text-label">Service Performed:</label>
                             <label for="tire_change" class="checkbox-label">
@@ -140,6 +152,7 @@
                                 Brake Change
                             </label>
                         </div>
+                        {/* Botão Salvar */}
                         <div class="flex justify-end pt-4">
                             <button type="submit" class="btn-primary h-11 px-8">
                                 Save Record
@@ -147,17 +160,23 @@
                         </div>
                     </form>
                 </section>
+
+                 {/* --- Seção de Alertas --- */}
                 <section id="alerts-section" class="card-base">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance Alerts</h2>
                     </div>
                     <div id="alerts-content" class="p-6 space-y-4">
                         <p class="text-muted-foreground">Alerts for upcoming maintenance will be displayed here...</p>
+                        {/* Alertas serão renderizados aqui pelo JS */}
                     </div>
                 </section>
+
+                {/* --- Seção de Listagem --- */}
                 <section id="listing-section" class="card-base">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance History</h2>
+                         {/* TODO: Adicionar filtros aqui (ex: por placa, data, tipo) se necessário */}
                     </div>
                     <div class="p-6 pt-0 overflow-x-auto">
                         <table class="w-full text-left">
@@ -188,10 +207,13 @@
             </main>
         </div>
     </div>
+
+    {/* Toast Container */}
     <div id="toast-container" class="fixed top-5 right-5 z-[100] space-y-2"></div>
 
     <script src="cost-control.js"></script>
     <script>
+        // Dark Mode Toggle Logic
         document.getElementById('dark-mode-toggle').addEventListener('click', () => {
             document.documentElement.classList.toggle('dark');
         });
