@@ -13,8 +13,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let allCostData = [];
     let techCarsData = []; // Armazenará dados da aba TechCars { tech_name, vin_number, car_plate }
 
-    // --- Funções Auxiliares ---
-
     // Função para exibir notificações (toast)
     function showToast(message, type = 'info') {
         if (!toastContainer) return;
