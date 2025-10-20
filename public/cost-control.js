@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let allCostData = [];
     let techCarsData = [];
 
-    // Função para exibir notificações (toast)
     function showToast(message, type = 'info') {
         if (!toastContainer) return;
 
