@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toastContainer = document.getElementById('toast-container');
 
     let allCostData = [];
-    let techCarsData = []; // Armazenará dados da aba TechCars { tech_name, vin_number, car_plate }
+    let techCarsData = [];
 
     // --- Funções Auxiliares ---
 
@@ -70,8 +70,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (dateInput.includes('-')) { // Já está em YYYY-MM-DD
                  const parts = dateInput.split('-');
                  if (parts.length === 3 && parts[0].length === 4) {
-                     // Check if it's a valid date string YYYY-MM-DD by creating a Date object
-                     // Adding T00:00:00 avoids potential timezone shifts affecting the date part
                      const tempDate = new Date(dateInput + "T00:00:00");
                      if (!isNaN(tempDate)) {
                          return dateInput; // Return as is if valid YYYY-MM-DD
@@ -99,15 +97,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const d = new Date(date); // Cria cópia da data original
         const originalDay = d.getDate(); // Guarda o dia original
         d.setMonth(d.getMonth() + months); // Adiciona os meses
-        // Se o dia mudou (ex: Jan 31 + 1 mês = Feb 28/29), ajusta para o último dia do mês alvo
         if (d.getDate() !== originalDay) {
           // Volta para o dia 0 do *próximo* mês, que é o último dia do mês alvo
           d.setDate(0);
         }
         return d;
     }
-
-    // Popula dropdowns (agora aceita array de objetos)
     function populateDropdown(selectElement, items, defaultText = 'Select...', valueKey = null, textKey = null) {
         selectElement.innerHTML = `<option value="">${defaultText}</option>`; // Limpa e adiciona opção padrão
         if (items && Array.isArray(items)) {
@@ -230,9 +225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record.cost_type || ''}</td>
                 <td class="p-4">${record.subtype || ''}</td>
                 <td class="p-4">${record.technician || ''}</td>
-                {/* Exibe preço formatado se for número válido */}
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
-                {/* Usando descriptionShort e title para tooltip */}
                 <td class="p-4 max-w-[200px] truncate" title="${descriptionFull}">${descriptionShort}</td>
                 <td class="p-4 max-w-[150px] truncate" title="${record.business_name || ''}">${record.business_name || ''}</td>
                 <td class="p-4">${record.invoice_number || ''}</td>
