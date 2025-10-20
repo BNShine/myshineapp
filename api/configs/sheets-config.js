@@ -10,3 +10,4 @@ export const SHEET_NAME_TECH_COVERAGE = 'TechCoverageData';
 export const SHEET_NAME_AVAILABILITY = 'TechnicianAvailability';
 export const SHEET_NAME_SOURCES = 'Source'; 
 export const SHEET_NAME_COST_CONTROL = 'CostControl';
+export const SHEET_NAME_TECH_CARS = 'TechCars';
