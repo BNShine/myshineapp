@@ -113,14 +113,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function createDateObjectFromMMDDYYYY(dateStringMMDDYYYY) {
-        if (!dateStringMMDDYYYY || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStringMMDDYYYY)) {
+        if (!dateStringMMDDYYYY || typeof dateStringMMDDYYYY !== 'string' || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStringMMDDYYYY)) {
             return null;
         }
         try {
             const parts = dateStringMMDDYYYY.split('/');
-            const dateObject = new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
-            if (isNaN(dateObject) || dateObject.getFullYear() != parts[2] || (dateObject.getMonth() + 1) != parts[0] || dateObject.getDate() != parts[1]) {
-                console.warn("Invalid date created from MM/DD/YYYY:", dateStringMMDDYYYY);
+            const year = parseInt(parts[2], 10);
+            const month = parseInt(parts[0], 10) - 1;
+            const day = parseInt(parts[1], 10);
+            if (year < 1900 || year > 2100 || month < 0 || month > 11 || day < 1 || day > 31) {
+                 console.warn("Invalid date components from MM/DD/YYYY:", dateStringMMDDYYYY);
+                 return null;
+            }
+            const dateObject = new Date(year, month, day);
+            if (isNaN(dateObject) || dateObject.getFullYear() !== year || dateObject.getMonth() !== month || dateObject.getDate() !== day) {
+                console.warn("Date object mismatch after creation from MM/DD/YYYY:", dateStringMMDDYYYY);
                 return null;
             }
             dateObject.setHours(0, 0, 0, 0);
