@@ -140,24 +140,13 @@
                     <div id="alerts-content" class="p-6 space-y-2"><p class="text-muted-foreground">Loading alerts based on configuration...</p></div>
                 </section>
 
-                <section id="filter-history-section" class="card-base">
-                    <div class="p-6 border-b"><h2 class="text-section-title">Filter Maintenance History</h2></div>
-                    <div class="p-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        <div><label for="filter-start-date" class="text-label mb-2 block">Start Date</label><input type="date" id="filter-start-date" class="input-base h-9 text-sm"></div>
-                        <div><label for="filter-end-date" class="text-label mb-2 block">End Date</label><input type="date" id="filter-end-date" class="input-base h-9 text-sm"></div>
-                        <div><label for="filter-technician" class="text-label mb-2 block">Technician</label><select id="filter-technician" class="input-base h-9 text-sm"><option value="">All Technicians</option></select></div>
-                        <div><label for="filter-license-plate" class="text-label mb-2 block">License Plate</label><input type="text" id="filter-license-plate" class="input-base h-9 text-sm" placeholder="Enter plate..."></div>
-                        <div class="lg:col-start-4 flex items-end"><button id="search-history-btn" class="btn-primary h-11 px-8 w-full">Search History</button></div>
-                    </div>
-                    <div id="filtered-sum-display" class="p-6 pt-0 text-right">
-                         <span class="text-label font-medium">Sum of Filtered Prices: </span>
-                         <span id="filtered-price-sum" class="text-lg font-bold text-foreground">$0.00</span>
-                    </div>
-                </section>
-
-                <section id="listing-section" class="card-base hidden">
-                    <div class="p-6 border-b">
+                <section id="listing-section" class="card-base">
+                    <div class="p-6 border-b flex justify-between items-center">
                         <h2 class="text-section-title">Maintenance History</h2>
+                         <div id="total-sum-display">
+                             <span class="text-label font-medium">Sum of All Prices: </span>
+                             <span id="total-price-sum" class="text-lg font-bold text-foreground">$0.00</span>
+                         </div>
                     </div>
                     <div class="p-6 pt-0 overflow-x-auto">
                         <table class="w-full text-left">
@@ -180,7 +169,7 @@
                                 </tr>
                             </thead>
                             <tbody id="cost-control-table-body" class="text-foreground text-sm">
-                                <tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>
+                                <tr><td colspan="14" class="p-4 text-center text-muted-foreground">Loading history...</td></tr>
                             </tbody>
                         </table>
                     </div>
