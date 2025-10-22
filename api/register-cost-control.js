@@ -15,55 +15,70 @@ const serviceAccountAuth = new JWT({
 
 const SPREADSHEET_ID = process.env.SHEET_ID;
 
-export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+// --- Nova Função para converter YYYY-MM-DD para MM/DD/YYYY ---
+function convertYYYYMMDDtoMMDDYYYY(dateStringYYYYMMDD) {
+    if (!dateStringYYYYMMDD || !/^\d{4}-\d{2}-\d{2}$/.test(dateStringYYYYMMDD)) {
+        return dateStringYYYYMMDD; // Retorna original se inválido
+    }
+    const [year, month, day] = dateStringYYYYMMDD.split('-');
+    return `${month}/${day}/${year}`;
+}
+// --- Fim da Função ---
+
+export default async function handler(request, response) { // Renomeado req/res
+    if (request.method !== 'POST') {
+        return response.status(405).json({ success: false, message: 'Method Not Allowed' });
     }
 
     try {
-        const data = req.body;
+        const requestData = request.body; // Nome completo
 
-        if (!data.date || !data.odometer || !data.cost_type || !data.price) {
-            return res.status(400).json({ success: false, message: 'Required fields are missing (Date, Odometer, Cost Type, Price).' });
+        // Validação de campos essenciais
+        if (!requestData.date || !requestData.odometer || !requestData.cost_type || !requestData.price) {
+            return response.status(400).json({ success: false, message: 'Required fields are missing (Date, Odometer, Cost Type, Price).' });
+        }
+        if (!requestData.technician || !requestData.license_plate || !requestData.vin) {
+             return response.status(400).json({ success: false, message: 'Technician, License Plate, and VIN are required.' });
         }
 
-        const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
-        await doc.loadInfo();
-        const sheet = doc.sheetsByTitle[SHEET_NAME_COST_CONTROL];
+
+        const document = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth); // Nome completo
+        await document.loadInfo();
+        const sheet = document.sheetsByTitle[SHEET_NAME_COST_CONTROL];
 
         if (!sheet) {
             console.error(`Sheet "${SHEET_NAME_COST_CONTROL}" not found in spreadsheet ID "${SPREADSHEET_ID}".`);
-            return res.status(500).json({ success: false, message: `Spreadsheet tab "${SHEET_NAME_COST_CONTROL}" not found.` });
+            return response.status(500).json({ success: false, message: `Spreadsheet tab "${SHEET_NAME_COST_CONTROL}" not found.` });
         }
 
-        // **REMOVED setHeaderRow**
-
-        // Prepare the row data - ensure keys match sheet headers EXACTLY
-        const newRow = {
-            date: data.date,
-            license_plate: data.license_plate || '',
-            vin: data.vin || '',
-            odometer: data.odometer,
-            cost_type: data.cost_type,
-            subtype: data.subtype || '',
-            technician: data.technician || '',
-            price: data.price, // Ensure price is sent with '.' for decimals from frontend
-            description: data.description || '',
-            business_name: data.business_name || '',
-            business_address: data.business_address || '',
-            invoice_number: data.invoice_number || '',
-            tire_change: data.tire_change || 'FALSE',
-            oil_and_filter_change: data.oil_and_filter_change || 'FALSE',
-            brake_change: data.brake_change || 'FALSE',
+        // Prepara os dados da nova linha
+        const newRowData = { // Nome completo
+            // *** CONVERTE A DATA PARA MM/DD/YYYY ANTES DE SALVAR ***
+            date: convertYYYYMMDDtoMMDDYYYY(requestData.date),
+            license_plate: requestData.license_plate || '',
+            vin: requestData.vin || '',
+            odometer: requestData.odometer,
+            cost_type: requestData.cost_type,
+            subtype: requestData.subtype || '',
+            technician: requestData.technician || '',
+            price: requestData.price, // Já deve estar com '.' vindo do frontend
+            description: requestData.description || '',
+            business_name: requestData.business_name || '',
+            business_address: requestData.business_address || '',
+            invoice_number: requestData.invoice_number || '',
+            tire_change: requestData.tire_change || 'FALSE',
+            oil_and_filter_change: requestData.oil_and_filter_change || 'FALSE',
+            brake_change: requestData.brake_change || 'FALSE',
+            battery_change: requestData.battery_change || 'FALSE', // Incluído
+            air_filter_change: requestData.air_filter_change || 'FALSE', // Incluído
         };
 
-        await sheet.addRow(newRow);
+        await sheet.addRow(newRowData);
 
-        return res.status(201).json({ success: true, message: 'Maintenance record added successfully!' });
+        return response.status(201).json({ success: true, message: 'Maintenance record added successfully!' });
 
     } catch (error) {
         console.error('Error adding cost control record:', error);
-        // Provide a more generic error message to the client, but log the details
-        return res.status(500).json({ success: false, message: 'A server error occurred while saving the record.' });
+        return response.status(500).json({ success: false, message: `A server error occurred while saving the record: ${error.message}` });
     }
 }
