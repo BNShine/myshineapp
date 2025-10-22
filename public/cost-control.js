@@ -320,6 +320,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const costDataResult = await costControlResponse.json();
             allCostControlData = (costDataResult.costs || []).filter(record => record['date'] && createDateObjectFromMMDDYYYY(record['date']));
+            if (allCostControlData.length < (costDataResult.costs || []).length) {
+                console.warn(`Filtered out ${ (costDataResult.costs || []).length - allCostControlData.length} records due to invalid date format received from API.`);
+            }
             costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
             renderMaintenanceAlerts(allCostControlData);
         } catch (error) {
@@ -415,15 +418,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             let alertMessagesForVehicle = [];
             let highestSeverityLevel = 'info';
             for (const categoryKey in MAINTENANCE_CATEGORIES) {
+                 if (categoryKey === 'air_filter_change' || categoryKey === 'other') continue; // Pula estas categorias
                 const categoryConfiguration = maintenanceIntervalConfiguration[categoryKey];
                 if (!categoryConfiguration || !categoryConfiguration.type || isNaN(categoryConfiguration.value) || categoryConfiguration.value <= 0) continue;
                 let lastPerformedRecord;
-                 if (categoryKey === 'other') {
-                    lastPerformedRecord = vehicleRecords.find(record =>
-                        (record.cost_type === 'Maintenance' || record.cost_type === 'Repair') &&
-                        !record.tire_change && !record.oil_and_filter_change && !record.brake_change && !record.battery_change && !record.air_filter_change
-                    );
-                 } else { lastPerformedRecord = vehicleRecords.find(record => record[categoryKey] === true); }
+                lastPerformedRecord = vehicleRecords.find(record => record[categoryKey] === true);
                 const categoryDisplayName = MAINTENANCE_CATEGORIES[categoryKey];
                 if (lastPerformedRecord) {
                     const dueDate = calculateDueDate(lastPerformedRecord.date, categoryConfiguration.value, categoryConfiguration.type);
