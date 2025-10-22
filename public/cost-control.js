@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Date Formatting ---
-    // CORRIGIDO: Aceita string (YYYY-MM-DD ou MM/DD/YYYY) ou Date object
+    // Aceita string (YYYY-MM-DD ou MM/DD/YYYY) ou Date object
     function formatDateForDisplay(dateInput) {
         if (!dateInput) return '';
         let dateObj;
@@ -204,6 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function populateDropdown(selectElement, items, defaultText = 'Select...', valueKey = null, textKey = null) {
          selectElement.innerHTML = `<option value="">${defaultText}</option>`; // Limpa e adiciona opção padrão
         if (items && Array.isArray(items)) {
+            // Ordena pelo texto a ser exibido
             items.sort((a, b) => {
                 const textA = textKey ? (a[textKey] || '') : (a || '');
                 const textB = textKey ? (b[textKey] || '') : (b || '');
@@ -364,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                  } else {
                      defaultValue = DEFAULT_INTERVALS[keyPath];
                  }
-                 value = defaultValue;
+                 value = defaultValue; // Usa o default se carregado for undefined
             }
 
             // Fallback final
@@ -479,7 +480,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Alert Logic ---
+    // --- Alert Logic (MODIFICADO: Não exibe "no record found") ---
     function renderAlerts(data) {
         alertsContent.innerHTML = ''; // Limpa alertas
         let hasAnyAlerts = false;
@@ -524,12 +525,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (records.length === 0) continue;
 
             let vehicleAlertMessages = [];
-            let highestSeverity = 'info';
+            let highestSeverity = 'info'; // 'info', 'warning', 'error'
 
-            // Verifica cada categoria
+            // Verifica cada categoria de manutenção configurada
             for (const key in MAINTENANCE_CATEGORIES) {
                 const config = intervalConfig[key];
-                 // Pula se config inválida
+                 // Pula se a configuração para esta chave não existir ou for inválida
                 if (!config || !config.type || isNaN(config.value) || config.value <= 0) continue;
 
                 let lastRecord;
@@ -544,34 +545,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const categoryName = MAINTENANCE_CATEGORIES[key];
 
+                // MODIFICADO: Só processa se lastRecord existir
                 if (lastRecord) {
-                    // Passa o objeto Date diretamente
                     const dueDate = calculateDueDate(lastRecord.date, config.value, config.type);
 
                     if (dueDate && !isNaN(dueDate)) { // Verifica se dueDate é válido
                         if (dueDate <= today) { // Vencido
-                            // Passa o objeto Date para formatDateForDisplay
                             vehicleAlertMessages.push(`${categoryName} due (Last: ${formatDateForDisplay(lastRecord.date)})`);
-                            highestSeverity = 'error';
+                            highestSeverity = 'error'; // Prioridade máxima
                         } else if (dueDate <= alertThresholdDate) { // Próximo
-                            // Passa o objeto Date para formatDateForDisplay
                             vehicleAlertMessages.push(`${categoryName} soon (Due: ${formatDateForDisplay(dueDate)})`);
                             if (highestSeverity !== 'error') highestSeverity = 'warning';
                         }
                     } else {
                          console.warn(`Could not calculate due date for ${categoryName} on vehicle ${plate}. Last record date: ${lastRecord.date}`);
                     }
-                } else {
-                    if (key !== 'other') {
-                        vehicleAlertMessages.push(`No ${categoryName} record found`);
-                    }
                 }
+                 // REMOVIDO: Bloco 'else' que adicionava "No record found"
             } // Fim loop categorias
 
-            // 3. Cria alerta se houver mensagens
+            // 3. Cria um único bloco de alerta para o veículo, se houver mensagens
             if (vehicleAlertMessages.length > 0) {
                 createAlert(plate, vehicleAlertMessages, highestSeverity);
-                hasAnyAlerts = true;
+                hasAnyAlerts = true; // Marca que pelo menos um alerta foi gerado
             }
         } // Fim loop veículos
 
@@ -581,7 +577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
-    // Create Alert HTML (CORRIGIDO: Removeu comentários que apareciam no HTML)
+    // Create Alert HTML
     function createAlert(plate, messages, type) {
         const alertDiv = document.createElement('div');
         let borderColor = 'border-border';
@@ -604,7 +600,7 @@ document.addEventListener('DOMContentLoaded', async () => {
        alertDiv.className = `p-3 border ${borderColor} rounded-lg ${bgColor} mb-2`;
        const messageString = messages.join(' • ');
 
-       // Removeu os comentários {/**/} daqui
+       // Removeu comentários daqui
        alertDiv.innerHTML = `
            <div class="flex justify-between items-center">
                 <span class="font-semibold text-sm ${titleColor}">${title}: Vehicle ${plate}</span>
@@ -652,7 +648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Validações
         if (!data.technician) { showToast('Please select a Technician (Driver).', 'error'); return; }
         if (!data.license_plate || !data.vin) { showToast('VIN and License Plate must be autofilled by selecting a Technician.', 'error'); return; }
-        if (!data.date || !data.odometer || !data.cost_type || data.price === undefined || data.price === '') { // Verificação mais robusta para preço
+        if (!data.date || !data.odometer || !data.cost_type || data.price === undefined || data.price === '') {
              showToast('Date, Odometer, Cost Type, and Price are required.', 'error');
              return;
         }
@@ -735,7 +731,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Initialization ---
     async function initializePage() {
         setTodaysDate();
-        await fetchInitialData(); // Carrega config da API, popula form, busca dados, renderiza alertas
+        // Carrega a configuração ANTES de buscar os outros dados
+        intervalConfig = await loadIntervalConfig();
+        populateConfigForm(); // Popula o formulário com a config carregada
+        // Só então busca os dados de carros/custos e renderiza alertas
+        await fetchInitialData();
     }
 
     initializePage(); // Inicia a página
