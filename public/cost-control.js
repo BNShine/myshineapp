@@ -65,50 +65,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Date Formatting ---
-    function formatDateForDisplay(dateStr) {
-        if (!dateStr) return '';
-        // Tenta detectar se já está em MM/DD/YYYY
-        if (dateStr.includes('/') && !dateStr.includes('-')) {
-             const parts = dateStr.split('/');
-             // Verifica se o ano tem 4 dígitos
-             if (parts.length === 3 && parts[2] && parts[2].length === 4) return dateStr;
+    // CORRIGIDO: Aceita string (YYYY-MM-DD ou MM/DD/YYYY) ou Date object
+    function formatDateForDisplay(dateInput) {
+        if (!dateInput) return '';
+        let dateObj;
+
+        if (dateInput instanceof Date && !isNaN(dateInput)) {
+            dateObj = dateInput;
+        } else if (typeof dateInput === 'string') {
+            // Tenta detectar MM/DD/YYYY
+            if (dateInput.includes('/') && !dateInput.includes('-')) {
+                 const parts = dateInput.split('/');
+                 if (parts.length === 3 && parts[2] && parts[2].length === 4) {
+                     dateObj = new Date(parts[2], parseInt(parts[0], 10) - 1, parts[1]);
+                 }
+            // Tenta detectar YYYY-MM-DD
+            } else if (dateInput.includes('-') && !dateInput.includes('/')) {
+                 const parts = dateInput.split('-');
+                 if (parts.length === 3 && parts[0].length === 4) {
+                     // Adiciona T00:00:00 para evitar timezone shift ao criar o objeto
+                     dateObj = new Date(dateInput + "T00:00:00");
+                 }
+            }
+             // Tenta analisar outros formatos (menos provável vindo da planilha)
+             else {
+                 try { dateObj = new Date(dateInput); } catch (e) {}
+             }
         }
-        // Assume YYYY-MM-DD
-        const [year, month, day] = dateStr.split('-');
-        if (year && month && day && year.length === 4) {
+
+        // Se temos um objeto Date válido, formata
+        if (dateObj instanceof Date && !isNaN(dateObj)) {
+            const year = dateObj.getFullYear();
+             // Verifica ano razoável
+             if (year < 1900) {
+                  console.warn("formatDateForDisplay: Year seems invalid:", year, "Original input:", dateInput);
+                  return typeof dateInput === 'string' ? dateInput : ''; // Retorna original se string, vazio senão
+             }
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
             return `${month}/${day}/${year}`;
         }
-        // Tenta analisar se é uma string de data JS (menos comum vindo da planilha)
-        try {
-            const d = new Date(dateStr);
-            if (!isNaN(d)) {
-                 const y = d.getFullYear();
-                 const m = String(d.getMonth() + 1).padStart(2, '0');
-                 const dy = String(d.getDate()).padStart(2, '0');
-                 // Garante que o ano seja válido
-                 if (y > 1900) return `${m}/${dy}/${y}`;
-            }
-        } catch(e){}
 
-        console.warn("Could not format date for display:", dateStr)
-        return dateStr; // Retorna original se não conseguir formatar
+        console.warn("Could not format date for display:", dateInput);
+        return typeof dateInput === 'string' ? dateInput : ''; // Retorna original se string, vazio senão
     }
+
 
     function formatDateForInput(dateInput) {
         if (!dateInput) return '';
         let dateObj;
-        if (dateInput instanceof Date) {
+        if (dateInput instanceof Date && !isNaN(dateInput)) { // Verifica se já é um objeto Date válido
             dateObj = dateInput;
         } else if (typeof dateInput === 'string') {
-            // Verifica MM/DD/YYYY
-            if (dateInput.includes('/') && !dateInput.includes('T')) {
+            // Verifica MM/DD/YYYY (sem hora)
+            if (dateInput.includes('/') && !dateInput.includes('T') && !dateInput.includes(' ')) {
                  const parts = dateInput.split('/');
                  if (parts.length === 3 && parts[2] && parts[2].length === 4) {
                      // Month is 0-indexed for Date constructor
                      dateObj = new Date(parts[2], parseInt(parts[0], 10) - 1, parts[1]);
                  }
-            // Verifica YYYY-MM-DD (já no formato correto)
-            } else if (dateInput.includes('-') && !dateInput.includes('T')) {
+            // Verifica YYYY-MM-DD (já no formato correto, sem hora)
+            } else if (dateInput.includes('-') && !dateInput.includes('T') && !dateInput.includes(' ')) {
                  const parts = dateInput.split('-');
                  if (parts.length === 3 && parts[0].length === 4) {
                      // Cria um objeto Date para validar, mas retorna a string original se válida
@@ -118,13 +135,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                      }
                  }
             }
-             // Tenta analisar outros formatos de string de data comuns
+             // Tenta analisar outros formatos de string de data comuns (incluindo ISO com hora)
              else {
                 try {
-                    dateObj = new Date(dateInput);
+                    // Tenta criar o objeto Date diretamente
+                    const tempDate = new Date(dateInput);
+                    // Verifica se o objeto criado é válido
+                    if (!isNaN(tempDate)) {
+                        dateObj = tempDate;
+                    }
                  } catch (e) {
-                    console.warn("Could not parse date string for input:", dateInput);
-                    return ''; // Retorna vazio se o parse falhar
+                    // Ignora o erro se o parse falhar
                  }
             }
         }
@@ -134,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const year = dateObj.getFullYear();
             // Verifica se o ano é razoável
             if (year < 1900) {
-                 console.warn("Year seems invalid:", year, "Original input:", dateInput);
+                 console.warn("formatDateForInput: Year seems invalid:", year, "Original input:", dateInput);
                  return '';
             }
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -151,9 +172,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     function calculateDueDate(startDate, intervalValue, intervalType) {
         if (!startDate || isNaN(intervalValue) || intervalValue <= 0) return null;
         // Cria uma nova data baseada na data de início para evitar modificar a original
-        const d = new Date(startDate);
-        // Garante que estamos lidando com um objeto Date válido
-        if (isNaN(d.getTime())) return null;
+        // Garante que startDate seja um objeto Date
+        const d = (startDate instanceof Date && !isNaN(startDate)) ? new Date(startDate) : null;
+
+        // Retorna null se a data de início for inválida
+        if (!d) {
+            console.warn("calculateDueDate received an invalid start date:", startDate);
+            return null;
+        }
 
         const originalDay = d.getDate(); // Guarda o dia original
 
@@ -169,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             return null; // Tipo de intervalo inválido
         }
-        d.setHours(0,0,0,0); // Zera a hora para comparação
+        d.setHours(0,0,0,0); // Zera a hora para comparação de data apenas
         return d;
     }
 
@@ -178,7 +204,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function populateDropdown(selectElement, items, defaultText = 'Select...', valueKey = null, textKey = null) {
          selectElement.innerHTML = `<option value="">${defaultText}</option>`; // Limpa e adiciona opção padrão
         if (items && Array.isArray(items)) {
-            // Ordena pelo texto a ser exibido
             items.sort((a, b) => {
                 const textA = textKey ? (a[textKey] || '') : (a || '');
                 const textB = textKey ? (b[textKey] || '') : (b || '');
@@ -186,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }).forEach(item => {
                 const value = valueKey ? (item[valueKey] || '') : (item || '');
                 const text = textKey ? (item[textKey] || '') : (item || '');
-                if (value) { // Só adiciona se tiver um valor (evita techs sem nome)
+                if (value) { // Só adiciona se tiver um valor
                     const option = document.createElement('option');
                     option.value = value;
                     option.textContent = text;
@@ -201,7 +226,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const today = new Date();
         const dateInput = document.getElementById('date');
         if (dateInput) {
-            // Formata o objeto Date para YYYY-MM-DD
             dateInput.value = formatDateForInput(today);
         }
      }
@@ -214,19 +238,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok) {
                  console.error('Failed to fetch config from server, status:', response.status);
                  showToast('Failed to load maintenance config, using defaults.', 'warning');
-                 return { ...DEFAULT_INTERVALS };
+                 // Retorna uma cópia dos defaults se a API falhar
+                 return JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
             }
             const configFromServer = await response.json();
 
             // Mescla config do servidor com defaults para garantir que todas as chaves existam
-            const mergedConfig = { ...DEFAULT_INTERVALS };
+            const mergedConfig = JSON.parse(JSON.stringify(DEFAULT_INTERVALS)); // Deep copy defaults
 
-            // Itera sobre as chaves do DEFAULT_INTERVALS para garantir a estrutura correta
             for (const key in DEFAULT_INTERVALS) {
                 if (configFromServer.hasOwnProperty(key)) {
                     // Se for um objeto aninhado (como tire_change), mescla internamente
                     if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof configFromServer[key] === 'object' && configFromServer[key] !== null) {
-                        // Garante que 'type' e 'value' existam e sejam válidos
                         let type = configFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
                         let value = parseInt(configFromServer[key].value, 10);
                         if(isNaN(value) || value < 1) value = DEFAULT_INTERVALS[key].value;
@@ -236,58 +259,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                         let threshold = parseInt(configFromServer[key], 10);
                          if(isNaN(threshold) || threshold < 0) threshold = DEFAULT_INTERVALS[key];
                          mergedConfig[key] = threshold;
-                    } else {
-                         // Para outras chaves diretas (se houver no futuro)
-                         mergedConfig[key] = configFromServer[key];
                     }
+                    // Ignora outras chaves que não sejam objetos nem o threshold (caso existam por erro)
                 }
-                // Se a chave não existir no servidor, o valor padrão já está em mergedConfig
             }
-             console.log("Loaded and merged config:", mergedConfig); // Debug log
+            console.log("Loaded and merged config:", mergedConfig);
             return mergedConfig;
 
         } catch (e) {
             console.error("Error loading interval config via API:", e);
             showToast('Error loading maintenance config, using defaults.', 'error');
-            return { ...DEFAULT_INTERVALS }; // Retorna defaults em caso de erro de fetch/parse
+            return JSON.parse(JSON.stringify(DEFAULT_INTERVALS)); // Retorna cópia dos defaults
         }
     }
 
-    async function saveIntervalConfig() {
-        const newConfig = { }; // Começa com objeto vazio
+     async function saveIntervalConfig() {
+        const newConfig = { };
         let isValid = true;
-        // Lê os valores atuais do formulário
         configForm.querySelectorAll('[data-config-key]').forEach(el => {
             const keyPath = el.dataset.configKey;
             let value = el.value;
 
-            // Validações básicas
             if (el.type === 'number') {
                 const numValue = parseInt(value, 10);
-                if (isNaN(numValue) || numValue < (keyPath === 'alert_threshold_days' ? 0 : 1) ) {
-                    // Se inválido, busca o default para aquela chave específica
+                const isThreshold = keyPath === 'alert_threshold_days';
+                const minValue = isThreshold ? 0 : 1;
+                if (isNaN(numValue) || numValue < minValue) {
                     const keys = keyPath.split('.');
                     let defaultValue = (keys.length === 2 && DEFAULT_INTERVALS[keys[0]]) ? DEFAULT_INTERVALS[keys[0]][keys[1]] : DEFAULT_INTERVALS[keyPath];
-                    if (defaultValue === undefined) defaultValue = (keyPath === 'alert_threshold_days' ? 0 : 1); // Último recurso
-                    value = defaultValue;
-                    el.value = value; // Corrige no formulário
-                    isValid = false; // Marca como inválido para alertar
-                     showToast(`Invalid value for ${keyPath.replace('_', ' ')}. Resetting to default.`, 'warning');
+                    value = (defaultValue !== undefined) ? defaultValue : minValue;
+                    el.value = value;
+                    isValid = false;
+                    showToast(`Invalid value for ${keyPath.replace(/_/g, ' ')}. Resetting to default.`, 'warning');
                 } else {
-                    value = numValue; // Usa o valor numérico validado
+                    value = numValue;
                 }
-            } else if (el.tagName === 'SELECT') {
-                if (!value) { // Caso o select esteja vazio por algum motivo
-                     const keys = keyPath.split('.');
-                     let defaultValue = (keys.length === 2 && DEFAULT_INTERVALS[keys[0]]) ? DEFAULT_INTERVALS[keys[0]][keys[1]] : DEFAULT_INTERVALS[keyPath];
-                     if (!defaultValue) defaultValue = 'monthly'; // Default genérico
-                     value = defaultValue;
-                     el.value = value;
-                     isValid = false;
-                     showToast(`Invalid type for ${keyPath.replace('_', ' ')}. Resetting to default.`, 'warning');
-                }
+            } else if (el.tagName === 'SELECT' && !value) {
+                const keys = keyPath.split('.');
+                let defaultValue = (keys.length === 2 && DEFAULT_INTERVALS[keys[0]]) ? DEFAULT_INTERVALS[keys[0]][keys[1]] : DEFAULT_INTERVALS[keyPath];
+                value = defaultValue || 'monthly';
+                el.value = value;
+                isValid = false;
+                showToast(`Invalid type for ${keyPath.replace(/_/g, ' ')}. Resetting to default.`, 'warning');
             }
-
 
             const keys = keyPath.split('.');
             if (keys.length === 2) {
@@ -298,14 +312,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-         if (!isValid) {
-            showToast('Some configuration values were invalid and reset to defaults. Please review and save again if needed.', 'warning');
-            // Não impede o salvamento, mas avisa o usuário
-        }
+        console.log("Saving config:", newConfig);
 
-        console.log("Saving config:", newConfig); // Debug log
-
-        // Desabilita botão enquanto salva
         saveConfigBtn.disabled = true;
         saveConfigBtn.textContent = 'Saving...';
 
@@ -313,15 +321,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/api/save-maintenance-config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newConfig) // Envia o objeto JSON para a API
+                body: JSON.stringify(newConfig)
             });
 
             const result = await response.json();
 
             if (result.success) {
-                intervalConfig = newConfig; // Atualiza o estado global
+                intervalConfig = newConfig; // Atualiza estado global
                 showToast('Configuration saved successfully!', 'success');
-                renderAlerts(allCostData); // Re-renderiza alertas com a nova config
+                renderAlerts(allCostData); // Re-renderiza alertas
             } else {
                 throw new Error(result.message || 'Failed to save configuration.');
             }
@@ -329,7 +337,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("Error saving interval config via API:", e);
             showToast(`Failed to save configuration: ${e.message}`, 'error');
         } finally {
-             // Reabilita o botão
              saveConfigBtn.disabled = false;
              saveConfigBtn.textContent = 'Save Configuration';
         }
@@ -337,7 +344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     function populateConfigForm() {
-        if (!configForm) return;
+        if (!configForm || !intervalConfig) return; // Garante que ambos existam
         configForm.querySelectorAll('[data-config-key]').forEach(el => {
             const keyPath = el.dataset.configKey;
             const keys = keyPath.split('.');
@@ -349,18 +356,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 value = intervalConfig[keyPath];
             }
 
-            // Busca o valor default se não encontrar na config carregada
-            let defaultValue;
+            // Usa o default APENAS se o valor carregado for undefined
             if (value === undefined) {
-                if (keys.length === 2) {
+                 let defaultValue;
+                 if (keys.length === 2) {
                      defaultValue = DEFAULT_INTERVALS[keys[0]] ? DEFAULT_INTERVALS[keys[0]][keys[1]] : undefined;
-                } else {
+                 } else {
                      defaultValue = DEFAULT_INTERVALS[keyPath];
-                }
-                value = defaultValue; // Usa o default se carregado for undefined
+                 }
+                 value = defaultValue;
             }
 
-            // Garante um fallback final se nem carregado nem default existirem
+            // Fallback final
              if (value === undefined) {
                 if (el.tagName === 'SELECT') value = 'monthly';
                 else if (el.type === 'number') value = keyPath === 'alert_threshold_days' ? 0 : 1;
@@ -376,15 +383,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center">Loading initial data...</td></tr>';
         alertsContent.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>';
         try {
-            // Carrega a configuração ANTES de buscar os outros dados
-            intervalConfig = await loadIntervalConfig();
-            populateConfigForm(); // Popula o form com a config carregada/mesclada
+            // Config já foi carregada em initializePage()
 
             const [techCarsResponse, costResponse] = await Promise.all([
                 fetch('/api/get-tech-cars-data'),
                 fetch('/api/get-cost-control-data')
             ]);
 
+            // Trata TechCars
             if (!techCarsResponse.ok) {
                 let errorMsg = 'Failed to load technician/car list.';
                 try { const errorJson = await techCarsResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${techCarsResponse.status}`; }
@@ -395,30 +401,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             populateDropdown(technicianSelect, techCarsData, 'Select Technician...', 'tech_name', 'tech_name');
             populateDropdown(filterTechnicianSelect, techCarsData, 'All Technicians', 'tech_name', 'tech_name');
 
+            // Trata Custos
             if (!costResponse.ok) {
                 let errorMsg = 'Failed to load cost control data.';
                 try { const errorJson = await costResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${costResponse.status}`; }
                 throw new Error(errorMsg);
             }
             const costDataResult = await costResponse.json();
+            // Filtra registros sem data válida ANTES de usar
             allCostData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date));
 
-            // Não renderiza a tabela inicialmente
+            // Não renderiza tabela inicialmente
             costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>';
-            renderAlerts(allCostData); // Renderiza alertas com a config carregada
+            renderAlerts(allCostData); // Renderiza alertas com a config
 
         } catch (error) {
             console.error('Error fetching initial data:', error);
             showToast(`Error loading data: ${error.message}`, 'error');
             costControlTableBody.innerHTML = `<tr><td colspan="15" class="p-4 text-center text-red-600">Failed to load data. ${error.message}</td></tr>`;
             alertsContent.innerHTML = `<p class="text-destructive">Failed to load alert data: ${error.message}</p>`;
+            // Desabilita dropdowns se falhar
             if (technicianSelect) { technicianSelect.disabled = true; populateDropdown(technicianSelect, [], 'Error loading'); }
             if (filterTechnicianSelect) { filterTechnicianSelect.disabled = true; populateDropdown(filterTechnicianSelect, [], 'Error loading'); }
         }
     }
 
 
-    // --- Table Rendering (Now accepts filtered data) ---
+    // --- Table Rendering ---
     function renderTable(data) {
         costControlTableBody.innerHTML = '';
         if (!Array.isArray(data) || data.length === 0) {
@@ -430,18 +439,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Ordena por data (mais recente primeiro) ANTES de exibir
         const sortedData = data.sort((a, b) => {
              const dateAStr = formatDateForInput(a.date);
              const dateBStr = formatDateForInput(b.date);
-             // Coloca datas inválidas no final
              if (!dateAStr && !dateBStr) return 0;
              if (!dateAStr) return 1;
              if (!dateBStr) return -1;
-             // Compara datas válidas
              const dateA = new Date(dateAStr);
              const dateB = new Date(dateBStr);
-             return dateB.getTime() - dateA.getTime(); // Mais recente primeiro
+             return dateB.getTime() - dateA.getTime();
         });
 
         sortedData.forEach(record => {
@@ -473,15 +479,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Alert Logic (Using Config, Grouped by Vehicle) ---
+    // --- Alert Logic ---
     function renderAlerts(data) {
-        alertsContent.innerHTML = '';
+        alertsContent.innerHTML = ''; // Limpa alertas
         let hasAnyAlerts = false;
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0); // Zera hora
 
+        // Usa o valor da config global 'intervalConfig'
         const alertThresholdDays = parseInt(intervalConfig.alert_threshold_days, 10);
-        // Garante que alertThresholdDays seja um número válido >= 0
         const validThresholdDays = (!isNaN(alertThresholdDays) && alertThresholdDays >= 0) ? alertThresholdDays : DEFAULT_INTERVALS.alert_threshold_days;
 
         const alertThresholdDate = new Date(today);
@@ -494,14 +500,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (record.license_plate) {
                 const plate = record.license_plate.toUpperCase().trim();
                 const recordDateStr = formatDateForInput(record.date); // Garante YYYY-MM-DD
-                const recordDate = recordDateStr ? new Date(recordDateStr + "T00:00:00") : null; // Adiciona T00:00:00
+                const recordDate = recordDateStr ? new Date(recordDateStr + "T00:00:00") : null;
 
-                // Ignora registros sem data válida
-                if (!recordDate || isNaN(recordDate)) return;
+                if (!recordDate || isNaN(recordDate)) return; // Pula se data inválida
 
                 if (!vehicleData[plate]) vehicleData[plate] = [];
-
-                // Armazena informações relevantes, incluindo as novas flags
                 vehicleData[plate].push({
                     date: recordDate,
                     tire_change: String(record.tire_change).toUpperCase() === 'TRUE',
@@ -510,89 +513,81 @@ document.addEventListener('DOMContentLoaded', async () => {
                     battery_change: String(record.battery_change).toUpperCase() === 'TRUE',
                     air_filter_change: String(record.air_filter_change).toUpperCase() === 'TRUE',
                     cost_type: record.cost_type,
-                    subtype: record.subtype // Pode ser útil para 'Other'
+                    subtype: record.subtype
                 });
             }
         });
 
         // 2. Processa cada veículo
         for (const plate in vehicleData) {
-            const records = vehicleData[plate].sort((a, b) => b.date.getTime() - a.date.getTime()); // Mais recente primeiro
+            const records = vehicleData[plate].sort((a, b) => b.date.getTime() - a.date.getTime());
             if (records.length === 0) continue;
 
             let vehicleAlertMessages = [];
-            let highestSeverity = 'info'; // 'info', 'warning', 'error'
+            let highestSeverity = 'info';
 
-            // Verifica cada categoria de manutenção configurada
+            // Verifica cada categoria
             for (const key in MAINTENANCE_CATEGORIES) {
                 const config = intervalConfig[key];
-                 // Pula se a configuração para esta chave não existir ou for inválida
-                if (!config || !config.type || isNaN(config.value) || config.value <= 0) {
-                     console.warn(`Invalid or missing config for ${key}. Skipping alert check.`);
-                     continue;
-                 }
+                 // Pula se config inválida
+                if (!config || !config.type || isNaN(config.value) || config.value <= 0) continue;
 
                 let lastRecord;
-                 // Encontra o último registro onde este serviço específico foi realizado
                  if (key === 'other') {
-                    // Para 'Other', procura pelo último 'Maintenance' ou 'Repair' que não seja um dos específicos
                     lastRecord = records.find(r =>
                         (r.cost_type === 'Maintenance' || r.cost_type === 'Repair') &&
                         !r.tire_change && !r.oil_and_filter_change && !r.brake_change && !r.battery_change && !r.air_filter_change
                     );
                  } else {
-                    // Para tipos específicos (ex: 'tire_change'), procura pelo último onde a flag correspondente é true
                      lastRecord = records.find(r => r[key] === true);
                  }
 
                 const categoryName = MAINTENANCE_CATEGORIES[key];
 
                 if (lastRecord) {
+                    // Passa o objeto Date diretamente
                     const dueDate = calculateDueDate(lastRecord.date, config.value, config.type);
 
-                    // Verifica se dueDate é uma data válida antes de comparar
-                    if (dueDate && !isNaN(dueDate)) {
+                    if (dueDate && !isNaN(dueDate)) { // Verifica se dueDate é válido
                         if (dueDate <= today) { // Vencido
+                            // Passa o objeto Date para formatDateForDisplay
                             vehicleAlertMessages.push(`${categoryName} due (Last: ${formatDateForDisplay(lastRecord.date)})`);
-                            highestSeverity = 'error'; // Prioridade máxima
-                        } else if (dueDate <= alertThresholdDate) { // Próximo do vencimento
+                            highestSeverity = 'error';
+                        } else if (dueDate <= alertThresholdDate) { // Próximo
+                            // Passa o objeto Date para formatDateForDisplay
                             vehicleAlertMessages.push(`${categoryName} soon (Due: ${formatDateForDisplay(dueDate)})`);
-                            // Define como warning apenas se não houver um erro mais grave
                             if (highestSeverity !== 'error') highestSeverity = 'warning';
                         }
                     } else {
                          console.warn(`Could not calculate due date for ${categoryName} on vehicle ${plate}. Last record date: ${lastRecord.date}`);
                     }
                 } else {
-                    // Adiciona "no record found" apenas para os tipos específicos, não para 'Other'
                     if (key !== 'other') {
                         vehicleAlertMessages.push(`No ${categoryName} record found`);
-                        // Mantém 'info' como severidade padrão se não houver outros alertas mais graves
                     }
                 }
-            } // Fim do loop pelas categorias
+            } // Fim loop categorias
 
-            // 3. Cria um único bloco de alerta para o veículo, se houver mensagens
+            // 3. Cria alerta se houver mensagens
             if (vehicleAlertMessages.length > 0) {
                 createAlert(plate, vehicleAlertMessages, highestSeverity);
-                hasAnyAlerts = true; // Marca que pelo menos um alerta foi gerado
+                hasAnyAlerts = true;
             }
-        } // Fim do loop pelos veículos
+        } // Fim loop veículos
 
-        // 4. Exibe mensagem se nenhum alerta foi gerado
         if (!hasAnyAlerts) {
             alertsContent.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts found based on configured intervals.</p>';
         }
     }
 
 
-    // Create Alert HTML (Mantém o estilo compacto)
+    // Create Alert HTML (CORRIGIDO: Removeu comentários que apareciam no HTML)
     function createAlert(plate, messages, type) {
         const alertDiv = document.createElement('div');
-        let borderColor = 'border-border'; // Cor padrão para 'info' e 'no record'
+        let borderColor = 'border-border';
         let bgColor = 'bg-muted/10';
         let title = 'Info';
-        let titleColor = 'text-foreground'; // Cor padrão
+        let titleColor = 'text-foreground';
 
         if (type === 'warning') {
             borderColor = 'border-yellow-500';
@@ -600,24 +595,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             title = 'Warning';
             titleColor = 'text-yellow-700 dark:text-yellow-300';
         } else if (type === 'error') {
-            borderColor = 'border-destructive'; // Cor do tema para erro
+            borderColor = 'border-destructive';
             bgColor = 'bg-destructive/10';
-            title = 'Alert / Due'; // Título mais claro para erro
+            title = 'Alert / Due';
             titleColor = 'text-destructive';
         }
 
-       // Estilo mais compacto
        alertDiv.className = `p-3 border ${borderColor} rounded-lg ${bgColor} mb-2`;
-
-       // Cria string única com mensagens separadas por " • "
        const messageString = messages.join(' • ');
 
+       // Removeu os comentários {/**/} daqui
        alertDiv.innerHTML = `
            <div class="flex justify-between items-center">
-                {/* Título com cor baseada na severidade */}
                 <span class="font-semibold text-sm ${titleColor}">${title}: Vehicle ${plate}</span>
            </div>
-           {/* Mensagens com cor padrão */}
            <p class="text-xs text-foreground mt-1">${messageString}</p>
        `;
        alertsContent.appendChild(alertDiv);
@@ -626,15 +617,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Autofill Logic ---
     function handleTechnicianChange() {
         const selectedTechName = technicianSelect.value;
-        // Tenta encontrar dados do técnico na lista carregada
         const selectedTechData = techCarsData.find(tech => tech.tech_name === selectedTechName);
 
         if (selectedTechData) {
-            // Preenche VIN e Placa se encontrados
             vinInput.value = selectedTechData.vin_number || '';
             licensePlateInput.value = selectedTechData.car_plate || '';
         } else {
-            // Limpa os campos se o técnico não for encontrado ou "Select..." for escolhido
             vinInput.value = '';
             licensePlateInput.value = '';
         }
@@ -642,39 +630,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Form Submission ---
     costControlForm.addEventListener('submit', async (event) => {
-        event.preventDefault(); // Impede o envio padrão do formulário
+        event.preventDefault();
         const formData = new FormData(costControlForm);
         const data = {};
 
-        // Coleta dados do formulário
         formData.forEach((value, key) => {
             if (key === 'price' && typeof value === 'string') {
-                // Substitui vírgula por ponto ANTES de enviar
                 data[key] = value.replace(',', '.');
             } else {
                 data[key] = value;
             }
         });
 
-        // Adiciona VIN e Placa (que são readonly e podem não estar no FormData)
         data['vin'] = vinInput.value;
         data['license_plate'] = licensePlateInput.value;
 
-        // Garante valor 'TRUE' ou 'FALSE' para checkboxes, incluindo os novos
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
             data[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
 
-        // Validações Essenciais
-        if (!data.technician) {
-            showToast('Please select a Technician (Driver).', 'error');
-            return; // Impede o envio
-        }
-        if (!data.license_plate || !data.vin) {
-            showToast('VIN and License Plate must be autofilled by selecting a Technician.', 'error');
-            return;
-        }
-        if (!data.date || !data.odometer || !data.cost_type || !data.price) {
+        // Validações
+        if (!data.technician) { showToast('Please select a Technician (Driver).', 'error'); return; }
+        if (!data.license_plate || !data.vin) { showToast('VIN and License Plate must be autofilled by selecting a Technician.', 'error'); return; }
+        if (!data.date || !data.odometer || !data.cost_type || data.price === undefined || data.price === '') { // Verificação mais robusta para preço
              showToast('Date, Odometer, Cost Type, and Price are required.', 'error');
              return;
         }
@@ -691,14 +669,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify(data),
             });
 
-            // Tratamento de erro melhorado
             if (!response.ok) {
                 let errorText = `Server responded with status: ${response.status}`;
-                try {
-                    const errorResult = await response.json();
-                    errorText = errorResult.message || errorText;
-                } catch(e) { /* Ignora erro de parse do JSON de erro */ }
-                 console.error("API Error Response:", await response.text()); // Loga a resposta completa se possível
+                try { const errorResult = await response.json(); errorText = errorResult.message || errorText; } catch(e) {}
+                 console.error("API Error Response:", await response.text());
                  throw new Error(`Failed to save record. ${errorText}`);
             }
 
@@ -706,14 +680,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (result.success) {
                 showToast('Record saved successfully!', 'success');
-                costControlForm.reset(); // Limpa o formulário
-                setTodaysDate(); // Define data novamente
-                vinInput.value = ''; // Limpa campos autofill
-                licensePlateInput.value = ''; // Limpa campos autofill
-                // Recarrega todos os dados para atualizar a lista e os alertas
-                await fetchInitialData();
+                costControlForm.reset();
+                setTodaysDate();
+                vinInput.value = '';
+                licensePlateInput.value = '';
+                // Recarrega todos os dados
+                await initializePage(); // Chama a função principal de inicialização
             } else {
-                // Caso a API retorne status 2xx mas success: false
                 throw new Error(result.message || 'Failed to save record.');
             }
         } catch (error) {
@@ -732,36 +705,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const techName = filterTechnicianSelect.value;
         const plate = filterLicensePlateInput.value.trim().toLowerCase();
 
-        // Converte datas do filtro para objetos Date para comparação
-        // Adiciona T00:00:00 e T23:59:59 para incluir o dia inteiro
         const startDate = startDateStr ? new Date(startDateStr + 'T00:00:00') : null;
         const endDate = endDateStr ? new Date(endDateStr + 'T23:59:59') : null;
 
         const filteredData = allCostData.filter(record => {
-            // Converte data do registro para objeto Date
-            const recordDateStr = formatDateForInput(record.date); // Garante YYYY-MM-DD
-            // Adiciona T00:00:00 para consistência na comparação
+            const recordDateStr = formatDateForInput(record.date); // YYYY-MM-DD
             const recordDate = recordDateStr ? new Date(recordDateStr + 'T00:00:00') : null;
 
-            // Se a data do registro for inválida, não inclui no resultado
             if (!recordDate || isNaN(recordDate)) return false;
 
-            // Verifica se a data está dentro do range (se os filtros de data foram definidos)
             const matchesDate =
                 (!startDate || recordDate >= startDate) &&
                 (!endDate || recordDate <= endDate);
-
-            // Verifica se o técnico corresponde (se um técnico foi selecionado)
             const matchesTech = !techName || (record.technician && record.technician === techName);
-
-            // Verifica se a placa corresponde (case-insensitive, partial match)
             const matchesPlate = !plate || (record.license_plate && record.license_plate.toLowerCase().includes(plate));
 
-            // Retorna true apenas se TODAS as condições ativas forem atendidas
             return matchesDate && matchesTech && matchesPlate;
         });
 
-        // Mostra a seção de histórico e renderiza a tabela com os dados filtrados
         listingSection.classList.remove('hidden');
         renderTable(filteredData);
     });
