@@ -7,9 +7,10 @@
     <link href="output.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Estilos adicionais, se necessário */
         .checkbox-label { @apply flex items-center space-x-2 text-sm; }
         .checkbox-input { @apply h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary; }
+        /* Add styles for hidden elements if needed, Tailwind 'hidden' class usually suffices */
+        #listing-section.hidden { display: none; }
     </style>
 </head>
 <body class="min-h-screen bg-background text-foreground">
@@ -23,7 +24,7 @@
                 </a>
             </div>
             <nav class="flex-1 overflow-auto p-4">
-                <ul class="grid items-start gap-1 text-sm font-medium">
+                 <ul class="grid items-start gap-1 text-sm font-medium">
                     <li><a class="sidebar-link" href="appointments.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>Sales</a></li>
                     <li><a class="sidebar-link" href="customers.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Customers</a></li>
                     <li><a class="sidebar-link" href="analytics.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a></li>
@@ -140,6 +141,14 @@
                                 <input type="checkbox" id="brake_change" name="brake_change" value="TRUE" class="checkbox-input">
                                 Brake Change
                             </label>
+                            <label for="battery_change" class="checkbox-label">
+                                <input type="checkbox" id="battery_change" name="battery_change" value="TRUE" class="checkbox-input">
+                                Battery Change
+                            </label>
+                             <label for="air_filter_change" class="checkbox-label">
+                                <input type="checkbox" id="air_filter_change" name="air_filter_change" value="TRUE" class="checkbox-input">
+                                Air Filter Change
+                            </label>
                         </div>
                         <div class="flex justify-end pt-4">
                             <button type="submit" class="btn-primary h-11 px-8">
@@ -149,15 +158,102 @@
                     </form>
                 </section>
 
+                <section id="config-section" class="card-base">
+                    <div class="p-6 border-b">
+                        <h2 class="text-section-title">Maintenance Interval Configuration</h2>
+                    </div>
+                    <form id="config-form" class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                        <div class="col-span-full font-semibold text-lg mb-2 border-b pb-2">Intervals</div>
+                        <label class="text-label self-center">Tire Change:</label>
+                        <select id="config-tire_change-type" data-config-key="tire_change.type" class="input-base h-9 text-sm">
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                        <input type="number" id="config-tire_change-value" data-config-key="tire_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
+                        <label class="text-label self-center">Oil & Filter:</label>
+                        <select id="config-oil_and_filter_change-type" data-config-key="oil_and_filter_change.type" class="input-base h-9 text-sm">
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                        <input type="number" id="config-oil_and_filter_change-value" data-config-key="oil_and_filter_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
+                        <label class="text-label self-center">Brake Change:</label>
+                        <select id="config-brake_change-type" data-config-key="brake_change.type" class="input-base h-9 text-sm">
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                        <input type="number" id="config-brake_change-value" data-config-key="brake_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
+                         <label class="text-label self-center">Battery Change:</label>
+                        <select id="config-battery_change-type" data-config-key="battery_change.type" class="input-base h-9 text-sm">
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                        <input type="number" id="config-battery_change-value" data-config-key="battery_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
+                         <label class="text-label self-center">Air Filter Change:</label>
+                        <select id="config-air_filter_change-type" data-config-key="air_filter_change.type" class="input-base h-9 text-sm">
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                        <input type="number" id="config-air_filter_change-value" data-config-key="air_filter_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
+                         <label class="text-label self-center">Other Maintenance:</label>
+                        <select id="config-other-type" data-config-key="other.type" class="input-base h-9 text-sm">
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                        <input type="number" id="config-other-value" data-config-key="other.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
+
+                        <div class="col-span-full font-semibold text-lg mb-2 mt-4 border-b pb-2">Alert Threshold</div>
+                         <label class="text-label self-center md:col-span-2">Warn how many days before due date?</label>
+                        <input type="number" id="config-alert_threshold_days" data-config-key="alert_threshold_days" min="0" class="input-base h-9 text-sm" placeholder="Days">
+
+                        <div class="col-span-full flex justify-end mt-4">
+                             <button type="button" id="save-config-btn" class="btn-primary h-11 px-8">
+                                Save Configuration
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
                 <section id="alerts-section" class="card-base">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance Alerts</h2>
                     </div>
-                    <div id="alerts-content" class="p-6 space-y-4">
-                        <p class="text-muted-foreground">Alerts for upcoming maintenance will be displayed here...</p>
+                    <div id="alerts-content" class="p-6 space-y-2"> {/* Reduced spacing */}
+                        <p class="text-muted-foreground">Loading alerts based on configuration...</p>
                     </div>
                 </section>
-                <section id="listing-section" class="card-base">
+
+                <section id="filter-history-section" class="card-base">
+                    <div class="p-6 border-b">
+                        <h2 class="text-section-title">Filter Maintenance History</h2>
+                    </div>
+                    <div class="p-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                         <div>
+                            <label for="filter-start-date" class="text-label mb-2 block">Start Date</label>
+                            <input type="date" id="filter-start-date" class="input-base h-9 text-sm">
+                        </div>
+                         <div>
+                            <label for="filter-end-date" class="text-label mb-2 block">End Date</label>
+                            <input type="date" id="filter-end-date" class="input-base h-9 text-sm">
+                        </div>
+                         <div>
+                            <label for="filter-technician" class="text-label mb-2 block">Technician</label>
+                            <select id="filter-technician" class="input-base h-9 text-sm">
+                                <option value="">All Technicians</option>
+                                </select>
+                        </div>
+                         <div>
+                            <label for="filter-license-plate" class="text-label mb-2 block">License Plate</label>
+                            <input type="text" id="filter-license-plate" class="input-base h-9 text-sm" placeholder="Enter plate...">
+                        </div>
+                        <div class="lg:col-start-4 flex items-end">
+                            <button id="search-history-btn" class="btn-primary h-11 px-8 w-full">
+                                Search History
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="listing-section" class="card-base hidden">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance History</h2>
                     </div>
@@ -178,10 +274,12 @@
                                     <th class="p-4 border-b">Tire</th>
                                     <th class="p-4 border-b">Oil/Filter</th>
                                     <th class="p-4 border-b">Brake</th>
+                                    <th class="p-4 border-b">Battery</th>
+                                    <th class="p-4 border-b">Air Filter</th>
                                 </tr>
                             </thead>
                             <tbody id="cost-control-table-body" class="text-foreground text-sm">
-                                <tr><td colspan="13" class="p-4 text-center">Loading data...</td></tr>
+                                <tr><td colspan="15" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>
                             </tbody>
                         </table>
                     </div>
