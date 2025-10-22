@@ -8,14 +8,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toastContainerElement = document.getElementById('toast-container');
     const configurationFormElement = document.getElementById('config-form');
     const saveConfigurationButtonElement = document.getElementById('save-config-btn');
-    const filterHistorySectionElement = document.getElementById('filter-history-section');
-    const filterStartDateInputElement = document.getElementById('filter-start-date');
-    const filterEndDateInputElement = document.getElementById('filter-end-date');
-    const filterTechnicianSelectElement = document.getElementById('filter-technician');
-    const filterLicensePlateInputElement = document.getElementById('filter-license-plate');
-    const searchHistoryButtonElement = document.getElementById('search-history-btn');
+    // REMOVIDOS: Seletores de filtro
+    // const filterHistorySectionElement = document.getElementById('filter-history-section');
+    // const filterStartDateInputElement = document.getElementById('filter-start-date');
+    // const filterEndDateInputElement = document.getElementById('filter-end-date');
+    // const filterTechnicianSelectElement = document.getElementById('filter-technician');
+    // const filterLicensePlateInputElement = document.getElementById('filter-license-plate');
+    // const searchHistoryButtonElement = document.getElementById('search-history-btn');
     const listingSectionElement = document.getElementById('listing-section');
-    const filteredPriceSumElement = document.getElementById('filtered-price-sum');
+    // Seletor para a soma TOTAL
+    const totalPriceSumElement = document.getElementById('total-price-sum');
 
     let allCostControlData = [];
     let technicianCarsData = [];
@@ -26,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': 'Oil & Filter Change',
         'brake_change': 'Brake Change',
         'battery_change': 'Battery Change',
-        'air_filter_change': 'Air Filter Change',
+        'air_filter_change': 'Air Filter Change', // Mantido aqui para parsear dados existentes
         'other': 'Other Maintenance'
     };
 
@@ -35,8 +37,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': { type: 'monthly', value: 2 },
         'brake_change': { type: 'monthly', value: 4 },
         'battery_change': { type: 'monthly', value: 24 },
-        'air_filter_change': { type: 'monthly', value: 12 },
-        'other': { type: 'monthly', value: 12 },
+        // Removidos da configuração padrão de alerta, mas mantidos em MAINTENANCE_CATEGORIES
+        // 'air_filter_change': { type: 'monthly', value: 12 },
+        // 'other': { type: 'monthly', value: 12 },
         'alert_threshold_days': 15
     };
 
@@ -47,11 +50,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (type === 'success') backgroundClass = 'bg-success text-success-foreground';
         if (type === 'error') backgroundClass = 'bg-destructive text-destructive-foreground';
         if (type === 'warning') backgroundClass = 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300';
-
         toastElement.className = `w-80 p-4 rounded-lg shadow-large ${backgroundClass} mb-2 animate-toast-in`;
         toastElement.innerHTML = `<p class="font-semibold">${message}</p>`;
         toastContainerElement.appendChild(toastElement);
-
         setTimeout(() => {
             toastElement.classList.remove('animate-toast-in');
             toastElement.classList.add('animate-toast-out');
@@ -192,6 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
              const validConfigurationFromServer = (typeof configurationFromServer === 'object' && configurationFromServer !== null) ? configurationFromServer : {};
             const mergedConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
             for (const key in DEFAULT_INTERVALS) {
+                 if (key === 'air_filter_change' || key === 'other') continue; // Pula config removida
                 if (validConfigurationFromServer.hasOwnProperty(key)) {
                     if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof validConfigurationFromServer[key] === 'object' && validConfigurationFromServer[key] !== null) {
                         let type = validConfigurationFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
@@ -219,6 +221,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         let formIsValid = true;
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
+            // Pula as chaves removidas
+             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.')) return;
+
             let value = element.value;
             if (element.type === 'number') {
                 const numericValue = parseInt(value, 10);
@@ -277,6 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
+             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.')) return; // Pula elementos removidos
             const keys = keyPath.split('.');
             let configurationValue;
             if (keys.length === 2) { configurationValue = maintenanceIntervalConfiguration[keys[0]] ? maintenanceIntervalConfiguration[keys[0]][keys[1]] : undefined; }
@@ -313,7 +319,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const technicianCarsResult = await technicianCarsResponse.json();
             technicianCarsData = technicianCarsResult.techCars || [];
             populateDropdown(technicianSelectElement, technicianCarsData, 'Select Technician...', 'tech_name', 'tech_name');
-            populateDropdown(filterTechnicianSelectElement, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name');
+            // MANTÉM populateDropdown para o filtro de histórico, mesmo que não seja mais usado
+            // populateDropdown(filterTechnicianSelectElement, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name');
             if (!costControlResponse.ok) {
                 let errorMessage = 'Failed to load cost control data.';
                 try { const errorJson = await costControlResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${costControlResponse.status}`; }
@@ -324,7 +331,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (allCostControlData.length < (costDataResult.costs || []).length) {
                 console.warn(`Filtered out ${ (costDataResult.costs || []).length - allCostControlData.length} records due to invalid date format received from API.`);
             }
-            costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
+            // Chama renderHistoryTable diretamente aqui para exibir todos os dados
+            renderHistoryTable(allCostControlData);
             renderMaintenanceAlerts(allCostControlData);
         } catch (error) {
             console.error('Error fetching cost/car data:', error);
@@ -332,14 +340,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`;
             alertsContentElement.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
             if (technicianSelectElement) { technicianSelectElement.disabled = true; populateDropdown(technicianSelectElement, [], 'Error loading'); }
-            if (filterTechnicianSelectElement) { filterTechnicianSelectElement.disabled = true; populateDropdown(filterTechnicianSelectElement, [], 'Error loading'); }
+            // MANTÉM desabilitação do filtro de histórico
+            // if (filterTechnicianSelectElement) { filterTechnicianSelectElement.disabled = true; populateDropdown(filterTechnicianSelectElement, [], 'Error loading'); }
         }
     }
 
     function renderHistoryTable(dataToRender) {
         const numberOfColumns = 14;
         costControlTableBodyElement.innerHTML = '';
-        let currentFilteredSum = 0;
+        let currentTotalSum = 0; // Renomeado para soma total
 
         function parsePriceSafely(value) {
             if (value === null || value === undefined) return 0;
@@ -357,12 +366,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
-            if (listingSectionElement.classList.contains('hidden')) {
-                costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
-            } else {
-                costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
+            // Mensagem única, pois agora sempre mostra a tabela
+            costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found.</td></tr>`;
+            if (totalPriceSumElement) {
+                totalPriceSumElement.textContent = '$0.00'; // Zera a soma total
             }
-            if (filteredPriceSumElement) { filteredPriceSumElement.textContent = '$0.00'; }
             return;
         }
         const sortedData = dataToRender.sort((recordA, recordB) => {
@@ -379,7 +387,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
             const rawPriceForDisplay = record['price'] || '';
             const priceValueForSum = parsePriceSafely(record['price']);
-            currentFilteredSum += priceValueForSum;
+            currentTotalSum += priceValueForSum; // Adiciona à soma total
             const fullDescription = record['description'] || '';
             const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
             tableRowElement.innerHTML = `
@@ -400,8 +408,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
             costControlTableBodyElement.appendChild(tableRowElement);
         });
-        if (filteredPriceSumElement) {
-            filteredPriceSumElement.textContent = `$${currentFilteredSum.toFixed(2)}`;
+        // Atualiza o elemento da soma TOTAL
+        if (totalPriceSumElement) {
+            totalPriceSumElement.textContent = `$${currentTotalSum.toFixed(2)}`;
         }
     }
 
@@ -446,12 +455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const categoryConfiguration = maintenanceIntervalConfiguration[categoryKey];
                 if (!categoryConfiguration || !categoryConfiguration.type || isNaN(categoryConfiguration.value) || categoryConfiguration.value <= 0) continue;
                 let lastPerformedRecord;
-                 if (categoryKey === 'other') {
-                    lastPerformedRecord = vehicleRecords.find(record =>
-                        (record.cost_type === 'Maintenance' || record.cost_type === 'Repair') &&
-                        !record.tire_change && !record.oil_and_filter_change && !record.brake_change && !record.battery_change && !record.air_filter_change
-                    );
-                 } else { lastPerformedRecord = vehicleRecords.find(record => record[categoryKey] === true); }
+                 lastPerformedRecord = vehicleRecords.find(record => record[categoryKey] === true);
                 const categoryDisplayName = MAINTENANCE_CATEGORIES[categoryKey];
                 if (lastPerformedRecord) {
                     const dueDate = calculateDueDate(lastPerformedRecord.date, categoryConfiguration.value, categoryConfiguration.type);
@@ -560,24 +564,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    searchHistoryButtonElement.addEventListener('click', () => {
-        const startDateString = filterStartDateInputElement.value;
-        const endDateString = filterEndDateInputElement.value;
-        const technicianName = filterTechnicianSelectElement.value;
-        const licensePlateQuery = filterLicensePlateInputElement.value.trim().toLowerCase();
-        const startDate = startDateString ? new Date(startDateString + 'T00:00:00') : null;
-        const endDate = endDateString ? new Date(endDateString + 'T23:59:59') : null;
-        const filteredData = allCostControlData.filter(record => {
-            const recordDateObject = createDateObjectFromMMDDYYYY(record['date']);
-            if (!recordDateObject) return false;
-            const matchesDateRange = (!startDate || recordDateObject >= startDate) && (!endDate || recordDateObject <= endDate);
-            const matchesTechnician = !technicianName || (record['technician'] && record['technician'] === technicianName);
-            const matchesLicensePlate = !licensePlateQuery || (record['license_plate'] && record['license_plate'].toLowerCase().includes(licensePlateQuery));
-            return matchesDateRange && matchesTechnician && matchesLicensePlate;
-        });
-        listingSectionElement.classList.remove('hidden');
-        renderHistoryTable(filteredData);
-    });
+    // REMOVIDO: Event listener do botão searchHistoryButtonElement
 
     if (technicianSelectElement) { technicianSelectElement.addEventListener('change', handleTechnicianSelectionChange); }
     if (saveConfigurationButtonElement) { saveConfigurationButtonElement.addEventListener('click', saveMaintenanceIntervalConfiguration); }
@@ -589,9 +576,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("Configuration loaded, populating configuration form...");
         populateConfigurationForm();
         console.log("Configuration form populated, fetching core data (cars/costs)...");
-        await fetchCoreData();
-        if (filteredPriceSumElement) {
-            filteredPriceSumElement.textContent = '$0.00';
+        await fetchCoreData(); // Agora fetchCoreData chama renderHistoryTable internamente
+        // MANTÉM: Garante que a soma inicial seja exibida
+        if (totalPriceSumElement) {
+             // A soma será calculada e exibida por renderHistoryTable chamado dentro de fetchCoreData
         }
         console.log("Initialization complete.");
     }
