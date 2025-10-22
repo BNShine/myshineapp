@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filterLicensePlateInputElement = document.getElementById('filter-license-plate');
     const searchHistoryButtonElement = document.getElementById('search-history-btn');
     const listingSectionElement = document.getElementById('listing-section');
+    const filteredPriceSumElement = document.getElementById('filtered-price-sum');
 
     let allCostControlData = [];
     let technicianCarsData = [];
@@ -338,11 +339,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderHistoryTable(dataToRender) {
         const numberOfColumns = 14;
         costControlTableBodyElement.innerHTML = '';
+        let currentFilteredSum = 0;
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
             if (listingSectionElement.classList.contains('hidden')) {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
             } else {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
+            }
+            if (filteredPriceSumElement) {
+                filteredPriceSumElement.textContent = '$0.00';
             }
             return;
         }
@@ -358,7 +363,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tableRowElement = document.createElement('tr');
             tableRowElement.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
-            const priceValue = parseFloat(record['price']);
+            const rawPrice = record['price'] || '';
+            const priceForSum = parseFloat(String(rawPrice).replace(',', '.')) || 0;
+            currentFilteredSum += priceForSum;
             const fullDescription = record['description'] || '';
             const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
             tableRowElement.innerHTML = `
@@ -368,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record['cost_type'] || ''}</td>
                 <td class="p-4">${record['subtype'] || ''}</td>
                 <td class="p-4">${record['technician'] || ''}</td>
-                <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
+                <td class="p-4 text-right">${rawPrice}</td>
                 <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td>
                 <td class="p-4">${record['invoice_number'] || ''}</td>
                 <td class="p-4 text-center">${isChecked(record['tire_change'])}</td>
@@ -379,6 +386,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
             costControlTableBodyElement.appendChild(tableRowElement);
         });
+        if (filteredPriceSumElement) {
+            filteredPriceSumElement.textContent = `$${currentFilteredSum.toFixed(2)}`;
+        }
     }
 
     function renderMaintenanceAlerts(costData) {
@@ -418,11 +428,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             let alertMessagesForVehicle = [];
             let highestSeverityLevel = 'info';
             for (const categoryKey in MAINTENANCE_CATEGORIES) {
-                 if (categoryKey === 'air_filter_change' || categoryKey === 'other') continue; // Pula estas categorias
+                 if (categoryKey === 'air_filter_change' || categoryKey === 'other') continue;
                 const categoryConfiguration = maintenanceIntervalConfiguration[categoryKey];
                 if (!categoryConfiguration || !categoryConfiguration.type || isNaN(categoryConfiguration.value) || categoryConfiguration.value <= 0) continue;
                 let lastPerformedRecord;
-                lastPerformedRecord = vehicleRecords.find(record => record[categoryKey] === true);
+                 if (categoryKey === 'other') {
+                    lastPerformedRecord = vehicleRecords.find(record =>
+                        (record.cost_type === 'Maintenance' || record.cost_type === 'Repair') &&
+                        !record.tire_change && !record.oil_and_filter_change && !record.brake_change && !record.battery_change && !record.air_filter_change
+                    );
+                 } else { lastPerformedRecord = vehicleRecords.find(record => record[categoryKey] === true); }
                 const categoryDisplayName = MAINTENANCE_CATEGORIES[categoryKey];
                 if (lastPerformedRecord) {
                     const dueDate = calculateDueDate(lastPerformedRecord.date, categoryConfiguration.value, categoryConfiguration.type);
@@ -561,6 +576,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         populateConfigurationForm();
         console.log("Configuration form populated, fetching core data (cars/costs)...");
         await fetchCoreData();
+        if (filteredPriceSumElement) {
+            filteredPriceSumElement.textContent = '$0.00';
+        }
         console.log("Initialization complete.");
     }
 
