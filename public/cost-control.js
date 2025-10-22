@@ -2,26 +2,26 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     // --- Seletores dos Elementos do DOM ---
-    const costControlForm = document.getElementById('cost-control-form');
-    const costControlTableBody = document.getElementById('cost-control-table-body');
-    const technicianSelect = document.getElementById('technician'); // Dropdown no formulário de registro
-    const licensePlateInput = document.getElementById('license_plate'); // Input Placa no formulário de registro
-    const vinInput = document.getElementById('vin'); // Input VIN no formulário de registro
-    const alertsContent = document.getElementById('alerts-content'); // Div para exibir alertas
-    const toastContainer = document.getElementById('toast-container'); // Container para notificações
+    const costControlFormElement = document.getElementById('cost-control-form'); // Nome completo
+    const costControlTableBodyElement = document.getElementById('cost-control-table-body'); // Nome completo
+    const technicianSelectElement = document.getElementById('technician'); // Nome completo
+    const licensePlateInputElement = document.getElementById('license_plate'); // Nome completo
+    const vinInputElement = document.getElementById('vin'); // Nome completo
+    const alertsContentElement = document.getElementById('alerts-content'); // Nome completo
+    const toastContainerElement = document.getElementById('toast-container'); // Nome completo
 
     // Seletores do Formulário de Configuração
-    const configurationForm = document.getElementById('config-form'); // Nome completo
-    const saveConfigurationButton = document.getElementById('save-config-btn'); // Nome completo
+    const configurationFormElement = document.getElementById('config-form'); // Nome completo
+    const saveConfigurationButtonElement = document.getElementById('save-config-btn'); // Nome completo
 
     // Seletores dos Filtros de Histórico
-    const filterHistorySection = document.getElementById('filter-history-section');
-    const filterStartDateInput = document.getElementById('filter-start-date');
-    const filterEndDateInput = document.getElementById('filter-end-date');
-    const filterTechnicianSelect = document.getElementById('filter-technician'); // Dropdown no filtro de histórico
-    const filterLicensePlateInput = document.getElementById('filter-license-plate');
-    const searchHistoryButton = document.getElementById('search-history-btn'); // Nome completo
-    const listingSection = document.getElementById('listing-section'); // Seção da tabela de histórico
+    const filterHistorySectionElement = document.getElementById('filter-history-section'); // Nome completo
+    const filterStartDateInputElement = document.getElementById('filter-start-date'); // Nome completo
+    const filterEndDateInputElement = document.getElementById('filter-end-date'); // Nome completo
+    const filterTechnicianSelectElement = document.getElementById('filter-technician'); // Nome completo
+    const filterLicensePlateInputElement = document.getElementById('filter-license-plate'); // Nome completo
+    const searchHistoryButtonElement = document.getElementById('search-history-btn'); // Nome completo
+    const listingSectionElement = document.getElementById('listing-section'); // Nome completo
 
     // --- Variáveis Globais de Estado ---
     let allCostControlData = []; // Armazena todos os registros de custo carregados
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Função para exibir notificações (toast)
     function showToastNotification(message, type = 'info') {
-        if (!toastContainer) return;
+        if (!toastContainerElement) return;
         const toastElement = document.createElement('div');
         let backgroundClass = 'bg-card text-foreground'; // Estilo padrão (info)
         if (type === 'success') backgroundClass = 'bg-success text-success-foreground';
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         toastElement.className = `w-80 p-4 rounded-lg shadow-large ${backgroundClass} mb-2 animate-toast-in`;
         toastElement.innerHTML = `<p class="font-semibold">${message}</p>`;
-        toastContainer.appendChild(toastElement);
+        toastContainerElement.appendChild(toastElement);
 
         // Remove a notificação após alguns segundos
         setTimeout(() => {
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
          selectElement.innerHTML = `<option value="">${defaultText}</option>`; // Limpa e adiciona opção padrão
         if (items && Array.isArray(items)) {
             // Ordena alfabeticamente pelo texto
-            items.sort((itemA, itemB) => { // Nomes completos
+            items.sort((itemA, itemB) => {
                 const textA = textKey ? (itemA[textKey] || '') : (itemA || '');
                 const textB = textKey ? (itemB[textKey] || '') : (itemB || '');
                 return textA.localeCompare(textB);
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let formIsValid = true; // Flag para validação
 
         // Lê e valida os valores do formulário de configuração
-        configurationForm.querySelectorAll('[data-config-key]').forEach(element => {
+        configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
             let value = element.value;
 
@@ -327,8 +327,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("Attempting to save configuration:", newConfiguration); // Log para depuração
 
         // Desabilita o botão enquanto salva
-        saveConfigurationButton.disabled = true; // Nome completo
-        saveConfigurationButton.textContent = 'Saving...'; // Nome completo
+        saveConfigurationButtonElement.disabled = true; // Nome completo
+        saveConfigurationButtonElement.textContent = 'Saving...'; // Nome completo
 
         try {
             // Envia a nova configuração para a API
@@ -353,27 +353,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToastNotification(`Failed to save configuration: ${error.message}`, 'error');
         } finally {
              // Reabilita o botão após a tentativa de salvar
-             saveConfigurationButton.disabled = false; // Nome completo
-             saveConfigurationButton.textContent = 'Save Configuration'; // Nome completo
+             saveConfigurationButtonElement.disabled = false; // Nome completo
+             saveConfigurationButtonElement.textContent = 'Save Configuration'; // Nome completo
         }
     }
 
     // Popula o formulário de configuração com os valores carregados
     function populateConfigurationForm() {
         // Verifica se o formulário e a configuração global existem e não estão vazios
-        if (!configurationForm || !maintenanceIntervalConfiguration || Object.keys(maintenanceIntervalConfiguration).length === 0) {
+        if (!configurationFormElement || !maintenanceIntervalConfiguration || Object.keys(maintenanceIntervalConfiguration).length === 0) {
              console.warn("Configuration form or interval configuration not ready for population or is empty.");
              // Tenta usar defaults puros se a configuração estiver vazia após o carregamento
              if (typeof maintenanceIntervalConfiguration !== 'object' || maintenanceIntervalConfiguration === null || Object.keys(maintenanceIntervalConfiguration).length === 0) {
                  maintenanceIntervalConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
                  console.log("Using pure defaults for configuration form population.");
              } else {
-                return; // Sai se o formulário não existir mas a config sim (situação estranha)
+                return; // Sai se o formulário não existir mas a config sim
              }
         }
 
         // Itera sobre todos os elementos com 'data-config-key' no formulário
-        configurationForm.querySelectorAll('[data-config-key]').forEach(element => {
+        configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey; // Ex: 'tire_change.type' ou 'alert_threshold_days'
             const keys = keyPath.split('.'); // Divide para chaves aninhadas
             let configurationValue; // Nome completo
@@ -413,8 +413,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Fetch Initial Data (Carros e Custos) ---
     async function fetchCoreData() {
         // Define mensagens de loading
-        costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center">Loading cost data...</td></tr>`; // Ajustado colspan
-        alertsContent.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>';
+        costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center">Loading cost data...</td></tr>`; // Ajustado colspan e nome var
+        alertsContentElement.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>'; // Nome var
         try {
             // Configuração já carregada em initializePage()
             const [technicianCarsResponse, costControlResponse] = await Promise.all([ // Nomes completos
@@ -431,8 +431,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const technicianCarsResult = await technicianCarsResponse.json(); // Nome completo
             technicianCarsData = technicianCarsResult.techCars || [];
             // Popula os dropdowns de técnico (registro e filtro)
-            populateDropdown(technicianSelect, technicianCarsData, 'Select Technician...', 'tech_name', 'tech_name');
-            populateDropdown(filterTechnicianSelect, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name');
+            populateDropdown(technicianSelectElement, technicianCarsData, 'Select Technician...', 'tech_name', 'tech_name'); // Nome completo
+            populateDropdown(filterTechnicianSelectElement, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name'); // Nome completo
 
             // Trata resposta de Custos
             if (!costControlResponse.ok) { // Nome completo
@@ -445,17 +445,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             allCostControlData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date));
 
             // Define mensagem inicial da tabela de histórico (não renderiza dados ainda)
-            costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`; // Ajustado colspan
+            costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`; // Ajustado colspan e nome var
             renderMaintenanceAlerts(allCostControlData); // Renderiza alertas usando a configuração já carregada
 
         } catch (error) {
             console.error('Error fetching cost/car data:', error);
             showToastNotification(`Error loading data: ${error.message}`, 'error');
-            costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`; // Ajustado colspan
-            alertsContent.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
+            costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`; // Ajustado colspan e nome var
+            alertsContentElement.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`; // Nome var
             // Desabilita dropdowns se o carregamento falhar
-            if (technicianSelect) { technicianSelect.disabled = true; populateDropdown(technicianSelect, [], 'Error loading'); }
-            if (filterTechnicianSelect) { filterTechnicianSelect.disabled = true; populateDropdown(filterTechnicianSelect, [], 'Error loading'); }
+            if (technicianSelectElement) { technicianSelectElement.disabled = true; populateDropdown(technicianSelectElement, [], 'Error loading'); } // Nome completo
+            if (filterTechnicianSelectElement) { filterTechnicianSelectElement.disabled = true; populateDropdown(filterTechnicianSelectElement, [], 'Error loading'); } // Nome completo
         }
     }
 
@@ -463,15 +463,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Renderização da Tabela de Histórico ---
     function renderHistoryTable(dataToRender) {
         const numberOfColumns = 14; // Número de colunas após remover "Business"
-        costControlTableBody.innerHTML = ''; // Limpa tabela
+        costControlTableBodyElement.innerHTML = ''; // Limpa tabela
 
         // Verifica se há dados para exibir
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
             // Mensagem diferente se a seção ainda estiver oculta (antes da primeira busca)
-            if (listingSection.classList.contains('hidden')) {
-                costControlTableBody.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
+            if (listingSectionElement.classList.contains('hidden')) { // Nome completo
+                costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
             } else { // Mensagem para quando a busca não retorna resultados
-                costControlTableBody.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
+                costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
             }
             return; // Sai da função
         }
@@ -500,7 +500,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const priceValue = parseFloat(record.price);
             // Prepara descrição (completa para tooltip, curta para exibição)
             const fullDescription = record.description || '';
-            const shortDescription = fullDescription.length > 20 ? fullDescription.substring(0, 20) + '...' : fullDescription; // Limite de 20 caracteres
+            const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription; // Limite de 15 caracteres
 
             // Define o HTML interno da linha (removida a coluna Business)
             tableRow.innerHTML = `
@@ -511,7 +511,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record.subtype || ''}</td>
                 <td class="p-4">${record.technician || ''}</td>
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
-                <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td>
+                <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td> {/* Descrição curta */}
+                {/* Coluna Business foi removida */}
                 <td class="p-4">${record.invoice_number || ''}</td>
                 <td class="p-4 text-center">${isChecked(record.tire_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.oil_and_filter_change)}</td>
@@ -519,13 +520,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4 text-center">${isChecked(record.battery_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.air_filter_change)}</td>
             `;
-            costControlTableBody.appendChild(tableRow); // Adiciona linha à tabela
+            costControlTableBodyElement.appendChild(tableRow); // Adiciona linha à tabela
         });
     }
 
     // --- Lógica de Alertas (Não exibe "no record found", busca dados do techCarsData) ---
     function renderMaintenanceAlerts(costData) { // Nome completo
-        alertsContent.innerHTML = ''; // Limpa alertas existentes
+        alertsContentElement.innerHTML = ''; // Limpa alertas existentes
         let anyAlertsGenerated = false; // Flag para verificar se algum alerta foi gerado
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Zera a hora para comparar apenas datas
@@ -626,7 +627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                          console.warn(`Could not calculate due date for ${categoryDisplayName} on vehicle ${plate}. Last record date: ${lastPerformedRecord.date}`);
                     }
                 }
-                 // Não adiciona mensagem "No record found"
+                 // "No record found" não é mais adicionado
 
             } // Fim do loop pelas categorias de manutenção
 
@@ -640,7 +641,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Se nenhum alerta foi gerado, exibe mensagem padrão
         if (!anyAlertsGenerated) {
-            alertsContent.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts found based on configured intervals.</p>';
+            alertsContentElement.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts found based on configured intervals.</p>';
         }
     }
 
@@ -682,29 +683,29 @@ document.addEventListener('DOMContentLoaded', async () => {
            </div>
            <p class="text-xs text-foreground mt-1">${messageString}</p>
        `;
-       alertsContent.appendChild(alertDiv); // Adiciona o alerta ao DOM
+       alertsContentElement.appendChild(alertDiv); // Adiciona o alerta ao DOM
     }
 
     // --- Lógica de Autofill para VIN e Placa ao selecionar Técnico ---
     function handleTechnicianSelectionChange() { // Nome completo
-        const selectedTechnicianName = technicianSelect.value;
+        const selectedTechnicianName = technicianSelectElement.value; // Nome completo
         // Encontra os dados do carro do técnico selecionado
         const selectedTechnicianCarData = technicianCarsData.find(tech => tech.tech_name === selectedTechnicianName); // Nome completo
 
         // Se encontrou dados, preenche os campos VIN e Placa
         if (selectedTechnicianCarData) {
-            vinInput.value = selectedTechnicianCarData.vin_number || '';
-            licensePlateInput.value = selectedTechnicianCarData.car_plate || '';
+            vinInputElement.value = selectedTechnicianCarData.vin_number || ''; // Nome completo
+            licensePlateInputElement.value = selectedTechnicianCarData.car_plate || ''; // Nome completo
         } else { // Senão, limpa os campos
-            vinInput.value = '';
-            licensePlateInput.value = '';
+            vinInputElement.value = ''; // Nome completo
+            licensePlateInputElement.value = ''; // Nome completo
         }
     }
 
     // --- Lógica de Submissão do Formulário de Registro ---
-    costControlForm.addEventListener('submit', async (event) => {
+    costControlFormElement.addEventListener('submit', async (event) => { // Nome completo
         event.preventDefault(); // Impede o envio padrão
-        const formData = new FormData(costControlForm); // Pega os dados
+        const formData = new FormData(costControlFormElement); // Pega os dados
         const registrationData = {}; // Objeto para guardar dados formatados
 
         // Formata os dados
@@ -717,15 +718,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Adiciona VIN e Placa
-        registrationData['vin'] = vinInput.value;
-        registrationData['license_plate'] = licensePlateInput.value;
+        registrationData['vin'] = vinInputElement.value; // Nome completo
+        registrationData['license_plate'] = licensePlateInputElement.value; // Nome completo
 
         // Converte checkboxes para 'TRUE'/'FALSE'
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
             registrationData[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
 
-        // --- Validações Essenciais ---
+        // --- Validações Essenciais Antes do Envio ---
         if (!registrationData.technician) { showToastNotification('Please select a Technician (Driver).', 'error'); return; }
         if (!registrationData.license_plate || !registrationData.vin) { showToastNotification('VIN and License Plate must be autofilled by selecting a Technician.', 'error'); return; }
         if (!registrationData.date || !registrationData.odometer || !registrationData.cost_type || registrationData.price === undefined || registrationData.price === '') {
@@ -734,9 +735,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Desabilita botão de submit
-        const submitButton = costControlForm.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'Saving...';
+        const submitButtonElement = costControlFormElement.querySelector('button[type="submit"]'); // Nome completo
+        submitButtonElement.disabled = true;
+        submitButtonElement.textContent = 'Saving...';
 
         try {
             // Envia para API
@@ -759,10 +760,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Se sucesso, limpa form e recarrega dados
             if (result.success) {
                 showToastNotification('Record saved successfully!', 'success');
-                costControlForm.reset();
+                costControlFormElement.reset(); // Nome completo
                 setTodaysDateInRegistrationForm();
-                vinInput.value = '';
-                licensePlateInput.value = '';
+                vinInputElement.value = ''; // Nome completo
+                licensePlateInputElement.value = ''; // Nome completo
                 await initializePage(); // Recarrega tudo
             } else {
                 throw new Error(result.message || 'Failed to save record.');
@@ -771,18 +772,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error submitting form:', error);
             showToastNotification(`Error: ${error.message || 'Could not save record.'}`, 'error');
         } finally { // Reabilita botão
-            submitButton.disabled = false;
-            submitButton.textContent = 'Save Record';
+            submitButtonElement.disabled = false; // Nome completo
+            submitButtonElement.textContent = 'Save Record'; // Nome completo
         }
     });
 
     // --- Lógica da Busca no Histórico ---
-    searchHistoryButton.addEventListener('click', () => { // Nome completo
+    searchHistoryButtonElement.addEventListener('click', () => { // Nome completo
         // Pega valores dos filtros
-        const startDateString = filterStartDateInput.value; // Nome completo
-        const endDateString = filterEndDateInput.value; // Nome completo
-        const technicianName = filterTechnicianSelect.value; // Nome completo
-        const licensePlateQuery = filterLicensePlateInput.value.trim().toLowerCase(); // Nome completo
+        const startDateString = filterStartDateInputElement.value; // Nome completo
+        const endDateString = filterEndDateInputElement.value; // Nome completo
+        const technicianName = filterTechnicianSelectElement.value; // Nome completo
+        const licensePlateQuery = filterLicensePlateInputElement.value.trim().toLowerCase(); // Nome completo
 
         // Converte datas para comparação
         const startDate = startDateString ? new Date(startDateString + 'T00:00:00') : null;
@@ -804,16 +805,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Mostra seção de histórico e renderiza tabela
-        listingSection.classList.remove('hidden');
+        listingSectionElement.classList.remove('hidden'); // Nome completo
         renderHistoryTable(filteredData);
     });
 
 
     // --- Adiciona Event Listeners ---
     // Autofill ao mudar técnico no formulário de registro
-    if (technicianSelect) { technicianSelect.addEventListener('change', handleTechnicianSelectionChange); }
+    if (technicianSelectElement) { technicianSelectElement.addEventListener('change', handleTechnicianSelectionChange); } // Nome completo
     // Salvar configuração ao clicar no botão
-    if (saveConfigurationButton) { saveConfigurationButton.addEventListener('click', saveMaintenanceIntervalConfiguration); }
+    if (saveConfigurationButtonElement) { saveConfigurationButtonElement.addEventListener('click', saveMaintenanceIntervalConfiguration); } // Nome completo
 
     // --- Função de Inicialização Principal ---
     async function initializePage() {
