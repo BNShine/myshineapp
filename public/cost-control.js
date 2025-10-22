@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(errorMessage);
             }
             const costDataResult = await costControlResponse.json();
-            allCostControlData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date));
+            allCostControlData = (costDataResult.costs || []).filter(record => record['date'] && createDateObjectFromMMDDYYYY(record['date']));
             costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
             renderMaintenanceAlerts(allCostControlData);
         } catch (error) {
@@ -306,49 +306,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- Renderização da Tabela de Histórico ---
     function renderHistoryTable(dataToRender) {
-        const numberOfColumns = 14; // Número de colunas: Date, Plate, Odometer, Cost Type, Subtype, Technician, Price, Description, Invoice, Tire, Oil/Filter, Brake, Battery, Air Filter
-        costControlTableBodyElement.innerHTML = ''; // Limpa tabela
-
-        // Verifica se há dados para exibir
+        const numberOfColumns = 14;
+        costControlTableBodyElement.innerHTML = '';
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
-            // Mensagem diferente se a seção ainda estiver oculta (antes da primeira busca)
             if (listingSectionElement.classList.contains('hidden')) {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
-            } else { // Mensagem para quando a busca não retorna resultados
+            } else {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
             }
-            return; // Sai da função
+            return;
         }
-
-        // Ordena os dados por data (mais recente primeiro)
         const sortedData = dataToRender.sort((recordA, recordB) => {
-             const dateStringA = formatDateForInput(recordA.date);
-             const dateStringB = formatDateForInput(recordB.date);
-             // Coloca datas inválidas no final
-             if (!dateStringA && !dateStringB) return 0;
-             if (!dateStringA) return 1; // 'a' inválido vai depois
-             if (!dateStringB) return -1; // 'b' inválido vai depois
-             // Compara datas válidas
-             const dateObjectA = new Date(dateStringA);
-             const dateObjectB = new Date(dateStringB);
-             return dateObjectB.getTime() - dateObjectA.getTime(); // Ordena descendente (mais recente primeiro)
+             const dateObjectA = createDateObjectFromMMDDYYYY(recordA['date']);
+             const dateObjectB = createDateObjectFromMMDDYYYY(recordB['date']);
+             if (!dateObjectA && !dateObjectB) return 0;
+             if (!dateObjectA) return 1;
+             if (!dateObjectB) return -1;
+             return dateObjectB.getTime() - dateObjectA.getTime();
         });
-
-        // Cria as linhas da tabela
         sortedData.forEach(record => {
             const tableRowElement = document.createElement('tr');
             tableRowElement.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
-            // Função interna para verificar checkboxes
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
-            // Converte preço para número
-            const priceValue = parseFloat(record.price);
-            // Prepara descrição (completa para tooltip, curta para exibição)
-            const fullDescription = record.description || '';
-            const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription; // Limite 15 chars
-
-            // Define o HTML interno da linha *** CORRIGIDO A ORDEM E APLICAÇÃO do isChecked ***
+            const priceValue = parseFloat(record['price']);
+            const fullDescription = record['description'] || '';
+            const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
             tableRowElement.innerHTML = `
                 <td class="p-4 whitespace-nowrap">${formatDateForDisplay(record['date'])}</td>
                 <td class="p-4">${record['license_plate'] || ''}</td>
@@ -363,9 +346,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4 text-center">${isChecked(record['oil_and_filter_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['brake_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['battery_change'])}</td>
-                <td class="p-4 text-center">${isChecked(record['air_filter_change'])}</td> 
+                <td class="p-4 text-center">${isChecked(record['air_filter_change'])}</td>
             `;
-            costControlTableBodyElement.appendChild(tableRowElement); // Adiciona linha à tabela
+            costControlTableBodyElement.appendChild(tableRowElement);
         });
     }
 
@@ -374,20 +357,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         let anyAlertsGenerated = false;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
         const alertThresholdInDays = parseInt(maintenanceIntervalConfiguration.alert_threshold_days, 10);
         const validThresholdInDays = (!isNaN(alertThresholdInDays) && alertThresholdInDays >= 0) ? alertThresholdInDays : DEFAULT_INTERVALS.alert_threshold_days;
         const alertThresholdDate = new Date(today);
         alertThresholdDate.setDate(today.getDate() + validThresholdInDays);
-
         const vehicleMaintenanceData = {};
-
         costData.forEach(record => {
             if (record['license_plate']) {
                 const plate = record['license_plate'].toUpperCase().trim();
-                const recordDateString = formatDateForInput(record['date']);
-                const recordDateObject = recordDateString ? new Date(recordDateString + "T00:00:00") : null;
-                if (!recordDateObject || isNaN(recordDateObject)) return;
+                const recordDateObject = createDateObjectFromMMDDYYYY(record['date']);
+                if (!recordDateObject) return;
                 if (!vehicleMaintenanceData[plate]) { vehicleMaintenanceData[plate] = { records: [], lastTechnician: record['technician'] }; }
                 vehicleMaintenanceData[plate].records.push({
                     date: recordDateObject,
@@ -401,7 +380,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 vehicleMaintenanceData[plate].lastTechnician = record['technician'];
             }
         });
-
         for (const plate in vehicleMaintenanceData) {
             const carInformation = technicianCarsData.find(car => car.car_plate && car.car_plate.toUpperCase().trim() === plate);
             const vinNumber = carInformation ? carInformation.vin_number : 'N/A';
@@ -410,7 +388,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (vehicleRecords.length === 0) continue;
             let alertMessagesForVehicle = [];
             let highestSeverityLevel = 'info';
-
             for (const categoryKey in MAINTENANCE_CATEGORIES) {
                 const categoryConfiguration = maintenanceIntervalConfiguration[categoryKey];
                 if (!categoryConfiguration || !categoryConfiguration.type || isNaN(categoryConfiguration.value) || categoryConfiguration.value <= 0) continue;
@@ -470,7 +447,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleTechnicianSelectionChange() {
         const selectedTechnicianName = technicianSelectElement.value;
-        const selectedTechnicianCarData = technicianCarsData.find(tech => tech.tech_name === selectedTechnicianName);
+        const selectedTechnicianCarData = technicianCarsData.find(technician => technician.tech_name === selectedTechnicianName);
         if (selectedTechnicianCarData) {
             vinInputElement.value = selectedTechnicianCarData.vin_number || '';
             licensePlateInputElement.value = selectedTechnicianCarData.car_plate || '';
@@ -537,9 +514,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const startDate = startDateString ? new Date(startDateString + 'T00:00:00') : null;
         const endDate = endDateString ? new Date(endDateString + 'T23:59:59') : null;
         const filteredData = allCostControlData.filter(record => {
-            const recordDateString = formatDateForInput(record['date']);
-            const recordDateObject = recordDateString ? new Date(recordDateString + 'T00:00:00') : null;
-            if (!recordDateObject || isNaN(recordDateObject)) return false;
+            const recordDateObject = createDateObjectFromMMDDYYYY(record['date']);
+            if (!recordDateObject) return false;
             const matchesDateRange = (!startDate || recordDateObject >= startDate) && (!endDate || recordDateObject <= endDate);
             const matchesTechnician = !technicianName || (record['technician'] && record['technician'] === technicianName);
             const matchesLicensePlate = !licensePlateQuery || (record['license_plate'] && record['license_plate'].toLowerCase().includes(licensePlateQuery));
