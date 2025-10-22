@@ -9,7 +9,7 @@
     <style>
         .checkbox-label { @apply flex items-center space-x-2 text-sm; }
         .checkbox-input { @apply h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary; }
-        /* Add styles for hidden elements if needed, Tailwind 'hidden' class usually suffices */
+        /* Esconde a secção de histórico por defeito */
         #listing-section.hidden { display: none; }
     </style>
 </head>
@@ -141,7 +141,7 @@
                                 <input type="checkbox" id="brake_change" name="brake_change" value="TRUE" class="checkbox-input">
                                 Brake Change
                             </label>
-                            <label for="battery_change" class="checkbox-label">
+                             <label for="battery_change" class="checkbox-label">
                                 <input type="checkbox" id="battery_change" name="battery_change" value="TRUE" class="checkbox-input">
                                 Battery Change
                             </label>
@@ -162,63 +162,80 @@
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance Interval Configuration</h2>
                     </div>
-                    <form id="config-form" class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-                        <div class="col-span-full font-semibold text-lg mb-2 border-b pb-2">Intervals</div>
-                        <label class="text-label self-center">Tire Change:</label>
-                        <select id="config-tire_change-type" data-config-key="tire_change.type" class="input-base h-9 text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                        <input type="number" id="config-tire_change-value" data-config-key="tire_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
-                        <label class="text-label self-center">Oil & Filter:</label>
-                        <select id="config-oil_and_filter_change-type" data-config-key="oil_and_filter_change.type" class="input-base h-9 text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                        <input type="number" id="config-oil_and_filter_change-value" data-config-key="oil_and_filter_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
-                        <label class="text-label self-center">Brake Change:</label>
-                        <select id="config-brake_change-type" data-config-key="brake_change.type" class="input-base h-9 text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                        <input type="number" id="config-brake_change-value" data-config-key="brake_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
-                         <label class="text-label self-center">Battery Change:</label>
-                        <select id="config-battery_change-type" data-config-key="battery_change.type" class="input-base h-9 text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                        <input type="number" id="config-battery_change-value" data-config-key="battery_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
-                         <label class="text-label self-center">Air Filter Change:</label>
-                        <select id="config-air_filter_change-type" data-config-key="air_filter_change.type" class="input-base h-9 text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                        <input type="number" id="config-air_filter_change-value" data-config-key="air_filter_change.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
-                         <label class="text-label self-center">Other Maintenance:</label>
-                        <select id="config-other-type" data-config-key="other.type" class="input-base h-9 text-sm">
-                            <option value="monthly">Monthly</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                        <input type="number" id="config-other-value" data-config-key="other.value" min="1" class="input-base h-9 text-sm" placeholder="Value">
+                    <form id="config-form" class="p-6 space-y-3"> <div class="grid grid-cols-3 gap-x-4 mb-2 pb-2 border-b">
+                            <span class="text-label font-medium col-span-1">Maintenance Type</span>
+                            <span class="text-label font-medium col-span-1 text-center">Frequency</span>
+                            <span class="text-label font-medium col-span-1 text-center">Interval</span>
+                        </div>
 
-                        <div class="col-span-full font-semibold text-lg mb-2 mt-4 border-b pb-2">Alert Threshold</div>
-                         <label class="text-label self-center md:col-span-2">Warn how many days before due date?</label>
-                        <input type="number" id="config-alert_threshold_days" data-config-key="alert_threshold_days" min="0" class="input-base h-9 text-sm" placeholder="Days">
+                        <div class="grid grid-cols-3 gap-x-4 items-center">
+                            <label class="text-sm font-medium">Tire Change:</label>
+                            <select data-config-key="tire_change.type" class="input-base h-9 text-sm">
+                                <option value="monthly">Monthly</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                            <input type="number" data-config-key="tire_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
+                        </div>
+                        <div class="grid grid-cols-3 gap-x-4 items-center">
+                            <label class="text-sm font-medium">Oil & Filter:</label>
+                            <select data-config-key="oil_and_filter_change.type" class="input-base h-9 text-sm">
+                                <option value="monthly">Monthly</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                            <input type="number" data-config-key="oil_and_filter_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
+                        </div>
+                        <div class="grid grid-cols-3 gap-x-4 items-center">
+                            <label class="text-sm font-medium">Brake Change:</label>
+                            <select data-config-key="brake_change.type" class="input-base h-9 text-sm">
+                                <option value="monthly">Monthly</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                            <input type="number" data-config-key="brake_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
+                        </div>
+                        <div class="grid grid-cols-3 gap-x-4 items-center">
+                            <label class="text-sm font-medium">Battery Change:</label>
+                            <select data-config-key="battery_change.type" class="input-base h-9 text-sm">
+                                <option value="monthly">Monthly</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                            <input type="number" data-config-key="battery_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
+                        </div>
+                        <div class="grid grid-cols-3 gap-x-4 items-center">
+                            <label class="text-sm font-medium">Air Filter Change:</label>
+                            <select data-config-key="air_filter_change.type" class="input-base h-9 text-sm">
+                                <option value="monthly">Monthly</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                            <input type="number" data-config-key="air_filter_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
+                        </div>
+                        <div class="grid grid-cols-3 gap-x-4 items-center">
+                            <label class="text-sm font-medium">Other Maintenance:</label>
+                            <select data-config-key="other.type" class="input-base h-9 text-sm">
+                                <option value="monthly">Monthly</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                            <input type="number" data-config-key="other.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-x-4 items-center pt-3 mt-3 border-t">
+                            <label class="text-sm font-medium col-span-2">Warn how many days before due date?</label>
+                            <input type="number" data-config-key="alert_threshold_days" min="0" class="input-base h-9 text-sm text-center" placeholder="Days">
+                        </div>
 
                         <div class="col-span-full flex justify-end mt-4">
-                             <button type="button" id="save-config-btn" class="btn-primary h-11 px-8">
+                            <button type="button" id="save-config-btn" class="btn-primary h-11 px-8">
                                 Save Configuration
                             </button>
                         </div>
                     </form>
                 </section>
 
+
                 <section id="alerts-section" class="card-base">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance Alerts</h2>
                     </div>
-                    <div id="alerts-content" class="p-6 space-y-2"> {/* Reduced spacing */}
-                        <p class="text-muted-foreground">Loading alerts based on configuration...</p>
+                    <div id="alerts-content" class="p-6 space-y-2"> <p class="text-muted-foreground">Loading alerts based on configuration...</p>
                     </div>
                 </section>
 
@@ -292,7 +309,6 @@
 
     <script src="cost-control.js"></script>
     <script>
-        // Dark Mode Toggle Logic
         document.getElementById('dark-mode-toggle').addEventListener('click', () => {
             document.documentElement.classList.toggle('dark');
         });
