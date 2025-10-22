@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let bgColor = 'bg-card text-foreground'; // Default info style
         if (type === 'success') bgColor = 'bg-success text-success-foreground';
         if (type === 'error') bgColor = 'bg-destructive text-destructive-foreground';
+        if (type === 'warning') bgColor = 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'; // Added warning style
         toast.className = `w-80 p-4 rounded-lg shadow-large ${bgColor} mb-2 animate-toast-in`;
         toast.innerHTML = `<p class="font-semibold">${message}</p>`;
         toastContainer.appendChild(toast);
@@ -62,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             toast.classList.remove('animate-toast-in');
             toast.classList.add('animate-toast-out');
             toast.addEventListener('animationend', () => toast.remove());
-        }, 3000);
+        }, 5000); // Increased duration slightly for warnings/errors
     }
 
     // --- Date Formatting ---
@@ -74,18 +75,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (dateInput instanceof Date && !isNaN(dateInput)) {
             dateObj = dateInput;
         } else if (typeof dateInput === 'string') {
-            if (dateInput.includes('/') && !dateInput.includes('-')) {
-                 const parts = dateInput.split('/');
-                 if (parts.length === 3 && parts[2] && parts[2].length === 4) {
-                     dateObj = new Date(parts[2], parseInt(parts[0], 10) - 1, parts[1]);
-                 }
-            } else if (dateInput.includes('-') && !dateInput.includes('/')) {
-                 const parts = dateInput.split('-');
-                 if (parts.length === 3 && parts[0].length === 4) {
-                     dateObj = new Date(dateInput + "T00:00:00");
-                 }
-            } else {
-                 try { dateObj = new Date(dateInput); } catch (e) {}
+            try { // More robust parsing
+                // Handle YYYY-MM-DD (adjust for UTC to avoid off-by-one day)
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+                     dateObj = new Date(dateInput + 'T00:00:00Z'); // Treat as UTC
+                     dateObj.setMinutes(dateObj.getMinutes() + dateObj.getTimezoneOffset()); // Adjust to local timezone day
+                // Handle MM/DD/YYYY
+                } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateInput)) {
+                    const parts = dateInput.split('/');
+                    dateObj = new Date(parts[2], parseInt(parts[0], 10) - 1, parts[1]);
+                } else {
+                     // Try generic parsing as last resort
+                     dateObj = new Date(dateInput);
+                }
+            } catch (e) {
+                 console.warn("Parsing error in formatDateForDisplay:", e);
+                 dateObj = null;
             }
         }
 
@@ -100,8 +105,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return `${month}/${day}/${year}`;
         }
 
-        console.warn("Could not format date for display:", dateInput);
-        return typeof dateInput === 'string' ? dateInput : '';
+        // console.warn("Could not format date for display:", dateInput);
+        return typeof dateInput === 'string' ? dateInput : ''; // Return original string if possible
     }
 
     // Aceita string (qualquer formato parseável por Date) ou Date object -> Retorna YYYY-MM-DD
@@ -111,19 +116,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (dateInput instanceof Date && !isNaN(dateInput)) {
             dateObj = dateInput;
         } else if (typeof dateInput === 'string') {
-            // Verifica YYYY-MM-DD (já no formato correto, sem hora) - Otimização
-            if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-                const tempDate = new Date(dateInput + "T00:00:00");
-                if (!isNaN(tempDate)) return dateInput; // Retorna como está se válido
+            // Handle YYYY-MM-DD (already correct)
+             if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+                 // Validate it's a real date
+                const tempDate = new Date(dateInput + "T00:00:00Z"); // Use UTC
+                if (!isNaN(tempDate)) return dateInput;
             }
-            // Tenta criar objeto Date para outros formatos
-            try {
-                const tempDate = new Date(dateInput);
-                if (!isNaN(tempDate)) dateObj = tempDate;
-            } catch (e) {}
+            // Handle MM/DD/YYYY
+            else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateInput)) {
+                 const parts = dateInput.split('/');
+                 dateObj = new Date(parts[2], parseInt(parts[0], 10) - 1, parts[1]);
+            }
+            // Try generic parse
+            else {
+                try {
+                    const tempDate = new Date(dateInput);
+                    if (!isNaN(tempDate)) dateObj = tempDate;
+                 } catch (e) {}
+            }
         }
 
-        // Se conseguiu um objeto Date válido, formata
         if (dateObj instanceof Date && !isNaN(dateObj)) {
             const year = dateObj.getFullYear();
             if (year < 1900) {
@@ -196,15 +208,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadIntervalConfig() {
         try {
             const response = await fetch('/api/get-maintenance-config');
+            // MODIFICADO: Lança erro explicitamente se a resposta não for OK
             if (!response.ok) {
-                 console.error('Failed to fetch config from server, status:', response.status);
-                 showToast('Failed to load maintenance config, using defaults.', 'warning');
-                 return JSON.parse(JSON.stringify(DEFAULT_INTERVALS)); // Retorna cópia profunda dos defaults
+                 let errorMsg = `HTTP error ${response.status}`;
+                 try {
+                     const errorJson = await response.json();
+                     errorMsg += `: ${errorJson.error || errorJson.message || 'Unknown server error'}`;
+                 } catch (e) { /* Ignora erro ao parsear JSON de erro */ }
+                 throw new Error(errorMsg); // Lança o erro para ser pego pelo catch
             }
             const configFromServer = await response.json();
              // Garante que configFromServer seja um objeto, mesmo que a resposta seja vazia ou malformada
              const validConfigFromServer = (typeof configFromServer === 'object' && configFromServer !== null) ? configFromServer : {};
-
 
             // Mescla config do servidor com defaults
             const mergedConfig = JSON.parse(JSON.stringify(DEFAULT_INTERVALS)); // Cópia profunda dos defaults
@@ -223,18 +238,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                          if(isNaN(threshold) || threshold < 0) threshold = DEFAULT_INTERVALS[key]; // Usa default se inválido
                          mergedConfig[key] = threshold;
                     }
-                    // Ignora outras chaves simples que não correspondam à estrutura esperada
                 }
             }
             console.log("Loaded and merged config:", mergedConfig);
-            return mergedConfig;
+            return mergedConfig; // Retorna a configuração mesclada
 
         } catch (e) {
+            // MODIFICADO: Mostra erro específico ao usuário
             console.error("Error loading interval config via API:", e);
-            showToast('Error loading maintenance config, using defaults.', 'error');
-            return JSON.parse(JSON.stringify(DEFAULT_INTERVALS)); // Retorna cópia profunda dos defaults
+            showToast(`Error loading maintenance config: ${e.message}. Using default values.`, 'error');
+            // Retorna uma cópia profunda dos defaults em caso de erro
+            return JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
         }
     }
+
 
      async function saveIntervalConfig() {
         const newConfig = { };
@@ -253,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     value = (defaultValue !== undefined) ? defaultValue : minValue;
                     el.value = value; // Corrige no form
                     isValid = false;
-                    // showToast(`Invalid value for ${keyPath.replace(/_/g, ' ')}. Resetting to default.`, 'warning'); // Comentado para reduzir toasts
+                    // showToast(`Invalid value for ${keyPath.replace(/_/g, ' ')}. Resetting to default.`, 'warning'); // Comentado
                 } else {
                     value = numValue;
                 }
@@ -309,35 +326,42 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Popula o formulário de configuração com os valores carregados/padrão
     function populateConfigForm() {
-        if (!configForm || !intervalConfig || Object.keys(intervalConfig).length === 0) {
-             console.warn("Config form or intervalConfig not ready for population.");
-             return; // Sai se o form ou a config não estiverem prontos
+        // Garante que intervalConfig seja um objeto antes de prosseguir
+        if (!configForm || typeof intervalConfig !== 'object' || intervalConfig === null || Object.keys(intervalConfig).length === 0) {
+             console.warn("Config form or intervalConfig not ready for population or is empty.");
+             // Tenta usar defaults puros se intervalConfig estiver vazio
+             if (typeof intervalConfig !== 'object' || intervalConfig === null || Object.keys(intervalConfig).length === 0) {
+                 intervalConfig = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
+                 console.log("Using pure defaults for config form population.");
+             } else {
+                return; // Sai se o form não existir
+             }
         }
+
         configForm.querySelectorAll('[data-config-key]').forEach(el => {
             const keyPath = el.dataset.configKey;
             const keys = keyPath.split('.');
             let value;
 
-            // Busca o valor na config carregada
+            // Busca o valor na config (que agora deve ser um objeto válido)
             if (keys.length === 2) {
-                // Garante que o objeto pai exista antes de tentar acessar a propriedade aninhada
                 value = intervalConfig[keys[0]] ? intervalConfig[keys[0]][keys[1]] : undefined;
             } else {
                 value = intervalConfig[keyPath];
             }
 
-            // Usa o default APENAS se o valor carregado for undefined
-            if (value === undefined) {
+            // Fallback final usando DEFAULT_INTERVALS se ainda for undefined
+             if (value === undefined) {
                  let defaultValue;
                  if (keys.length === 2) {
                      defaultValue = DEFAULT_INTERVALS[keys[0]] ? DEFAULT_INTERVALS[keys[0]][keys[1]] : undefined;
                  } else {
                      defaultValue = DEFAULT_INTERVALS[keyPath];
                  }
-                 value = defaultValue; // Usa o default se carregado for undefined
-            }
+                 value = defaultValue;
+             }
 
-            // Fallback final se ainda for undefined
+            // Garante um valor final se tudo falhar
              if (value === undefined) {
                 if (el.tagName === 'SELECT') value = 'monthly';
                 else if (el.type === 'number') value = keyPath === 'alert_threshold_days' ? 0 : 1;
@@ -346,15 +370,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             el.value = value; // Define o valor no elemento do formulário
         });
-        console.log("Config form populated."); // Log para confirmar
+        console.log("Config form populated.");
     }
 
     // --- Fetch Initial Data ---
     async function fetchInitialData() {
-        costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center">Loading initial data...</td></tr>';
+        // Mensagens de loading
+        costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center">Loading cost data...</td></tr>';
         alertsContent.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>';
         try {
-            // Config já foi carregada em initializePage() e o form populado
+            // Config JÁ FOI CARREGADA E O FORM POPULADO em initializePage()
 
             const [techCarsResponse, costResponse] = await Promise.all([
                 fetch('/api/get-tech-cars-data'),
@@ -362,25 +387,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             ]);
 
             // Trata TechCars
-            if (!techCarsResponse.ok) { /* ... (mesmo tratamento de erro anterior) ... */ }
+            if (!techCarsResponse.ok) {
+                 let errorMsg = 'Failed to load technician/car list.';
+                 try { const errorJson = await techCarsResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${techCarsResponse.status}`; }
+                 throw new Error(errorMsg);
+            }
             const techCarsResult = await techCarsResponse.json();
             techCarsData = techCarsResult.techCars || [];
             populateDropdown(technicianSelect, techCarsData, 'Select Technician...', 'tech_name', 'tech_name');
             populateDropdown(filterTechnicianSelect, techCarsData, 'All Technicians', 'tech_name', 'tech_name');
 
             // Trata Custos
-            if (!costResponse.ok) { /* ... (mesmo tratamento de erro anterior) ... */ }
+            if (!costResponse.ok) {
+                let errorMsg = 'Failed to load cost control data.';
+                try { const errorJson = await costResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${costResponse.status}`; }
+                throw new Error(errorMsg);
+            }
             const costDataResult = await costResponse.json();
-            allCostData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date)); // Filtra datas inválidas
+            // Filtra registros sem data válida ANTES de usar
+            allCostData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date));
 
+            // Define mensagem inicial da tabela de histórico
             costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>';
             renderAlerts(allCostData); // Renderiza alertas com a config carregada
 
         } catch (error) {
-            console.error('Error fetching initial data:', error);
+            console.error('Error fetching cost/car data:', error);
             showToast(`Error loading data: ${error.message}`, 'error');
-            costControlTableBody.innerHTML = `<tr><td colspan="15" class="p-4 text-center text-red-600">Failed to load data. ${error.message}</td></tr>`;
-            alertsContent.innerHTML = `<p class="text-destructive">Failed to load alert data: ${error.message}</p>`;
+            costControlTableBody.innerHTML = `<tr><td colspan="15" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`;
+            alertsContent.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
             if (technicianSelect) { technicianSelect.disabled = true; populateDropdown(technicianSelect, [], 'Error loading'); }
             if (filterTechnicianSelect) { filterTechnicianSelect.disabled = true; populateDropdown(filterTechnicianSelect, [], 'Error loading'); }
         }
@@ -439,7 +474,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Alert Logic (MODIFICADO: Não exibe "no record found") ---
+    // --- Alert Logic (Não exibe "no record found") ---
     function renderAlerts(data) {
         alertsContent.innerHTML = ''; // Limpa alertas
         let hasAnyAlerts = false;
@@ -489,11 +524,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Verifica cada categoria de manutenção configurada
             for (const key in MAINTENANCE_CATEGORIES) {
                 const config = intervalConfig[key];
-                 // Pula se a configuração para esta chave não existir, for inválida ou o valor for zero/negativo
-                if (!config || !config.type || isNaN(config.value) || config.value <= 0) {
-                     // console.warn(`Invalid or missing config for ${key}. Skipping alert check.`); // Opcional: Logar
-                     continue;
-                 }
+                 // Pula se config inválida
+                if (!config || !config.type || isNaN(config.value) || config.value <= 0) continue;
 
                 let lastRecord;
                  if (key === 'other') {
@@ -507,14 +539,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const categoryName = MAINTENANCE_CATEGORIES[key];
 
-                // MODIFICADO: Só processa se lastRecord existir
+                // Só processa se lastRecord existir
                 if (lastRecord) {
                     const dueDate = calculateDueDate(lastRecord.date, config.value, config.type);
 
                     if (dueDate && !isNaN(dueDate)) { // Verifica se dueDate é válido
                         if (dueDate <= today) { // Vencido
                             vehicleAlertMessages.push(`${categoryName} due (Last: ${formatDateForDisplay(lastRecord.date)})`);
-                            highestSeverity = 'error'; // Prioridade máxima
+                            highestSeverity = 'error';
                         } else if (dueDate <= alertThresholdDate) { // Próximo
                             vehicleAlertMessages.push(`${categoryName} soon (Due: ${formatDateForDisplay(dueDate)})`);
                             if (highestSeverity !== 'error') highestSeverity = 'warning';
@@ -523,16 +555,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                          console.warn(`Could not calculate due date for ${categoryName} on vehicle ${plate}. Last record date: ${lastRecord.date}`);
                     }
                 }
-                 // REMOVIDO: Bloco 'else' que adicionava "No record found"
+                 // "No record found" não é mais adicionado
 
-            } // Fim do loop pelas categorias
+            } // Fim loop categorias
 
-            // 3. Cria um único bloco de alerta para o veículo, se houver mensagens
+            // 3. Cria alerta se houver mensagens
             if (vehicleAlertMessages.length > 0) {
                 createAlert(plate, vehicleAlertMessages, highestSeverity);
-                hasAnyAlerts = true; // Marca que pelo menos um alerta foi gerado
+                hasAnyAlerts = true;
             }
-        } // Fim do loop pelos veículos
+        } // Fim loop veículos
 
         if (!hasAnyAlerts) {
             alertsContent.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts found based on configured intervals.</p>';
@@ -694,10 +726,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function initializePage() {
         setTodaysDate();
         // Carrega a configuração ANTES de buscar os outros dados
+        console.log("Initializing page, loading config..."); // Log
         intervalConfig = await loadIntervalConfig();
+        console.log("Config loaded, populating form..."); // Log
         populateConfigForm(); // Popula o formulário com a config carregada
+        console.log("Form populated, fetching other data..."); // Log
         // Só então busca os dados de carros/custos e renderiza alertas
         await fetchInitialData(); // Esta função agora SÓ busca dados, não carrega config
+        console.log("Initialization complete."); // Log
     }
 
     initializePage(); // Inicia a página
