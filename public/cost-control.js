@@ -10,11 +10,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const alertsContent = document.getElementById('alerts-content');
     const toastContainer = document.getElementById('toast-container');
 
-    // NEW: Configuration Form Selectors
+    // Configuration Form Selectors
     const configForm = document.getElementById('config-form');
     const saveConfigBtn = document.getElementById('save-config-btn');
 
-    // NEW: History Filter Selectors
+    // History Filter Selectors
     const filterHistorySection = document.getElementById('filter-history-section');
     const filterStartDateInput = document.getElementById('filter-start-date');
     const filterEndDateInput = document.getElementById('filter-end-date');
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let allCostData = [];
     let techCarsData = [];
-    let intervalConfig = loadIntervalConfig(); // Load config on start
+    let intervalConfig = {}; // Será carregado da API
 
     // --- Configuration Constants ---
     const MAINTENANCE_CATEGORIES = {
@@ -34,22 +34,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         'brake_change': 'Brake Change',
         'battery_change': 'Battery Change',
         'air_filter_change': 'Air Filter Change',
-        'other': 'Other Maintenance' // Generic for other types if needed
+        'other': 'Other Maintenance'
     };
 
     const DEFAULT_INTERVALS = {
         'tire_change': { type: 'monthly', value: 6 },
         'oil_and_filter_change': { type: 'monthly', value: 2 },
         'brake_change': { type: 'monthly', value: 4 },
-        'battery_change': { type: 'monthly', value: 24 }, // Example default
-        'air_filter_change': { type: 'monthly', value: 12 }, // Example default
-        'other': { type: 'monthly', value: 12 }, // Example default for 'Other' type
-        'alert_threshold_days': 15 // Default warning period
+        'battery_change': { type: 'monthly', value: 24 },
+        'air_filter_change': { type: 'monthly', value: 12 },
+        'other': { type: 'monthly', value: 12 },
+        'alert_threshold_days': 15
     };
 
     // --- Toast Notification ---
     function showToast(message, type = 'info') {
-        // ... (keep existing showToast function) ...
         if (!toastContainer) return;
         const toast = document.createElement('div');
         let bgColor = 'bg-card text-foreground'; // Default info style
@@ -67,97 +66,127 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Date Formatting ---
     function formatDateForDisplay(dateStr) {
-        // ... (keep existing formatDateForDisplay function) ...
-         if (!dateStr) return '';
+        if (!dateStr) return '';
+        // Tenta detectar se já está em MM/DD/YYYY
         if (dateStr.includes('/') && !dateStr.includes('-')) {
              const parts = dateStr.split('/');
+             // Verifica se o ano tem 4 dígitos
              if (parts.length === 3 && parts[2] && parts[2].length === 4) return dateStr;
         }
+        // Assume YYYY-MM-DD
         const [year, month, day] = dateStr.split('-');
         if (year && month && day && year.length === 4) {
             return `${month}/${day}/${year}`;
         }
-        // Attempt parsing if it's potentially a JS Date string output (e.g., from new Date())
+        // Tenta analisar se é uma string de data JS (menos comum vindo da planilha)
         try {
             const d = new Date(dateStr);
             if (!isNaN(d)) {
                  const y = d.getFullYear();
                  const m = String(d.getMonth() + 1).padStart(2, '0');
                  const dy = String(d.getDate()).padStart(2, '0');
-                 return `${m}/${dy}/${y}`;
+                 // Garante que o ano seja válido
+                 if (y > 1900) return `${m}/${dy}/${y}`;
             }
         } catch(e){}
 
         console.warn("Could not format date for display:", dateStr)
-        return dateStr;
+        return dateStr; // Retorna original se não conseguir formatar
     }
 
     function formatDateForInput(dateInput) {
-        // ... (keep existing formatDateForInput function) ...
-         if (!dateInput) return '';
+        if (!dateInput) return '';
         let dateObj;
         if (dateInput instanceof Date) {
             dateObj = dateInput;
         } else if (typeof dateInput === 'string') {
-            if (dateInput.includes('/')) {
+            // Verifica MM/DD/YYYY
+            if (dateInput.includes('/') && !dateInput.includes('T')) {
                  const parts = dateInput.split('/');
                  if (parts.length === 3 && parts[2] && parts[2].length === 4) {
+                     // Month is 0-indexed for Date constructor
                      dateObj = new Date(parts[2], parseInt(parts[0], 10) - 1, parts[1]);
                  }
-            } else if (dateInput.includes('-')) {
+            // Verifica YYYY-MM-DD (já no formato correto)
+            } else if (dateInput.includes('-') && !dateInput.includes('T')) {
                  const parts = dateInput.split('-');
                  if (parts.length === 3 && parts[0].length === 4) {
-                     const tempDate = new Date(dateInput + "T00:00:00");
+                     // Cria um objeto Date para validar, mas retorna a string original se válida
+                     const tempDate = new Date(dateInput + "T00:00:00"); // Adiciona T00:00:00 para evitar timezone shift
                      if (!isNaN(tempDate)) {
-                         return dateInput;
+                         return dateInput; // Retorna como está se válido YYYY-MM-DD
                      }
                  }
             }
+             // Tenta analisar outros formatos de string de data comuns
+             else {
+                try {
+                    dateObj = new Date(dateInput);
+                 } catch (e) {
+                    console.warn("Could not parse date string for input:", dateInput);
+                    return ''; // Retorna vazio se o parse falhar
+                 }
+            }
         }
+
+        // Se conseguimos um objeto Date válido, formata para YYYY-MM-DD
         if (dateObj instanceof Date && !isNaN(dateObj)) {
             const year = dateObj.getFullYear();
+            // Verifica se o ano é razoável
+            if (year < 1900) {
+                 console.warn("Year seems invalid:", year, "Original input:", dateInput);
+                 return '';
+            }
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         }
+
         console.warn("Could not format date for input:", dateInput);
-        return '';
+        return ''; // Retorna vazio para formatos inválidos ou datas inválidas
     }
 
-    // --- Date Calculation Helpers ---
-    // Modified addMonths to handle weeks as well
+
+    // --- Date Calculation Helper ---
     function calculateDueDate(startDate, intervalValue, intervalType) {
         if (!startDate || isNaN(intervalValue) || intervalValue <= 0) return null;
+        // Cria uma nova data baseada na data de início para evitar modificar a original
         const d = new Date(startDate);
-        const originalDay = d.getDate();
+        // Garante que estamos lidando com um objeto Date válido
+        if (isNaN(d.getTime())) return null;
+
+        const originalDay = d.getDate(); // Guarda o dia original
 
         if (intervalType === 'monthly') {
             d.setMonth(d.getMonth() + intervalValue);
+            // Se o dia mudou (ex: Jan 31 + 1 mês = Feb 28/29), ajusta para o último dia do mês alvo
             if (d.getDate() !== originalDay) {
-                d.setDate(0); // Adjust to last day of target month if day changed
+              // Volta para o dia 0 do *próximo* mês, que é o último dia do mês alvo
+              d.setDate(0);
             }
         } else if (intervalType === 'weekly') {
             d.setDate(d.getDate() + (intervalValue * 7));
         } else {
-            return null; // Invalid type
+            return null; // Tipo de intervalo inválido
         }
+        d.setHours(0,0,0,0); // Zera a hora para comparação
         return d;
     }
 
 
     // --- Dropdown Population ---
     function populateDropdown(selectElement, items, defaultText = 'Select...', valueKey = null, textKey = null) {
-        // ... (keep existing populateDropdown function) ...
-         selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+         selectElement.innerHTML = `<option value="">${defaultText}</option>`; // Limpa e adiciona opção padrão
         if (items && Array.isArray(items)) {
+            // Ordena pelo texto a ser exibido
             items.sort((a, b) => {
                 const textA = textKey ? (a[textKey] || '') : (a || '');
                 const textB = textKey ? (b[textKey] || '') : (b || '');
-                return textA.localeCompare(textB);
+                return textA.localeCompare(textB); // Ordenação alfabética
             }).forEach(item => {
                 const value = valueKey ? (item[valueKey] || '') : (item || '');
                 const text = textKey ? (item[textKey] || '') : (item || '');
-                if (value) {
+                if (value) { // Só adiciona se tiver um valor (evita techs sem nome)
                     const option = document.createElement('option');
                     option.value = value;
                     option.textContent = text;
@@ -169,117 +198,214 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Set Today's Date ---
     function setTodaysDate() {
-        // ... (keep existing setTodaysDate function) ...
         const today = new Date();
         const dateInput = document.getElementById('date');
         if (dateInput) {
+            // Formata o objeto Date para YYYY-MM-DD
             dateInput.value = formatDateForInput(today);
         }
-    }
+     }
 
 
-    // --- NEW: Configuration Management ---
-    function loadIntervalConfig() {
+    // --- Configuration Management (API) ---
+    async function loadIntervalConfig() {
         try {
-            const storedConfig = localStorage.getItem('maintenanceIntervalConfig');
-            // Merge stored config with defaults, ensuring all default keys exist
-            return { ...DEFAULT_INTERVALS, ...(storedConfig ? JSON.parse(storedConfig) : {}) };
+            const response = await fetch('/api/get-maintenance-config');
+            if (!response.ok) {
+                 console.error('Failed to fetch config from server, status:', response.status);
+                 showToast('Failed to load maintenance config, using defaults.', 'warning');
+                 return { ...DEFAULT_INTERVALS };
+            }
+            const configFromServer = await response.json();
+
+            // Mescla config do servidor com defaults para garantir que todas as chaves existam
+            const mergedConfig = { ...DEFAULT_INTERVALS };
+
+            // Itera sobre as chaves do DEFAULT_INTERVALS para garantir a estrutura correta
+            for (const key in DEFAULT_INTERVALS) {
+                if (configFromServer.hasOwnProperty(key)) {
+                    // Se for um objeto aninhado (como tire_change), mescla internamente
+                    if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof configFromServer[key] === 'object' && configFromServer[key] !== null) {
+                        // Garante que 'type' e 'value' existam e sejam válidos
+                        let type = configFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
+                        let value = parseInt(configFromServer[key].value, 10);
+                        if(isNaN(value) || value < 1) value = DEFAULT_INTERVALS[key].value;
+                        mergedConfig[key] = { type: type, value: value };
+                    } else if (key === 'alert_threshold_days') {
+                        // Valida o threshold
+                        let threshold = parseInt(configFromServer[key], 10);
+                         if(isNaN(threshold) || threshold < 0) threshold = DEFAULT_INTERVALS[key];
+                         mergedConfig[key] = threshold;
+                    } else {
+                         // Para outras chaves diretas (se houver no futuro)
+                         mergedConfig[key] = configFromServer[key];
+                    }
+                }
+                // Se a chave não existir no servidor, o valor padrão já está em mergedConfig
+            }
+             console.log("Loaded and merged config:", mergedConfig); // Debug log
+            return mergedConfig;
+
         } catch (e) {
-            console.error("Error loading interval config:", e);
-            return { ...DEFAULT_INTERVALS }; // Return defaults on error
+            console.error("Error loading interval config via API:", e);
+            showToast('Error loading maintenance config, using defaults.', 'error');
+            return { ...DEFAULT_INTERVALS }; // Retorna defaults em caso de erro de fetch/parse
         }
     }
 
-    function saveIntervalConfig() {
-        const newConfig = { ...intervalConfig }; // Start with current/loaded config
-        // Iterate through form elements with data-config-key attribute
+    async function saveIntervalConfig() {
+        const newConfig = { }; // Começa com objeto vazio
+        let isValid = true;
+        // Lê os valores atuais do formulário
         configForm.querySelectorAll('[data-config-key]').forEach(el => {
             const keyPath = el.dataset.configKey;
-            const value = el.type === 'number' ? parseInt(el.value, 10) || 1 : el.value; // Default number to 1 if invalid
+            let value = el.value;
 
-            // Handle nested keys like 'tire_change.type'
+            // Validações básicas
+            if (el.type === 'number') {
+                const numValue = parseInt(value, 10);
+                if (isNaN(numValue) || numValue < (keyPath === 'alert_threshold_days' ? 0 : 1) ) {
+                    // Se inválido, busca o default para aquela chave específica
+                    const keys = keyPath.split('.');
+                    let defaultValue = (keys.length === 2 && DEFAULT_INTERVALS[keys[0]]) ? DEFAULT_INTERVALS[keys[0]][keys[1]] : DEFAULT_INTERVALS[keyPath];
+                    if (defaultValue === undefined) defaultValue = (keyPath === 'alert_threshold_days' ? 0 : 1); // Último recurso
+                    value = defaultValue;
+                    el.value = value; // Corrige no formulário
+                    isValid = false; // Marca como inválido para alertar
+                     showToast(`Invalid value for ${keyPath.replace('_', ' ')}. Resetting to default.`, 'warning');
+                } else {
+                    value = numValue; // Usa o valor numérico validado
+                }
+            } else if (el.tagName === 'SELECT') {
+                if (!value) { // Caso o select esteja vazio por algum motivo
+                     const keys = keyPath.split('.');
+                     let defaultValue = (keys.length === 2 && DEFAULT_INTERVALS[keys[0]]) ? DEFAULT_INTERVALS[keys[0]][keys[1]] : DEFAULT_INTERVALS[keyPath];
+                     if (!defaultValue) defaultValue = 'monthly'; // Default genérico
+                     value = defaultValue;
+                     el.value = value;
+                     isValid = false;
+                     showToast(`Invalid type for ${keyPath.replace('_', ' ')}. Resetting to default.`, 'warning');
+                }
+            }
+
+
             const keys = keyPath.split('.');
             if (keys.length === 2) {
-                if (!newConfig[keys[0]]) newConfig[keys[0]] = {}; // Ensure parent object exists
+                if (!newConfig[keys[0]]) newConfig[keys[0]] = {};
                 newConfig[keys[0]][keys[1]] = value;
             } else {
-                newConfig[keyPath] = value; // Direct key like 'alert_threshold_days'
+                newConfig[keyPath] = value;
             }
         });
 
-        // Validate threshold days
-        if (isNaN(newConfig.alert_threshold_days) || newConfig.alert_threshold_days < 0) {
-            newConfig.alert_threshold_days = DEFAULT_INTERVALS.alert_threshold_days; // Reset to default if invalid
+         if (!isValid) {
+            showToast('Some configuration values were invalid and reset to defaults. Please review and save again if needed.', 'warning');
+            // Não impede o salvamento, mas avisa o usuário
         }
 
+        console.log("Saving config:", newConfig); // Debug log
+
+        // Desabilita botão enquanto salva
+        saveConfigBtn.disabled = true;
+        saveConfigBtn.textContent = 'Saving...';
+
         try {
-            localStorage.setItem('maintenanceIntervalConfig', JSON.stringify(newConfig));
-            intervalConfig = newConfig; // Update global state
-            showToast('Configuration saved successfully!', 'success');
-            // Re-render alerts immediately after saving config
-            renderAlerts(allCostData);
+            const response = await fetch('/api/save-maintenance-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newConfig) // Envia o objeto JSON para a API
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                intervalConfig = newConfig; // Atualiza o estado global
+                showToast('Configuration saved successfully!', 'success');
+                renderAlerts(allCostData); // Re-renderiza alertas com a nova config
+            } else {
+                throw new Error(result.message || 'Failed to save configuration.');
+            }
         } catch (e) {
-            console.error("Error saving interval config:", e);
-            showToast('Failed to save configuration.', 'error');
+            console.error("Error saving interval config via API:", e);
+            showToast(`Failed to save configuration: ${e.message}`, 'error');
+        } finally {
+             // Reabilita o botão
+             saveConfigBtn.disabled = false;
+             saveConfigBtn.textContent = 'Save Configuration';
         }
     }
 
+
     function populateConfigForm() {
+        if (!configForm) return;
         configForm.querySelectorAll('[data-config-key]').forEach(el => {
             const keyPath = el.dataset.configKey;
             const keys = keyPath.split('.');
             let value;
+            // Busca o valor na config carregada
             if (keys.length === 2) {
                 value = intervalConfig[keys[0]] ? intervalConfig[keys[0]][keys[1]] : undefined;
             } else {
                 value = intervalConfig[keyPath];
             }
 
-            // Set default value if config value is missing
+            // Busca o valor default se não encontrar na config carregada
             let defaultValue;
-            if (keys.length === 2) {
-                 defaultValue = DEFAULT_INTERVALS[keys[0]] ? DEFAULT_INTERVALS[keys[0]][keys[1]] : undefined;
-            } else {
-                 defaultValue = DEFAULT_INTERVALS[keyPath];
+            if (value === undefined) {
+                if (keys.length === 2) {
+                     defaultValue = DEFAULT_INTERVALS[keys[0]] ? DEFAULT_INTERVALS[keys[0]][keys[1]] : undefined;
+                } else {
+                     defaultValue = DEFAULT_INTERVALS[keyPath];
+                }
+                value = defaultValue; // Usa o default se carregado for undefined
             }
 
-            el.value = value !== undefined ? value : (defaultValue !== undefined ? defaultValue : '');
+            // Garante um fallback final se nem carregado nem default existirem
+             if (value === undefined) {
+                if (el.tagName === 'SELECT') value = 'monthly';
+                else if (el.type === 'number') value = keyPath === 'alert_threshold_days' ? 0 : 1;
+                else value = '';
+            }
+
+            el.value = value;
         });
     }
 
     // --- Fetch Initial Data ---
     async function fetchInitialData() {
-        // Set initial state for table and alerts
         costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center">Loading initial data...</td></tr>';
         alertsContent.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>';
         try {
+            // Carrega a configuração ANTES de buscar os outros dados
+            intervalConfig = await loadIntervalConfig();
+            populateConfigForm(); // Popula o form com a config carregada/mesclada
+
             const [techCarsResponse, costResponse] = await Promise.all([
                 fetch('/api/get-tech-cars-data'),
                 fetch('/api/get-cost-control-data')
             ]);
 
-            if (!techCarsResponse.ok) { /* ... (keep existing error handling) ... */
+            if (!techCarsResponse.ok) {
                 let errorMsg = 'Failed to load technician/car list.';
-                 try { const errorJson = await techCarsResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${techCarsResponse.status}`; }
-                 throw new Error(errorMsg);
+                try { const errorJson = await techCarsResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${techCarsResponse.status}`; }
+                throw new Error(errorMsg);
             }
             const techCarsResult = await techCarsResponse.json();
             techCarsData = techCarsResult.techCars || [];
             populateDropdown(technicianSelect, techCarsData, 'Select Technician...', 'tech_name', 'tech_name');
-            // NEW: Populate history filter dropdown
             populateDropdown(filterTechnicianSelect, techCarsData, 'All Technicians', 'tech_name', 'tech_name');
 
-            if (!costResponse.ok) { /* ... (keep existing error handling) ... */
-                 let errorMsg = 'Failed to load cost control data.';
-                 try { const errorJson = await costResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${costResponse.status}`; }
+            if (!costResponse.ok) {
+                let errorMsg = 'Failed to load cost control data.';
+                try { const errorJson = await costResponse.json(); errorMsg = errorJson.error || errorJson.message || errorMsg; } catch(e){ errorMsg = `Status: ${costResponse.status}`; }
                 throw new Error(errorMsg);
             }
             const costDataResult = await costResponse.json();
             allCostData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date));
 
-            // MODIFIED: Don't render table on initial load, only alerts
-            costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>'; // Set initial message
-            renderAlerts(allCostData);
+            // Não renderiza a tabela inicialmente
+            costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>';
+            renderAlerts(allCostData); // Renderiza alertas com a config carregada
 
         } catch (error) {
             console.error('Error fetching initial data:', error);
@@ -291,12 +417,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+
     // --- Table Rendering (Now accepts filtered data) ---
     function renderTable(data) {
         costControlTableBody.innerHTML = '';
         if (!Array.isArray(data) || data.length === 0) {
-            // Display different message based on whether it's initial state or no results from filter
-             if (listingSection.classList.contains('hidden')) { // Check if section is still hidden (initial state)
+            if (listingSection.classList.contains('hidden')) {
                 costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>';
             } else {
                 costControlTableBody.innerHTML = '<tr><td colspan="15" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>';
@@ -304,12 +430,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Ordena por data (mais recente primeiro) ANTES de exibir
         const sortedData = data.sort((a, b) => {
-             const dateA = a.date ? new Date(formatDateForInput(a.date)) : 0;
-             const dateB = b.date ? new Date(formatDateForInput(b.date)) : 0;
-             const timeA = !isNaN(dateA) ? dateA.getTime() : 0;
-             const timeB = !isNaN(dateB) ? dateB.getTime() : 0;
-             return timeB - timeA;
+             const dateAStr = formatDateForInput(a.date);
+             const dateBStr = formatDateForInput(b.date);
+             // Coloca datas inválidas no final
+             if (!dateAStr && !dateBStr) return 0;
+             if (!dateAStr) return 1;
+             if (!dateBStr) return -1;
+             // Compara datas válidas
+             const dateA = new Date(dateAStr);
+             const dateB = new Date(dateBStr);
+             return dateB.getTime() - dateA.getTime(); // Mais recente primeiro
         });
 
         sortedData.forEach(record => {
@@ -334,7 +466,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4 text-center">${isChecked(record.tire_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.oil_and_filter_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.brake_change)}</td>
-                 {/* Display new checkbox states */}
                 <td class="p-4 text-center">${isChecked(record.battery_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.air_filter_change)}</td>
             `;
@@ -342,28 +473,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- REVISED: Alert Logic (Using Config, Grouped by Vehicle) ---
+    // --- Alert Logic (Using Config, Grouped by Vehicle) ---
     function renderAlerts(data) {
         alertsContent.innerHTML = '';
         let hasAnyAlerts = false;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const alertThresholdDays = intervalConfig.alert_threshold_days || DEFAULT_INTERVALS.alert_threshold_days; // Get threshold from config
+        const alertThresholdDays = parseInt(intervalConfig.alert_threshold_days, 10);
+        // Garante que alertThresholdDays seja um número válido >= 0
+        const validThresholdDays = (!isNaN(alertThresholdDays) && alertThresholdDays >= 0) ? alertThresholdDays : DEFAULT_INTERVALS.alert_threshold_days;
+
         const alertThresholdDate = new Date(today);
-        alertThresholdDate.setDate(today.getDate() + alertThresholdDays);
+        alertThresholdDate.setDate(today.getDate() + validThresholdDays);
 
         const vehicleData = {};
 
-        // 1. Group records by plate
+        // 1. Agrupa registros válidos por placa
         data.forEach(record => {
             if (record.license_plate) {
                 const plate = record.license_plate.toUpperCase().trim();
-                const recordDate = record.date ? new Date(formatDateForInput(record.date)) : null;
+                const recordDateStr = formatDateForInput(record.date); // Garante YYYY-MM-DD
+                const recordDate = recordDateStr ? new Date(recordDateStr + "T00:00:00") : null; // Adiciona T00:00:00
+
+                // Ignora registros sem data válida
                 if (!recordDate || isNaN(recordDate)) return;
 
                 if (!vehicleData[plate]) vehicleData[plate] = [];
-                // Store relevant info
+
+                // Armazena informações relevantes, incluindo as novas flags
                 vehicleData[plate].push({
                     date: recordDate,
                     tire_change: String(record.tire_change).toUpperCase() === 'TRUE',
@@ -371,34 +509,39 @@ document.addEventListener('DOMContentLoaded', async () => {
                     brake_change: String(record.brake_change).toUpperCase() === 'TRUE',
                     battery_change: String(record.battery_change).toUpperCase() === 'TRUE',
                     air_filter_change: String(record.air_filter_change).toUpperCase() === 'TRUE',
-                    cost_type: record.cost_type // Needed for 'Other' type check
+                    cost_type: record.cost_type,
+                    subtype: record.subtype // Pode ser útil para 'Other'
                 });
             }
         });
 
-        // 2. Process each vehicle
+        // 2. Processa cada veículo
         for (const plate in vehicleData) {
-            const records = vehicleData[plate].sort((a, b) => b.date - a.date); // Most recent first
+            const records = vehicleData[plate].sort((a, b) => b.date.getTime() - a.date.getTime()); // Mais recente primeiro
             if (records.length === 0) continue;
 
             let vehicleAlertMessages = [];
-            let highestSeverity = 'info'; // Default to info
+            let highestSeverity = 'info'; // 'info', 'warning', 'error'
 
-            // Check each configured maintenance category
+            // Verifica cada categoria de manutenção configurada
             for (const key in MAINTENANCE_CATEGORIES) {
                 const config = intervalConfig[key];
-                if (!config || !config.type || !config.value) continue; // Skip if not configured
+                 // Pula se a configuração para esta chave não existir ou for inválida
+                if (!config || !config.type || isNaN(config.value) || config.value <= 0) {
+                     console.warn(`Invalid or missing config for ${key}. Skipping alert check.`);
+                     continue;
+                 }
 
                 let lastRecord;
-                 // Find the last record where this specific service was performed
+                 // Encontra o último registro onde este serviço específico foi realizado
                  if (key === 'other') {
-                    // Special case for 'Other': Find last record with cost_type 'Maintenance' or 'Repair' that *wasn't* one of the specific types
+                    // Para 'Other', procura pelo último 'Maintenance' ou 'Repair' que não seja um dos específicos
                     lastRecord = records.find(r =>
                         (r.cost_type === 'Maintenance' || r.cost_type === 'Repair') &&
                         !r.tire_change && !r.oil_and_filter_change && !r.brake_change && !r.battery_change && !r.air_filter_change
                     );
                  } else {
-                    // For specific types like 'tire_change', find the last record where that flag is true
+                    // Para tipos específicos (ex: 'tire_change'), procura pelo último onde a flag correspondente é true
                      lastRecord = records.find(r => r[key] === true);
                  }
 
@@ -406,75 +549,92 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (lastRecord) {
                     const dueDate = calculateDueDate(lastRecord.date, config.value, config.type);
+
+                    // Verifica se dueDate é uma data válida antes de comparar
                     if (dueDate && !isNaN(dueDate)) {
                         if (dueDate <= today) { // Vencido
                             vehicleAlertMessages.push(`${categoryName} due (Last: ${formatDateForDisplay(lastRecord.date)})`);
-                            highestSeverity = 'error';
-                        } else if (dueDate <= alertThresholdDate) { // Próximo
+                            highestSeverity = 'error'; // Prioridade máxima
+                        } else if (dueDate <= alertThresholdDate) { // Próximo do vencimento
                             vehicleAlertMessages.push(`${categoryName} soon (Due: ${formatDateForDisplay(dueDate)})`);
+                            // Define como warning apenas se não houver um erro mais grave
                             if (highestSeverity !== 'error') highestSeverity = 'warning';
                         }
+                    } else {
+                         console.warn(`Could not calculate due date for ${categoryName} on vehicle ${plate}. Last record date: ${lastRecord.date}`);
                     }
                 } else {
-                    // Only add "no record found" if it's not the generic 'Other' type
+                    // Adiciona "no record found" apenas para os tipos específicos, não para 'Other'
                     if (key !== 'other') {
                         vehicleAlertMessages.push(`No ${categoryName} record found`);
+                        // Mantém 'info' como severidade padrão se não houver outros alertas mais graves
                     }
                 }
-            } // End loop through categories
+            } // Fim do loop pelas categorias
 
-            // 3. Create a single alert div for the vehicle if needed
+            // 3. Cria um único bloco de alerta para o veículo, se houver mensagens
             if (vehicleAlertMessages.length > 0) {
                 createAlert(plate, vehicleAlertMessages, highestSeverity);
-                hasAnyAlerts = true;
+                hasAnyAlerts = true; // Marca que pelo menos um alerta foi gerado
             }
-        } // End loop through vehicles
+        } // Fim do loop pelos veículos
 
+        // 4. Exibe mensagem se nenhum alerta foi gerado
         if (!hasAnyAlerts) {
             alertsContent.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts found based on configured intervals.</p>';
         }
     }
 
 
-    // Create Alert HTML (Keep existing compact style)
+    // Create Alert HTML (Mantém o estilo compacto)
     function createAlert(plate, messages, type) {
-        // ... (keep existing createAlert function) ...
         const alertDiv = document.createElement('div');
-        let borderColor = 'border-muted';
+        let borderColor = 'border-border'; // Cor padrão para 'info' e 'no record'
         let bgColor = 'bg-muted/10';
         let title = 'Info';
-        let titleColor = 'text-blue-700 dark:text-blue-300'; // Cor para info
+        let titleColor = 'text-foreground'; // Cor padrão
+
         if (type === 'warning') {
             borderColor = 'border-yellow-500';
             bgColor = 'bg-yellow-500/10';
             title = 'Warning';
             titleColor = 'text-yellow-700 dark:text-yellow-300';
         } else if (type === 'error') {
-            borderColor = 'border-destructive';
+            borderColor = 'border-destructive'; // Cor do tema para erro
             bgColor = 'bg-destructive/10';
-            title = 'Alert / Due';
+            title = 'Alert / Due'; // Título mais claro para erro
             titleColor = 'text-destructive';
         }
+
+       // Estilo mais compacto
        alertDiv.className = `p-3 border ${borderColor} rounded-lg ${bgColor} mb-2`;
+
+       // Cria string única com mensagens separadas por " • "
        const messageString = messages.join(' • ');
+
        alertDiv.innerHTML = `
            <div class="flex justify-between items-center">
+                {/* Título com cor baseada na severidade */}
                 <span class="font-semibold text-sm ${titleColor}">${title}: Vehicle ${plate}</span>
            </div>
-           <p class="text-xs text-muted-foreground mt-1">${messageString}</p>
+           {/* Mensagens com cor padrão */}
+           <p class="text-xs text-foreground mt-1">${messageString}</p>
        `;
        alertsContent.appendChild(alertDiv);
     }
 
     // --- Autofill Logic ---
     function handleTechnicianChange() {
-        // ... (keep existing handleTechnicianChange function) ...
         const selectedTechName = technicianSelect.value;
+        // Tenta encontrar dados do técnico na lista carregada
         const selectedTechData = techCarsData.find(tech => tech.tech_name === selectedTechName);
+
         if (selectedTechData) {
+            // Preenche VIN e Placa se encontrados
             vinInput.value = selectedTechData.vin_number || '';
             licensePlateInput.value = selectedTechData.car_plate || '';
         } else {
+            // Limpa os campos se o técnico não for encontrado ou "Select..." for escolhido
             vinInput.value = '';
             licensePlateInput.value = '';
         }
@@ -482,85 +642,141 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Form Submission ---
     costControlForm.addEventListener('submit', async (event) => {
-        // ... (keep existing form submission logic, ensuring new checkboxes are handled) ...
-        event.preventDefault();
+        event.preventDefault(); // Impede o envio padrão do formulário
         const formData = new FormData(costControlForm);
         const data = {};
+
+        // Coleta dados do formulário
         formData.forEach((value, key) => {
             if (key === 'price' && typeof value === 'string') {
+                // Substitui vírgula por ponto ANTES de enviar
                 data[key] = value.replace(',', '.');
-            } else { data[key] = value; }
+            } else {
+                data[key] = value;
+            }
         });
+
+        // Adiciona VIN e Placa (que são readonly e podem não estar no FormData)
         data['vin'] = vinInput.value;
         data['license_plate'] = licensePlateInput.value;
-        // Include new checkboxes
+
+        // Garante valor 'TRUE' ou 'FALSE' para checkboxes, incluindo os novos
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
             data[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
-        if (!data.technician) { showToast('Please select a Technician (Driver).', 'error'); return; }
-        if (!data.license_plate || !data.vin) { showToast('VIN and License Plate must be autofilled by selecting a Technician.', 'error'); return; }
+
+        // Validações Essenciais
+        if (!data.technician) {
+            showToast('Please select a Technician (Driver).', 'error');
+            return; // Impede o envio
+        }
+        if (!data.license_plate || !data.vin) {
+            showToast('VIN and License Plate must be autofilled by selecting a Technician.', 'error');
+            return;
+        }
+        if (!data.date || !data.odometer || !data.cost_type || !data.price) {
+             showToast('Date, Odometer, Cost Type, and Price are required.', 'error');
+             return;
+        }
+
 
         const submitButton = costControlForm.querySelector('button[type="submit"]');
-        submitButton.disabled = true; submitButton.textContent = 'Saving...';
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+
         try {
             const response = await fetch('/api/register-cost-control', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
             });
+
+            // Tratamento de erro melhorado
             if (!response.ok) {
-                 let errorText = `Server responded with status: ${response.status}`;
-                 try { const errorResult = await response.json(); errorText = errorResult.message || errorText; } catch(e) { try { errorText = await response.text(); if (errorText.length > 150) errorText = errorText.substring(0, 150) + "..."; } catch (e2) {} }
-                 console.error("API Error Response:", errorText);
-                 throw new Error(`Failed to save record. ${response.status === 500 ? 'Internal server error. Check server logs.' : errorText}`);
+                let errorText = `Server responded with status: ${response.status}`;
+                try {
+                    const errorResult = await response.json();
+                    errorText = errorResult.message || errorText;
+                } catch(e) { /* Ignora erro de parse do JSON de erro */ }
+                 console.error("API Error Response:", await response.text()); // Loga a resposta completa se possível
+                 throw new Error(`Failed to save record. ${errorText}`);
             }
+
             const result = await response.json();
+
             if (result.success) {
                 showToast('Record saved successfully!', 'success');
-                costControlForm.reset(); setTodaysDate(); vinInput.value = ''; licensePlateInput.value = '';
-                await fetchInitialData(); // Reload all data
-            } else { throw new Error(result.message || 'Failed to save record.'); }
-        } catch (error) { console.error('Error submitting form:', error); showToast(`Error: ${error.message || 'Could not save record.'}`, 'error');
-        } finally { submitButton.disabled = false; submitButton.textContent = 'Save Record'; }
+                costControlForm.reset(); // Limpa o formulário
+                setTodaysDate(); // Define data novamente
+                vinInput.value = ''; // Limpa campos autofill
+                licensePlateInput.value = ''; // Limpa campos autofill
+                // Recarrega todos os dados para atualizar a lista e os alertas
+                await fetchInitialData();
+            } else {
+                // Caso a API retorne status 2xx mas success: false
+                throw new Error(result.message || 'Failed to save record.');
+            }
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            showToast(`Error: ${error.message || 'Could not save record.'}`, 'error');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Save Record';
+        }
     });
 
-    // --- NEW: History Search Logic ---
+    // --- History Search Logic ---
     searchHistoryBtn.addEventListener('click', () => {
         const startDateStr = filterStartDateInput.value;
         const endDateStr = filterEndDateInput.value;
         const techName = filterTechnicianSelect.value;
         const plate = filterLicensePlateInput.value.trim().toLowerCase();
 
-        // Convert filter dates to Date objects for comparison (set time to cover full days)
+        // Converte datas do filtro para objetos Date para comparação
+        // Adiciona T00:00:00 e T23:59:59 para incluir o dia inteiro
         const startDate = startDateStr ? new Date(startDateStr + 'T00:00:00') : null;
         const endDate = endDateStr ? new Date(endDateStr + 'T23:59:59') : null;
 
         const filteredData = allCostData.filter(record => {
-            // Convert record date to Date object
-            const recordDateStr = formatDateForInput(record.date);
+            // Converte data do registro para objeto Date
+            const recordDateStr = formatDateForInput(record.date); // Garante YYYY-MM-DD
+            // Adiciona T00:00:00 para consistência na comparação
             const recordDate = recordDateStr ? new Date(recordDateStr + 'T00:00:00') : null;
 
-            if (!recordDate) return false; // Skip records with invalid dates
+            // Se a data do registro for inválida, não inclui no resultado
+            if (!recordDate || isNaN(recordDate)) return false;
 
+            // Verifica se a data está dentro do range (se os filtros de data foram definidos)
             const matchesDate =
                 (!startDate || recordDate >= startDate) &&
                 (!endDate || recordDate <= endDate);
+
+            // Verifica se o técnico corresponde (se um técnico foi selecionado)
             const matchesTech = !techName || (record.technician && record.technician === techName);
+
+            // Verifica se a placa corresponde (case-insensitive, partial match)
             const matchesPlate = !plate || (record.license_plate && record.license_plate.toLowerCase().includes(plate));
 
+            // Retorna true apenas se TODAS as condições ativas forem atendidas
             return matchesDate && matchesTech && matchesPlate;
         });
 
-        // Make history section visible and render the filtered table
+        // Mostra a seção de histórico e renderiza a tabela com os dados filtrados
         listingSection.classList.remove('hidden');
         renderTable(filteredData);
     });
+
 
     // --- Event Listeners ---
     if (technicianSelect) { technicianSelect.addEventListener('change', handleTechnicianChange); }
     if (saveConfigBtn) { saveConfigBtn.addEventListener('click', saveIntervalConfig); }
 
     // --- Initialization ---
-    setTodaysDate();
-    populateConfigForm(); // Populate config form with loaded/default values
-    fetchInitialData(); // Fetch data and render alerts
+    async function initializePage() {
+        setTodaysDate();
+        await fetchInitialData(); // Carrega config da API, popula form, busca dados, renderiza alertas
+    }
+
+    initializePage(); // Inicia a página
 
 });
