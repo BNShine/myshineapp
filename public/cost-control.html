@@ -9,7 +9,6 @@
     <style>
         .checkbox-label { @apply flex items-center space-x-2 text-sm; }
         .checkbox-input { @apply h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary; }
-        /* Esconde a secção de histórico por defeito */
         #listing-section.hidden { display: none; }
     </style>
 </head>
@@ -19,19 +18,26 @@
         <aside class="sidebar">
             <div class="flex h-16 items-center justify-center border-b px-6">
                  <a class="flex items-center gap-2 font-semibold" href="appointments.html">
+                    {/* Logotipo da Aplicação */}
                     <img src="https://i.imgur.com/bW695v3.png" alt="Logo" class="h-10 w-auto"/>
                     <span class="sr-only">Myshineapp</span>
                 </a>
             </div>
+            {/* ##### BARRA LATERAL MODIFICADA ##### */}
             <nav class="flex-1 overflow-auto p-4">
-                 <ul class="grid items-start gap-1 text-sm font-medium">
-                    <li><a class="sidebar-link" href="appointments.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>Sales</a></li>
-                    <li><a class="sidebar-link" href="customers.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Customers</a></li>
-                    <li><a class="sidebar-link" href="analytics.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a></li>
-                    <li><a class="sidebar-link" href="calendar.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>Calendar</a></li>
-                    <li><a class="sidebar-link" href="quick-routes.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>Routes</a></li>
-                    <li><a class="sidebar-link" href="finance.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>Finance</a></li>
+                <ul class="grid items-start gap-1 text-sm font-medium">
                     <li>
+                        {/* Link "Back to Home" com ID para o JavaScript */}
+                        <a id="back-to-home-link" class="sidebar-link" href="#">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                            Back to Home
+                        </a>
+                    </li>
+                    <li>
+                        {/* Link "Cost Control" com a classe 'active' */}
                         <a class="sidebar-link active" href="cost-control.html">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
                                 <path d="M14 17.5V14a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3.5"/>
@@ -46,6 +52,7 @@
                     </li>
                 </ul>
             </nav>
+            {/* ##### FIM DA BARRA LATERAL MODIFICADA ##### */}
         </aside>
 
         <div class="main-content flex flex-col flex-1">
@@ -162,12 +169,12 @@
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance Interval Configuration</h2>
                     </div>
-                    <form id="config-form" class="p-6 space-y-3"> <div class="grid grid-cols-3 gap-x-4 mb-2 pb-2 border-b">
+                    <form id="config-form" class="p-6 space-y-3">
+                        <div class="grid grid-cols-3 gap-x-4 mb-2 pb-2 border-b">
                             <span class="text-label font-medium col-span-1">Maintenance Type</span>
                             <span class="text-label font-medium col-span-1 text-center">Frequency</span>
                             <span class="text-label font-medium col-span-1 text-center">Interval</span>
                         </div>
-
                         <div class="grid grid-cols-3 gap-x-4 items-center">
                             <label class="text-sm font-medium">Tire Change:</label>
                             <select data-config-key="tire_change.type" class="input-base h-9 text-sm">
@@ -216,12 +223,10 @@
                             </select>
                             <input type="number" data-config-key="other.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
                         </div>
-
-                        <div class="grid grid-cols-3 gap-x-4 items-center pt-3 mt-3 border-t">
+                         <div class="grid grid-cols-3 gap-x-4 items-center pt-3 mt-3 border-t">
                             <label class="text-sm font-medium col-span-2">Warn how many days before due date?</label>
                             <input type="number" data-config-key="alert_threshold_days" min="0" class="input-base h-9 text-sm text-center" placeholder="Days">
                         </div>
-
                         <div class="col-span-full flex justify-end mt-4">
                             <button type="button" id="save-config-btn" class="btn-primary h-11 px-8">
                                 Save Configuration
@@ -230,12 +235,12 @@
                     </form>
                 </section>
 
-
                 <section id="alerts-section" class="card-base">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Maintenance Alerts</h2>
                     </div>
-                    <div id="alerts-content" class="p-6 space-y-2"> <p class="text-muted-foreground">Loading alerts based on configuration...</p>
+                    <div id="alerts-content" class="p-6 space-y-2">
+                        <p class="text-muted-foreground">Loading alerts based on configuration...</p>
                     </div>
                 </section>
 
@@ -256,7 +261,7 @@
                             <label for="filter-technician" class="text-label mb-2 block">Technician</label>
                             <select id="filter-technician" class="input-base h-9 text-sm">
                                 <option value="">All Technicians</option>
-                                </select>
+                            </select>
                         </div>
                          <div>
                             <label for="filter-license-plate" class="text-label mb-2 block">License Plate</label>
@@ -295,7 +300,7 @@
                                 </tr>
                             </thead>
                             <tbody id="cost-control-table-body" class="text-foreground text-sm">
-                                <tr><td colspan="15" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>
+                                <tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -312,5 +317,6 @@
             document.documentElement.classList.toggle('dark');
         });
     </script>
+    <script src="sidebar.js"></script> {/* Adicionado script da sidebar */}
 </body>
 </html>
