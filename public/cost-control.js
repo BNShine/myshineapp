@@ -306,35 +306,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // --- Renderização da Tabela de Histórico ---
     function renderHistoryTable(dataToRender) {
-        const numberOfColumns = 14;
-        costControlTableBodyElement.innerHTML = '';
+        const numberOfColumns = 14; // Número de colunas: Date, Plate, Odometer, Cost Type, Subtype, Technician, Price, Description, Invoice, Tire, Oil/Filter, Brake, Battery, Air Filter
+        costControlTableBodyElement.innerHTML = ''; // Limpa tabela
+
+        // Verifica se há dados para exibir
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
+            // Mensagem diferente se a seção ainda estiver oculta (antes da primeira busca)
             if (listingSectionElement.classList.contains('hidden')) {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
-            } else {
+            } else { // Mensagem para quando a busca não retorna resultados
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
             }
-            return;
+            return; // Sai da função
         }
+
+        // Ordena os dados por data (mais recente primeiro)
         const sortedData = dataToRender.sort((recordA, recordB) => {
              const dateStringA = formatDateForInput(recordA.date);
              const dateStringB = formatDateForInput(recordB.date);
+             // Coloca datas inválidas no final
              if (!dateStringA && !dateStringB) return 0;
-             if (!dateStringA) return 1;
-             if (!dateStringB) return -1;
+             if (!dateStringA) return 1; // 'a' inválido vai depois
+             if (!dateStringB) return -1; // 'b' inválido vai depois
+             // Compara datas válidas
              const dateObjectA = new Date(dateStringA);
              const dateObjectB = new Date(dateStringB);
-             return dateObjectB.getTime() - dateObjectA.getTime();
+             return dateObjectB.getTime() - dateObjectA.getTime(); // Ordena descendente (mais recente primeiro)
         });
+
+        // Cria as linhas da tabela
         sortedData.forEach(record => {
             const tableRowElement = document.createElement('tr');
             tableRowElement.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
+            // Função interna para verificar checkboxes
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
+            // Converte preço para número
             const priceValue = parseFloat(record.price);
+            // Prepara descrição (completa para tooltip, curta para exibição)
             const fullDescription = record.description || '';
-            const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
+            const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription; // Limite 15 chars
 
+            // Define o HTML interno da linha *** CORRIGIDO A ORDEM E APLICAÇÃO do isChecked ***
             tableRowElement.innerHTML = `
                 <td class="p-4 whitespace-nowrap">${formatDateForDisplay(record['date'])}</td>
                 <td class="p-4">${record['license_plate'] || ''}</td>
@@ -344,14 +358,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record['technician'] || ''}</td>
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
                 <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td>
+                {/* Invoice agora está aqui e NÃO usa isChecked */}
                 <td class="p-4">${record['invoice_number'] || ''}</td>
+                {/* Colunas booleanas usam isChecked */}
                 <td class="p-4 text-center">${isChecked(record['tire_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['oil_and_filter_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['brake_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['battery_change'])}</td>
-                <td class="p-4 text-center">${isChecked(record['air_filter_change'])}</td>
+                <td class="p-4 text-center">${isChecked(record['air_filter_change'])}</td> {/* Air Filter agora usa isChecked */}
             `;
-            costControlTableBodyElement.appendChild(tableRowElement);
+            costControlTableBodyElement.appendChild(tableRowElement); // Adiciona linha à tabela
         });
     }
 
