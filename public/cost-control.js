@@ -11,8 +11,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toastContainer = document.getElementById('toast-container'); // Container para notificações
 
     // Seletores do Formulário de Configuração
-    const configForm = document.getElementById('config-form');
-    const saveConfigButton = document.getElementById('save-config-btn');
+    const configurationForm = document.getElementById('config-form'); // Nome completo
+    const saveConfigurationButton = document.getElementById('save-config-btn'); // Nome completo
 
     // Seletores dos Filtros de Histórico
     const filterHistorySection = document.getElementById('filter-history-section');
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filterEndDateInput = document.getElementById('filter-end-date');
     const filterTechnicianSelect = document.getElementById('filter-technician'); // Dropdown no filtro de histórico
     const filterLicensePlateInput = document.getElementById('filter-license-plate');
-    const searchHistoryButton = document.getElementById('search-history-btn');
+    const searchHistoryButton = document.getElementById('search-history-btn'); // Nome completo
     const listingSection = document.getElementById('listing-section'); // Seção da tabela de histórico
 
     // --- Variáveis Globais de Estado ---
@@ -195,9 +195,9 @@ document.addEventListener('DOMContentLoaded', async () => {
          selectElement.innerHTML = `<option value="">${defaultText}</option>`; // Limpa e adiciona opção padrão
         if (items && Array.isArray(items)) {
             // Ordena alfabeticamente pelo texto
-            items.sort((a, b) => {
-                const textA = textKey ? (a[textKey] || '') : (a || '');
-                const textB = textKey ? (b[textKey] || '') : (b || '');
+            items.sort((itemA, itemB) => { // Nomes completos
+                const textA = textKey ? (itemA[textKey] || '') : (itemA || '');
+                const textB = textKey ? (itemB[textKey] || '') : (itemB || '');
                 return textA.localeCompare(textB);
             }).forEach(item => {
                 const value = valueKey ? (item[valueKey] || '') : (item || '');
@@ -215,8 +215,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Define a data atual no campo de data do formulário de registro
     function setTodaysDateInRegistrationForm() {
         const today = new Date();
-        const dateInput = document.getElementById('date'); // Campo de data no formulário de registro
-        if (dateInput) dateInput.value = formatDateForInput(today);
+        const dateInputElement = document.getElementById('date'); // Nome completo
+        if (dateInputElement) dateInputElement.value = formatDateForInput(today);
      }
 
 
@@ -226,47 +226,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadMaintenanceIntervalConfiguration() {
         try {
             const response = await fetch('/api/get-maintenance-config');
+            // Lança erro explicitamente se a resposta não for OK
             if (!response.ok) {
                  let errorMessage = `HTTP error ${response.status}`;
                  try {
                      const errorJson = await response.json();
                      errorMessage += `: ${errorJson.error || errorJson.message || 'Unknown server error'}`;
-                 } catch (error) { /* Ignora erro de parse do JSON de erro */ }
+                 } catch (error) { /* Ignora erro ao parsear JSON de erro */ }
                  throw new Error(errorMessage); // Lança o erro para ser pego pelo catch
             }
-            const configFromServer = await response.json();
-             // Garante que configFromServer seja um objeto
-             const validConfigFromServer = (typeof configFromServer === 'object' && configFromServer !== null) ? configFromServer : {};
+            const configurationFromServer = await response.json(); // Nome completo
+             // Garante que configurationFromServer seja um objeto
+             const validConfigurationFromServer = (typeof configurationFromServer === 'object' && configurationFromServer !== null) ? configurationFromServer : {};
 
             // Mescla config do servidor com defaults (cópia profunda)
-            const mergedConfig = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
+            const mergedConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS)); // Nome completo
 
             // Itera sobre as chaves padrão para garantir a estrutura
             for (const key in DEFAULT_INTERVALS) {
-                if (validConfigFromServer.hasOwnProperty(key)) {
+                if (validConfigurationFromServer.hasOwnProperty(key)) {
                     // Trata objetos aninhados (type, value)
-                    if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof validConfigFromServer[key] === 'object' && validConfigFromServer[key] !== null) {
-                        let type = validConfigFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
-                        let value = parseInt(validConfigFromServer[key].value, 10);
+                    if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof validConfigurationFromServer[key] === 'object' && validConfigurationFromServer[key] !== null) {
+                        let type = validConfigurationFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
+                        let value = parseInt(validConfigurationFromServer[key].value, 10);
                         // Usa valor padrão se o do servidor for inválido
                         if(isNaN(value) || value < 1) value = DEFAULT_INTERVALS[key].value;
-                        mergedConfig[key] = { type: type, value: value };
+                        mergedConfiguration[key] = { type: type, value: value };
                     // Trata alert_threshold_days
                     } else if (key === 'alert_threshold_days') {
-                        let threshold = parseInt(validConfigFromServer[key], 10);
+                        let threshold = parseInt(validConfigurationFromServer[key], 10);
                          // Usa valor padrão se o do servidor for inválido
                          if(isNaN(threshold) || threshold < 0) threshold = DEFAULT_INTERVALS[key];
-                         mergedConfig[key] = threshold;
+                         mergedConfiguration[key] = threshold;
                     }
                 }
-                // Se a chave não existir no servidor, o valor padrão já está em mergedConfig
             }
-            console.log("Configuration loaded and merged:", mergedConfig);
-            return mergedConfig; // Retorna a configuração mesclada
+            console.log("Configuration loaded and merged:", mergedConfiguration);
+            return mergedConfiguration; // Retorna a configuração mesclada
 
         } catch (error) {
             console.error("Error loading interval configuration via API:", error);
-            showToastNotification(`Error loading maintenance config: ${error.message}. Using default values.`, 'error');
+            showToastNotification(`Error loading maintenance configuration: ${error.message}. Using default values.`, 'error');
             // Retorna uma cópia profunda dos defaults em caso de erro crítico
             return JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
         }
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let formIsValid = true; // Flag para validação
 
         // Lê e valida os valores do formulário de configuração
-        configForm.querySelectorAll('[data-config-key]').forEach(element => {
+        configurationForm.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
             let value = element.value;
 
@@ -327,8 +327,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("Attempting to save configuration:", newConfiguration); // Log para depuração
 
         // Desabilita o botão enquanto salva
-        saveConfigButton.disabled = true;
-        saveConfigButton.textContent = 'Saving...';
+        saveConfigurationButton.disabled = true; // Nome completo
+        saveConfigurationButton.textContent = 'Saving...'; // Nome completo
 
         try {
             // Envia a nova configuração para a API
@@ -353,58 +353,59 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToastNotification(`Failed to save configuration: ${error.message}`, 'error');
         } finally {
              // Reabilita o botão após a tentativa de salvar
-             saveConfigButton.disabled = false;
-             saveConfigButton.textContent = 'Save Configuration';
+             saveConfigurationButton.disabled = false; // Nome completo
+             saveConfigurationButton.textContent = 'Save Configuration'; // Nome completo
         }
     }
 
     // Popula o formulário de configuração com os valores carregados
     function populateConfigurationForm() {
-        // Verifica se o formulário e a configuração global existem
-        if (!configForm || !maintenanceIntervalConfiguration || Object.keys(maintenanceIntervalConfiguration).length === 0) {
+        // Verifica se o formulário e a configuração global existem e não estão vazios
+        if (!configurationForm || !maintenanceIntervalConfiguration || Object.keys(maintenanceIntervalConfiguration).length === 0) {
              console.warn("Configuration form or interval configuration not ready for population or is empty.");
              // Tenta usar defaults puros se a configuração estiver vazia após o carregamento
              if (typeof maintenanceIntervalConfiguration !== 'object' || maintenanceIntervalConfiguration === null || Object.keys(maintenanceIntervalConfiguration).length === 0) {
                  maintenanceIntervalConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
                  console.log("Using pure defaults for configuration form population.");
              } else {
-                return; // Sai se o formulário não existir
+                return; // Sai se o formulário não existir mas a config sim (situação estranha)
              }
         }
 
         // Itera sobre todos os elementos com 'data-config-key' no formulário
-        configForm.querySelectorAll('[data-config-key]').forEach(element => {
+        configurationForm.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey; // Ex: 'tire_change.type' ou 'alert_threshold_days'
             const keys = keyPath.split('.'); // Divide para chaves aninhadas
-            let configValue;
+            let configurationValue; // Nome completo
 
-            // Busca o valor na configuração global carregada (intervalConfig)
+            // Busca o valor na configuração global carregada (maintenanceIntervalConfiguration)
             if (keys.length === 2) { // Chave aninhada
-                configValue = maintenanceIntervalConfiguration[keys[0]] ? maintenanceIntervalConfiguration[keys[0]][keys[1]] : undefined;
+                // Garante que o objeto pai exista antes de tentar acessar a propriedade aninhada
+                configurationValue = maintenanceIntervalConfiguration[keys[0]] ? maintenanceIntervalConfiguration[keys[0]][keys[1]] : undefined;
             } else { // Chave direta
-                configValue = maintenanceIntervalConfiguration[keyPath];
+                configurationValue = maintenanceIntervalConfiguration[keyPath];
             }
 
             // Se o valor não foi encontrado na config carregada, busca o valor padrão
-            if (configValue === undefined) {
-                 let defaultValue;
+            if (configurationValue === undefined) {
+                 let defaultValue; // Nome completo
                  if (keys.length === 2) {
                      defaultValue = DEFAULT_INTERVALS[keys[0]] ? DEFAULT_INTERVALS[keys[0]][keys[1]] : undefined;
                  } else {
                      defaultValue = DEFAULT_INTERVALS[keyPath];
                  }
-                 configValue = defaultValue; // Usa o default se carregado for undefined
+                 configurationValue = defaultValue; // Usa o default se carregado for undefined
             }
 
             // Define um valor final de fallback se ainda for undefined (garantia extra)
-             if (configValue === undefined) {
-                if (element.tagName === 'SELECT') configValue = 'monthly';
-                else if (element.type === 'number') configValue = keyPath === 'alert_threshold_days' ? 0 : 1;
-                else configValue = '';
+             if (configurationValue === undefined) {
+                if (element.tagName === 'SELECT') configurationValue = 'monthly';
+                else if (element.type === 'number') configurationValue = keyPath === 'alert_threshold_days' ? 0 : 1;
+                else configurationValue = '';
             }
 
             // Define o valor no elemento do formulário (input ou select)
-            element.value = configValue;
+            element.value = configurationValue;
         });
         console.log("Configuration form populated."); // Log para confirmar
     }
@@ -412,45 +413,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Fetch Initial Data (Carros e Custos) ---
     async function fetchCoreData() {
         // Define mensagens de loading
-        costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center">Loading cost data...</td></tr>`;
+        costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center">Loading cost data...</td></tr>`; // Ajustado colspan
         alertsContent.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>';
         try {
             // Configuração já carregada em initializePage()
-            const [techCarsResponse, costResponse] = await Promise.all([
+            const [technicianCarsResponse, costControlResponse] = await Promise.all([ // Nomes completos
                 fetch('/api/get-tech-cars-data'),
                 fetch('/api/get-cost-control-data')
             ]);
 
             // Trata resposta de TechCars
-            if (!techCarsResponse.ok) {
+            if (!technicianCarsResponse.ok) {
                 let errorMessage = 'Failed to load technician/car list.';
-                try { const errorJson = await techCarsResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${techCarsResponse.status}`; }
+                try { const errorJson = await technicianCarsResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${technicianCarsResponse.status}`; }
                 throw new Error(errorMessage);
             }
-            const techCarsResult = await techCarsResponse.json();
-            technicianCarsData = techCarsResult.techCars || [];
+            const technicianCarsResult = await technicianCarsResponse.json(); // Nome completo
+            technicianCarsData = technicianCarsResult.techCars || [];
             // Popula os dropdowns de técnico (registro e filtro)
             populateDropdown(technicianSelect, technicianCarsData, 'Select Technician...', 'tech_name', 'tech_name');
             populateDropdown(filterTechnicianSelect, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name');
 
             // Trata resposta de Custos
-            if (!costResponse.ok) {
+            if (!costControlResponse.ok) { // Nome completo
                 let errorMessage = 'Failed to load cost control data.';
-                try { const errorJson = await costResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${costResponse.status}`; }
+                try { const errorJson = await costControlResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${costControlResponse.status}`; }
                 throw new Error(errorMessage);
             }
-            const costDataResult = await costResponse.json();
+            const costDataResult = await costControlResponse.json(); // Nome completo
             // Filtra registros sem data válida ANTES de armazenar globalmente
             allCostControlData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date));
 
             // Define mensagem inicial da tabela de histórico (não renderiza dados ainda)
-            costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
+            costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`; // Ajustado colspan
             renderMaintenanceAlerts(allCostControlData); // Renderiza alertas usando a configuração já carregada
 
         } catch (error) {
             console.error('Error fetching cost/car data:', error);
             showToastNotification(`Error loading data: ${error.message}`, 'error');
-            costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`;
+            costControlTableBody.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`; // Ajustado colspan
             alertsContent.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
             // Desabilita dropdowns se o carregamento falhar
             if (technicianSelect) { technicianSelect.disabled = true; populateDropdown(technicianSelect, [], 'Error loading'); }
@@ -461,7 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Renderização da Tabela de Histórico ---
     function renderHistoryTable(dataToRender) {
-        const numberOfColumns = 14; // Ajustado após remover coluna Business
+        const numberOfColumns = 14; // Número de colunas após remover "Business"
         costControlTableBody.innerHTML = ''; // Limpa tabela
 
         // Verifica se há dados para exibir
@@ -476,9 +477,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Ordena os dados por data (mais recente primeiro)
-        const sortedData = dataToRender.sort((a, b) => {
-             const dateStringA = formatDateForInput(a.date);
-             const dateStringB = formatDateForInput(b.date);
+        const sortedData = dataToRender.sort((recordA, recordB) => { // Nomes completos
+             const dateStringA = formatDateForInput(recordA.date);
+             const dateStringB = formatDateForInput(recordB.date);
              // Coloca datas inválidas no final
              if (!dateStringA && !dateStringB) return 0;
              if (!dateStringA) return 1; // 'a' inválido vai depois
@@ -486,12 +487,12 @@ document.addEventListener('DOMContentLoaded', async () => {
              // Compara datas válidas
              const dateObjectA = new Date(dateStringA);
              const dateObjectB = new Date(dateStringB);
-             return dateObjectB.getTime() - dateObjectA.getTime(); // Ordena descendente
+             return dateObjectB.getTime() - dateObjectA.getTime(); // Ordena descendente (mais recente primeiro)
         });
 
         // Cria as linhas da tabela
         sortedData.forEach(record => {
-            const tableRow = document.createElement('tr');
+            const tableRow = document.createElement('tr'); // Nome completo
             tableRow.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
             // Função interna para verificar checkboxes
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
@@ -511,7 +512,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record.technician || ''}</td>
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
                 <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td> {/* Descrição curta */}
-                {/* Coluna Business removida */}
+                {/* Coluna Business foi removida */}
                 <td class="p-4">${record.invoice_number || ''}</td>
                 <td class="p-4 text-center">${isChecked(record.tire_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.oil_and_filter_change)}</td>
@@ -523,24 +524,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Lógica de Alertas (Não exibe "no record found") ---
-    function renderMaintenanceAlerts(costData) {
+    // --- Lógica de Alertas (Não exibe "no record found", busca dados do techCarsData) ---
+    function renderMaintenanceAlerts(costData) { // Nome completo
         alertsContent.innerHTML = ''; // Limpa alertas existentes
         let anyAlertsGenerated = false; // Flag para verificar se algum alerta foi gerado
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Zera a hora para comparar apenas datas
 
         // Obtém o threshold de dias do objeto de configuração global
-        const alertThresholdDays = parseInt(maintenanceIntervalConfiguration.alert_threshold_days, 10);
+        const alertThresholdInDays = parseInt(maintenanceIntervalConfiguration.alert_threshold_days, 10); // Nome completo
         // Garante que o threshold seja um número válido >= 0, senão usa o padrão
-        const validThresholdDays = (!isNaN(alertThresholdDays) && alertThresholdDays >= 0) ? alertThresholdDays : DEFAULT_INTERVALS.alert_threshold_days;
+        const validThresholdInDays = (!isNaN(alertThresholdInDays) && alertThresholdInDays >= 0) ? alertThresholdInDays : DEFAULT_INTERVALS.alert_threshold_days; // Nome completo
 
         // Calcula a data limite para avisos 'soon'
         const alertThresholdDate = new Date(today);
-        alertThresholdDate.setDate(today.getDate() + validThresholdDays);
+        alertThresholdDate.setDate(today.getDate() + validThresholdInDays);
 
         // Objeto para agrupar dados por placa de veículo
-        const vehicleMaintenanceData = {};
+        const vehicleMaintenanceData = {}; // Nome completo
 
         // 1. Agrupa registros válidos por placa, guardando também o técnico do último registro
         costData.forEach(record => {
@@ -567,7 +568,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     air_filter_change: String(record.air_filter_change).toUpperCase() === 'TRUE',
                     cost_type: record.cost_type, // Necessário para a lógica 'Other'
                 });
-                // Atualiza o último técnico associado a esta placa (pode mudar se outro técnico usou o carro)
+                // Atualiza o último técnico associado a esta placa
                 vehicleMaintenanceData[plate].lastTechnician = record.technician;
             }
         });
@@ -575,56 +576,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 2. Processa os dados de cada veículo agrupado
         for (const plate in vehicleMaintenanceData) {
             // Busca informações adicionais do carro (VIN) usando a placa
-            const carInfo = technicianCarsData.find(car => car.car_plate && car.car_plate.toUpperCase().trim() === plate);
-            const vin = carInfo ? carInfo.vin_number : 'N/A'; // Obtém VIN ou 'N/A'
+            const carInformation = technicianCarsData.find(car => car.car_plate && car.car_plate.toUpperCase().trim() === plate); // Nome completo
+            const vinNumber = carInformation ? carInformation.vin_number : 'N/A'; // Nome completo
             // Obtém o último técnico associado aos registros ou da lista de carros
-            const technician = vehicleMaintenanceData[plate].lastTechnician || (carInfo ? carInfo.tech_name : 'N/A');
+            const technicianName = vehicleMaintenanceData[plate].lastTechnician || (carInformation ? carInformation.tech_name : 'N/A'); // Nome completo
 
             // Ordena os registros daquele veículo pela data, do mais recente para o mais antigo
-            const vehicleRecords = vehicleMaintenanceData[plate].records.sort((a, b) => b.date.getTime() - a.date.getTime());
+            const vehicleRecords = vehicleMaintenanceData[plate].records.sort((recordA, recordB) => recordB.date.getTime() - recordA.date.getTime()); // Nomes completos
             if (vehicleRecords.length === 0) continue; // Pula se não houver registros válidos para o veículo
 
             let alertMessagesForVehicle = []; // Array para guardar mensagens de alerta deste veículo
             let highestSeverityLevel = 'info'; // Nível de severidade ('info', 'warning', 'error')
 
             // Verifica cada categoria de manutenção definida em MAINTENANCE_CATEGORIES
-            for (const categoryKey in MAINTENANCE_CATEGORIES) {
-                // Obtém a configuração específica para esta categoria (ex: { type: 'monthly', value: 2 })
-                const categoryConfig = maintenanceIntervalConfiguration[categoryKey];
-                 // Pula esta categoria se não houver configuração válida para ela
-                if (!categoryConfig || !categoryConfig.type || isNaN(categoryConfig.value) || categoryConfig.value <= 0) continue;
+            for (const categoryKey in MAINTENANCE_CATEGORIES) { // Nome completo
+                // Obtém a configuração específica para esta categoria
+                const categoryConfiguration = maintenanceIntervalConfiguration[categoryKey]; // Nome completo
+                 // Pula esta categoria se não houver configuração válida
+                if (!categoryConfiguration || !categoryConfiguration.type || isNaN(categoryConfiguration.value) || categoryConfiguration.value <= 0) continue;
 
                 let lastPerformedRecord; // Guarda o último registro onde este serviço foi feito
-                 // Lógica especial para 'other': busca último registro de 'Maintenance' ou 'Repair'
-                 // que NÃO seja um dos tipos específicos já verificados
+                 // Lógica especial para 'other'
                  if (categoryKey === 'other') {
                     lastPerformedRecord = vehicleRecords.find(record =>
                         (record.cost_type === 'Maintenance' || record.cost_type === 'Repair') &&
                         !record.tire_change && !record.oil_and_filter_change && !record.brake_change && !record.battery_change && !record.air_filter_change
                     );
-                 } else { // Para tipos específicos (ex: 'tire_change'), busca o último onde a flag é true
+                 } else { // Para tipos específicos
                      lastPerformedRecord = vehicleRecords.find(record => record[categoryKey] === true);
                  }
 
-                const categoryDisplayName = MAINTENANCE_CATEGORIES[categoryKey]; // Nome amigável (ex: "Tire Change")
+                const categoryDisplayName = MAINTENANCE_CATEGORIES[categoryKey]; // Nome completo
 
-                // Processa apenas se encontrou um registro anterior para este serviço
+                // Processa apenas se encontrou um registro anterior
                 if (lastPerformedRecord) {
-                    // Calcula a data de vencimento usando a data do último registro e a configuração
-                    const dueDate = calculateDueDate(lastPerformedRecord.date, categoryConfig.value, categoryConfig.type);
+                    // Calcula a data de vencimento
+                    const dueDate = calculateDueDate(lastPerformedRecord.date, categoryConfiguration.value, categoryConfiguration.type);
 
-                    // Verifica se a data de vencimento é válida antes de comparar
+                    // Verifica se a data de vencimento é válida
                     if (dueDate && !isNaN(dueDate)) {
-                        if (dueDate <= today) { // Manutenção Vencida
+                        if (dueDate <= today) { // Vencido
                             alertMessagesForVehicle.push(`${categoryDisplayName} due (Last: ${formatDateForDisplay(lastPerformedRecord.date)})`);
                             highestSeverityLevel = 'error'; // Define severidade máxima
                         } else if (dueDate <= alertThresholdDate) { // Próximo do vencimento
                             alertMessagesForVehicle.push(`${categoryDisplayName} soon (Due: ${formatDateForDisplay(dueDate)})`);
-                            // Define como aviso apenas se não houver um erro mais grave já registrado
+                            // Define como aviso apenas se não houver erro mais grave
                             if (highestSeverityLevel !== 'error') highestSeverityLevel = 'warning';
                         }
                     } else {
-                         // Loga aviso se não conseguiu calcular data de vencimento (problema raro)
                          console.warn(`Could not calculate due date for ${categoryDisplayName} on vehicle ${plate}. Last record date: ${lastPerformedRecord.date}`);
                     }
                 }
@@ -632,15 +631,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             } // Fim do loop pelas categorias de manutenção
 
-            // 3. Cria um único bloco de alerta para o veículo, se houver mensagens acumuladas
+            // 3. Cria um único bloco de alerta para o veículo, se houver mensagens
             if (alertMessagesForVehicle.length > 0) {
-                // Chama função para criar o HTML do alerta, passando todos os dados necessários
-                createAlertHTML(plate, vin, technician, alertMessagesForVehicle, highestSeverityLevel);
+                // Chama função para criar o HTML do alerta
+                createAlertHTML(plate, vinNumber, technicianName, alertMessagesForVehicle, highestSeverityLevel);
                 anyAlertsGenerated = true; // Marca que pelo menos um alerta foi gerado
             }
         } // Fim do loop pelos veículos
 
-        // Se nenhum alerta foi gerado para nenhum veículo, exibe mensagem padrão
+        // Se nenhum alerta foi gerado, exibe mensagem padrão
         if (!anyAlertsGenerated) {
             alertsContent.innerHTML = '<p class="text-muted-foreground">No immediate maintenance alerts found based on configured intervals.</p>';
         }
@@ -648,12 +647,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // Cria o HTML para um bloco de alerta de veículo
-    function createAlertHTML(plate, vin, technician, messages, severityType) {
+    function createAlertHTML(plate, vinNumber, technicianName, messages, severityType) { // Nomes completos
         const alertDiv = document.createElement('div');
         // Define estilos padrão
         let borderColorClass = 'border-border';
         let backgroundColorClass = 'bg-muted/10';
-        let titlePrefix = 'Info'; // Prefixo do título (Info, Warning, Alert / Due)
+        let titlePrefix = 'Info'; // Prefixo do título
         let titleColorClass = 'text-foreground'; // Cor do título
 
         // Ajusta estilos com base na severidade
@@ -663,10 +662,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             titlePrefix = 'Warning';
             titleColorClass = 'text-yellow-700 dark:text-yellow-300';
         } else if (severityType === 'error') {
-            borderColorClass = 'border-destructive'; // Cor de erro do tema
+            borderColorClass = 'border-destructive';
             backgroundColorClass = 'bg-destructive/10';
-            titlePrefix = 'Alert / Due'; // Título para erro
-            titleColorClass = 'text-destructive'; // Cor de erro do tema
+            titlePrefix = 'Alert / Due';
+            titleColorClass = 'text-destructive';
         }
 
        // Define classes CSS para o container do alerta
@@ -675,7 +674,7 @@ document.addEventListener('DOMContentLoaded', async () => {
        const messageString = messages.join(' • ');
 
        // Monta o texto do título incluindo Placa, VIN e Técnico
-       const titleText = `${titlePrefix}: Vehicle ${plate} (VIN: ${vin || 'N/A'}, Tech: ${technician || 'N/A'})`;
+       const titleText = `${titlePrefix}: Vehicle ${plate} (VIN: ${vinNumber || 'N/A'}, Tech: ${technicianName || 'N/A'})`;
 
        // Define o HTML interno do alerta
        alertDiv.innerHTML = `
@@ -688,15 +687,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Lógica de Autofill para VIN e Placa ao selecionar Técnico ---
-    function handleTechnicianSelectionChange() {
+    function handleTechnicianSelectionChange() { // Nome completo
         const selectedTechnicianName = technicianSelect.value;
-        // Encontra os dados do carro do técnico selecionado na lista `technicianCarsData`
-        const selectedTechnicianData = technicianCarsData.find(tech => tech.tech_name === selectedTechnicianName);
+        // Encontra os dados do carro do técnico selecionado
+        const selectedTechnicianCarData = technicianCarsData.find(tech => tech.tech_name === selectedTechnicianName); // Nome completo
 
         // Se encontrou dados, preenche os campos VIN e Placa
-        if (selectedTechnicianData) {
-            vinInput.value = selectedTechnicianData.vin_number || '';
-            licensePlateInput.value = selectedTechnicianData.car_plate || '';
+        if (selectedTechnicianCarData) {
+            vinInput.value = selectedTechnicianCarData.vin_number || '';
+            licensePlateInput.value = selectedTechnicianCarData.car_plate || '';
         } else { // Senão, limpa os campos
             vinInput.value = '';
             licensePlateInput.value = '';
@@ -705,127 +704,107 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Lógica de Submissão do Formulário de Registro ---
     costControlForm.addEventListener('submit', async (event) => {
-        event.preventDefault(); // Impede o envio padrão do formulário
-        const formData = new FormData(costControlForm); // Pega os dados do formulário
-        const registrationData = {}; // Objeto para guardar os dados formatados
+        event.preventDefault(); // Impede o envio padrão
+        const formData = new FormData(costControlForm); // Pega os dados
+        const registrationData = {}; // Objeto para guardar dados formatados
 
-        // Formata os dados do formulário
+        // Formata os dados
         formData.forEach((value, key) => {
-            // Substitui vírgula por ponto no preço antes de enviar para API
             if (key === 'price' && typeof value === 'string') {
-                registrationData[key] = value.replace(',', '.');
+                registrationData[key] = value.replace(',', '.'); // Corrige vírgula no preço
             } else {
                 registrationData[key] = value;
             }
         });
 
-        // Adiciona VIN e Placa (que são readonly)
+        // Adiciona VIN e Placa
         registrationData['vin'] = vinInput.value;
         registrationData['license_plate'] = licensePlateInput.value;
 
-        // Converte estado dos checkboxes para 'TRUE' ou 'FALSE'
+        // Converte checkboxes para 'TRUE'/'FALSE'
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
             registrationData[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
 
-        // --- Validações Essenciais Antes do Envio ---
-        if (!registrationData.technician) {
-            showToastNotification('Please select a Technician (Driver).', 'error');
-            return; // Impede o envio
-        }
-        if (!registrationData.license_plate || !registrationData.vin) {
-            showToastNotification('VIN and License Plate must be autofilled by selecting a Technician.', 'error');
-            return;
-        }
+        // --- Validações Essenciais ---
+        if (!registrationData.technician) { showToastNotification('Please select a Technician (Driver).', 'error'); return; }
+        if (!registrationData.license_plate || !registrationData.vin) { showToastNotification('VIN and License Plate must be autofilled by selecting a Technician.', 'error'); return; }
         if (!registrationData.date || !registrationData.odometer || !registrationData.cost_type || registrationData.price === undefined || registrationData.price === '') {
              showToastNotification('Date, Odometer, Cost Type, and Price are required.', 'error');
              return;
         }
 
-        // Desabilita botão de submit e mostra estado de "salvando"
+        // Desabilita botão de submit
         const submitButton = costControlForm.querySelector('button[type="submit"]');
         submitButton.disabled = true;
         submitButton.textContent = 'Saving...';
 
         try {
-            // Envia os dados para a API de registro
+            // Envia para API
             const response = await fetch('/api/register-cost-control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(registrationData), // Envia os dados formatados
+                body: JSON.stringify(registrationData),
             });
 
-            // Verifica se a resposta da API foi bem-sucedida (status 2xx)
+            // Trata erro da API
             if (!response.ok) {
                 let errorText = `Server responded with status: ${response.status}`;
-                try { // Tenta obter mensagem de erro do corpo da resposta
-                    const errorResult = await response.json();
-                    errorText = errorResult.message || errorText;
-                } catch(error) { /* Ignora erro de parse do JSON de erro */ }
-                 console.error("API Error Response:", await response.text()); // Loga a resposta completa
-                 throw new Error(`Failed to save record. ${errorText}`); // Lança erro com detalhes
+                try { const errorResult = await response.json(); errorText = errorResult.message || errorText; } catch(error) {}
+                 console.error("API Error Response:", await response.text());
+                 throw new Error(`Failed to save record. ${errorText}`);
             }
 
-            const result = await response.json(); // Obtém o resultado da API
+            const result = await response.json();
 
-            // Se a API indicar sucesso
+            // Se sucesso, limpa form e recarrega dados
             if (result.success) {
                 showToastNotification('Record saved successfully!', 'success');
-                costControlForm.reset(); // Limpa o formulário
-                setTodaysDateInRegistrationForm(); // Redefine a data para hoje
-                vinInput.value = ''; // Limpa campo VIN
-                licensePlateInput.value = ''; // Limpa campo Placa
-                // Recarrega todos os dados da página (config, carros, custos, alertas)
-                await initializePage();
-            } else { // Se a API retornar 2xx mas indicar falha no corpo
+                costControlForm.reset();
+                setTodaysDateInRegistrationForm();
+                vinInput.value = '';
+                licensePlateInput.value = '';
+                await initializePage(); // Recarrega tudo
+            } else {
                 throw new Error(result.message || 'Failed to save record.');
             }
-        } catch (error) { // Captura erros de rede ou lançados acima
+        } catch (error) { // Captura erros
             console.error('Error submitting form:', error);
             showToastNotification(`Error: ${error.message || 'Could not save record.'}`, 'error');
-        } finally { // Garante que o botão seja reabilitado
+        } finally { // Reabilita botão
             submitButton.disabled = false;
             submitButton.textContent = 'Save Record';
         }
     });
 
     // --- Lógica da Busca no Histórico ---
-    searchHistoryButton.addEventListener('click', () => {
-        // Pega os valores dos filtros
-        const startDateString = filterStartDateInput.value;
-        const endDateString = filterEndDateInput.value;
-        const technicianName = filterTechnicianSelect.value;
-        const licensePlateQuery = filterLicensePlateInput.value.trim().toLowerCase();
+    searchHistoryButton.addEventListener('click', () => { // Nome completo
+        // Pega valores dos filtros
+        const startDateString = filterStartDateInput.value; // Nome completo
+        const endDateString = filterEndDateInput.value; // Nome completo
+        const technicianName = filterTechnicianSelect.value; // Nome completo
+        const licensePlateQuery = filterLicensePlateInput.value.trim().toLowerCase(); // Nome completo
 
-        // Converte as datas do filtro para objetos Date (ajusta para incluir o dia inteiro)
+        // Converte datas para comparação
         const startDate = startDateString ? new Date(startDateString + 'T00:00:00') : null;
         const endDate = endDateString ? new Date(endDateString + 'T23:59:59') : null;
 
-        // Filtra os dados globais `allCostControlData`
+        // Filtra os dados globais
         const filteredData = allCostControlData.filter(record => {
-            // Converte a data do registro para objeto Date para comparação
             const recordDateString = formatDateForInput(record.date); // Garante YYYY-MM-DD
             const recordDateObject = recordDateString ? new Date(recordDateString + 'T00:00:00') : null;
 
-            // Pula registro se a data for inválida
-            if (!recordDateObject || isNaN(recordDateObject)) return false;
+            if (!recordDateObject || isNaN(recordDateObject)) return false; // Pula data inválida
 
-            // Verifica condição de data (apenas se filtros de data estiverem ativos)
-            const matchesDateRange =
-                (!startDate || recordDateObject >= startDate) &&
-                (!endDate || recordDateObject <= endDate);
-
-            // Verifica condição de técnico (apenas se um técnico foi selecionado)
+            // Verifica condições
+            const matchesDateRange = (!startDate || recordDateObject >= startDate) && (!endDate || recordDateObject <= endDate);
             const matchesTechnician = !technicianName || (record.technician && record.technician === technicianName);
-
-            // Verifica condição de placa (case-insensitive, busca parcial)
             const matchesLicensePlate = !licensePlateQuery || (record.license_plate && record.license_plate.toLowerCase().includes(licensePlateQuery));
 
-            // Retorna true apenas se TODAS as condições ativas forem verdadeiras
             return matchesDateRange && matchesTechnician && matchesLicensePlate;
         });
 
-        // Torna a seção de histórico visível e renderiza a tabela com os dados filtrados
+        // Mostra seção de histórico e renderiza tabela
         listingSection.classList.remove('hidden');
         renderHistoryTable(filteredData);
     });
@@ -835,19 +814,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Autofill ao mudar técnico no formulário de registro
     if (technicianSelect) { technicianSelect.addEventListener('change', handleTechnicianSelectionChange); }
     // Salvar configuração ao clicar no botão
-    if (saveConfigButton) { saveConfigButton.addEventListener('click', saveMaintenanceIntervalConfiguration); }
+    if (saveConfigurationButton) { saveConfigurationButton.addEventListener('click', saveMaintenanceIntervalConfiguration); }
 
     // --- Função de Inicialização Principal ---
     async function initializePage() {
         setTodaysDateInRegistrationForm(); // Define data no formulário de registro
         // Carrega a configuração da API ANTES de buscar os outros dados
         console.log("Initializing page, loading configuration...");
-        maintenanceIntervalConfiguration = await loadMaintenanceIntervalConfiguration();
+        maintenanceIntervalConfiguration = await loadMaintenanceIntervalConfiguration(); // Carrega config
         console.log("Configuration loaded, populating configuration form...");
-        populateConfigurationForm(); // Popula o formulário de configuração
+        populateConfigurationForm(); // Popula o formulário de configuração com os dados carregados
         console.log("Configuration form populated, fetching core data (cars/costs)...");
         // Busca os dados de carros e custos, e então renderiza os alertas
-        await fetchCoreData();
+        await fetchCoreData(); // Busca dados principais
         console.log("Initialization complete.");
     }
 
