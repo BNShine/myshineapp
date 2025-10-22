@@ -112,6 +112,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         return '';
     }
 
+    function createDateObjectFromMMDDYYYY(dateStringMMDDYYYY) {
+        if (!dateStringMMDDYYYY || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStringMMDDYYYY)) {
+            return null;
+        }
+        try {
+            const parts = dateStringMMDDYYYY.split('/');
+            const dateObject = new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+            if (isNaN(dateObject) || dateObject.getFullYear() != parts[2] || (dateObject.getMonth() + 1) != parts[0] || dateObject.getDate() != parts[1]) {
+                console.warn("Invalid date created from MM/DD/YYYY:", dateStringMMDDYYYY);
+                return null;
+            }
+            dateObject.setHours(0, 0, 0, 0);
+            return dateObject;
+        } catch (error) {
+            console.error("Error creating Date object from MM/DD/YYYY:", dateStringMMDDYYYY, error);
+            return null;
+        }
+    }
+
     function calculateDueDate(startDate, intervalValue, intervalType) {
         if (!startDate || isNaN(intervalValue) || intervalValue <= 0) return null;
         const dueDate = (startDate instanceof Date && !isNaN(startDate)) ? new Date(startDate) : null;
