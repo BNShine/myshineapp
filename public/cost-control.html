@@ -22,6 +22,7 @@
                     <span class="sr-only">Myshineapp</span>
                 </a>
             </div>
+            {/* BARRA LATERAL MODIFICADA */}
             <nav class="flex-1 overflow-auto p-4">
                 <ul class="grid items-start gap-1 text-sm font-medium">
                     <li>
@@ -48,11 +49,12 @@
                     </li>
                 </ul>
             </nav>
+            {/* FIM DA BARRA LATERAL MODIFICADA */}
         </aside>
 
         <div class="main-content flex flex-col flex-1">
             <header class="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card px-6">
-                <div class="text-sm text-muted-foreground">
+                 <div class="text-sm text-muted-foreground">
                     <span class="font-semibold text-foreground">Cost Control</span> / Vehicle Maintenance
                 </div>
                 <div class="ml-auto flex items-center gap-2">
@@ -65,98 +67,33 @@
 
             <main class="flex-1 p-4 sm:p-6 space-y-6">
                 <section id="registration-section" class="card-base">
-                    <div class="p-6 border-b">
+                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Register New Maintenance Record</h2>
                     </div>
                     <form id="cost-control-form" class="p-6 space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label for="date" class="text-label mb-2 block">Date</label>
-                                <input type="date" id="date" name="date" required class="input-base">
-                            </div>
-                            <div>
-                                <label for="technician" class="text-label mb-2 block">Technician (Driver)</label>
-                                <select id="technician" name="technician" required class="input-base">
-                                    <option value="">Select Technician...</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="vin" class="text-label mb-2 block">VIN</label>
-                                <input type="text" id="vin" name="vin" class="input-base bg-muted" placeholder="Autofilled" readonly>
-                            </div>
-                            <div>
-                                <label for="license_plate" class="text-label mb-2 block">License Plate</label>
-                                <input type="text" id="license_plate" name="license_plate" class="input-base bg-muted" placeholder="Autofilled" readonly>
-                            </div>
-                             <div>
-                                <label for="odometer" class="text-label mb-2 block">Odometer</label>
-                                <input type="number" id="odometer" name="odometer" required class="input-base" placeholder="e.g., 50000">
-                            </div>
-                            <div>
-                                <label for="cost_type" class="text-label mb-2 block">Cost Type</label>
-                                <select id="cost_type" name="cost_type" required class="input-base">
-                                    <option value="">Select Type...</option>
-                                    <option value="Maintenance">Maintenance</option>
-                                    <option value="Repair">Repair</option>
-                                    <option value="Fuel">Fuel</option>
-                                    <option value="Insurance">Insurance</option>
-                                    <option value="Registration">Registration</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                             <div>
-                                <label for="subtype" class="text-label mb-2 block">Subtype</label>
-                                <input type="text" id="subtype" name="subtype" class="input-base" placeholder="e.g., Oil Change">
-                            </div>
-                             <div>
-                                <label for="price" class="text-label mb-2 block">Price ($)</label>
-                                <input type="number" step="0.01" id="price" name="price" required class="input-base" placeholder="e.g., 150.50">
-                            </div>
-                            <div class="md:col-span-2 lg:col-span-4">
-                                <label for="description" class="text-label mb-2 block">Description</label>
-                                <textarea id="description" name="description" rows="3" class="input-base" placeholder="Detailed description..."></textarea>
-                            </div>
-                             <div>
-                                <label for="business_name" class="text-label mb-2 block">Business Name</label>
-                                <input type="text" id="business_name" name="business_name" class="input-base" placeholder="e.g., Auto Shop LLC">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label for="business_address" class="text-label mb-2 block">Business Address</label>
-                                <input type="text" id="business_address" name="business_address" class="input-base" placeholder="e.g., 123 Service Ln">
-                            </div>
-                             <div>
-                                <label for="invoice_number" class="text-label mb-2 block">Invoice Number</label>
-                                <input type="text" id="invoice_number" name="invoice_number" class="input-base" placeholder="e.g., INV-001">
-                            </div>
+                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div><label for="date" class="text-label mb-2 block">Date</label><input type="date" id="date" name="date" required class="input-base"></div>
+                            <div><label for="technician" class="text-label mb-2 block">Technician (Driver)</label><select id="technician" name="technician" required class="input-base"><option value="">Select Technician...</option></select></div>
+                            <div><label for="vin" class="text-label mb-2 block">VIN</label><input type="text" id="vin" name="vin" class="input-base bg-muted" placeholder="Autofilled" readonly></div>
+                            <div><label for="license_plate" class="text-label mb-2 block">License Plate</label><input type="text" id="license_plate" name="license_plate" class="input-base bg-muted" placeholder="Autofilled" readonly></div>
+                            <div><label for="odometer" class="text-label mb-2 block">Odometer</label><input type="number" id="odometer" name="odometer" required class="input-base" placeholder="e.g., 50000"></div>
+                            <div><label for="cost_type" class="text-label mb-2 block">Cost Type</label><select id="cost_type" name="cost_type" required class="input-base"><option value="">Select Type...</option><option value="Maintenance">Maintenance</option><option value="Repair">Repair</option><option value="Fuel">Fuel</option><option value="Insurance">Insurance</option><option value="Registration">Registration</option><option value="Other">Other</option></select></div>
+                            <div><label for="subtype" class="text-label mb-2 block">Subtype</label><input type="text" id="subtype" name="subtype" class="input-base" placeholder="e.g., Oil Change"></div>
+                            <div><label for="price" class="text-label mb-2 block">Price ($)</label><input type="number" step="0.01" id="price" name="price" required class="input-base" placeholder="e.g., 150.50"></div>
+                            <div class="md:col-span-2 lg:col-span-4"><label for="description" class="text-label mb-2 block">Description</label><textarea id="description" name="description" rows="3" class="input-base" placeholder="Detailed description..."></textarea></div>
+                            <div><label for="business_name" class="text-label mb-2 block">Business Name</label><input type="text" id="business_name" name="business_name" class="input-base" placeholder="e.g., Auto Shop LLC"></div>
+                            <div class="md:col-span-2"><label for="business_address" class="text-label mb-2 block">Business Address</label><input type="text" id="business_address" name="business_address" class="input-base" placeholder="e.g., 123 Service Ln"></div>
+                            <div><label for="invoice_number" class="text-label mb-2 block">Invoice Number</label><input type="text" id="invoice_number" name="invoice_number" class="input-base" placeholder="e.g., INV-001"></div>
                         </div>
                         <div class="flex flex-wrap gap-6 items-center pt-4 border-t mt-4">
                             <label class="text-label">Service Performed:</label>
-                            <label for="tire_change" class="checkbox-label">
-                                <input type="checkbox" id="tire_change" name="tire_change" value="TRUE" class="checkbox-input">
-                                Tire Change
-                            </label>
-                             <label for="oil_and_filter_change" class="checkbox-label">
-                                <input type="checkbox" id="oil_and_filter_change" name="oil_and_filter_change" value="TRUE" class="checkbox-input">
-                                Oil & Filter Change
-                            </label>
-                             <label for="brake_change" class="checkbox-label">
-                                <input type="checkbox" id="brake_change" name="brake_change" value="TRUE" class="checkbox-input">
-                                Brake Change
-                            </label>
-                             <label for="battery_change" class="checkbox-label">
-                                <input type="checkbox" id="battery_change" name="battery_change" value="TRUE" class="checkbox-input">
-                                Battery Change
-                            </label>
-                             <label for="air_filter_change" class="checkbox-label">
-                                <input type="checkbox" id="air_filter_change" name="air_filter_change" value="TRUE" class="checkbox-input">
-                                Air Filter Change
-                            </label>
+                            <label for="tire_change" class="checkbox-label"><input type="checkbox" id="tire_change" name="tire_change" value="TRUE" class="checkbox-input"> Tire Change</label>
+                            <label for="oil_and_filter_change" class="checkbox-label"><input type="checkbox" id="oil_and_filter_change" name="oil_and_filter_change" value="TRUE" class="checkbox-input"> Oil & Filter Change</label>
+                            <label for="brake_change" class="checkbox-label"><input type="checkbox" id="brake_change" name="brake_change" value="TRUE" class="checkbox-input"> Brake Change</label>
+                            <label for="battery_change" class="checkbox-label"><input type="checkbox" id="battery_change" name="battery_change" value="TRUE" class="checkbox-input"> Battery Change</label>
+                            <label for="air_filter_change" class="checkbox-label"><input type="checkbox" id="air_filter_change" name="air_filter_change" value="TRUE" class="checkbox-input"> Air Filter Change</label>
                         </div>
-                        <div class="flex justify-end pt-4">
-                            <button type="submit" class="btn-primary h-11 px-8">
-                                Save Record
-                            </button>
-                        </div>
+                        <div class="flex justify-end pt-4"><button type="submit" class="btn-primary h-11 px-8">Save Record</button></div>
                     </form>
                 </section>
 
@@ -172,101 +109,48 @@
                         </div>
                         <div class="grid grid-cols-3 gap-x-4 items-center">
                             <label class="text-sm font-medium">Tire Change:</label>
-                            <select data-config-key="tire_change.type" class="input-base h-9 text-sm">
-                                <option value="monthly">Monthly</option>
-                                <option value="weekly">Weekly</option>
-                            </select>
+                            <select data-config-key="tire_change.type" class="input-base h-9 text-sm"><option value="monthly">Monthly</option><option value="weekly">Weekly</option></select>
                             <input type="number" data-config-key="tire_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
                         </div>
                         <div class="grid grid-cols-3 gap-x-4 items-center">
                             <label class="text-sm font-medium">Oil & Filter:</label>
-                            <select data-config-key="oil_and_filter_change.type" class="input-base h-9 text-sm">
-                                <option value="monthly">Monthly</option>
-                                <option value="weekly">Weekly</option>
-                            </select>
+                            <select data-config-key="oil_and_filter_change.type" class="input-base h-9 text-sm"><option value="monthly">Monthly</option><option value="weekly">Weekly</option></select>
                             <input type="number" data-config-key="oil_and_filter_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
                         </div>
                         <div class="grid grid-cols-3 gap-x-4 items-center">
                             <label class="text-sm font-medium">Brake Change:</label>
-                            <select data-config-key="brake_change.type" class="input-base h-9 text-sm">
-                                <option value="monthly">Monthly</option>
-                                <option value="weekly">Weekly</option>
-                            </select>
+                            <select data-config-key="brake_change.type" class="input-base h-9 text-sm"><option value="monthly">Monthly</option><option value="weekly">Weekly</option></select>
                             <input type="number" data-config-key="brake_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
                         </div>
                         <div class="grid grid-cols-3 gap-x-4 items-center">
                             <label class="text-sm font-medium">Battery Change:</label>
-                            <select data-config-key="battery_change.type" class="input-base h-9 text-sm">
-                                <option value="monthly">Monthly</option>
-                                <option value="weekly">Weekly</option>
-                            </select>
+                            <select data-config-key="battery_change.type" class="input-base h-9 text-sm"><option value="monthly">Monthly</option><option value="weekly">Weekly</option></select>
                             <input type="number" data-config-key="battery_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
                         </div>
-                        <div class="grid grid-cols-3 gap-x-4 items-center">
-                            <label class="text-sm font-medium">Air Filter Change:</label>
-                            <select data-config-key="air_filter_change.type" class="input-base h-9 text-sm">
-                                <option value="monthly">Monthly</option>
-                                <option value="weekly">Weekly</option>
-                            </select>
-                            <input type="number" data-config-key="air_filter_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
-                        </div>
-                        <div class="grid grid-cols-3 gap-x-4 items-center">
-                            <label class="text-sm font-medium">Other Maintenance:</label>
-                            <select data-config-key="other.type" class="input-base h-9 text-sm">
-                                <option value="monthly">Monthly</option>
-                                <option value="weekly">Weekly</option>
-                            </select>
-                            <input type="number" data-config-key="other.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
-                        </div>
+                        {/* Linhas para Air Filter e Other REMOVIDAS */}
                          <div class="grid grid-cols-3 gap-x-4 items-center pt-3 mt-3 border-t">
                             <label class="text-sm font-medium col-span-2">Warn how many days before due date?</label>
                             <input type="number" data-config-key="alert_threshold_days" min="0" class="input-base h-9 text-sm text-center" placeholder="Days">
                         </div>
                         <div class="col-span-full flex justify-end mt-4">
-                            <button type="button" id="save-config-btn" class="btn-primary h-11 px-8">
-                                Save Configuration
-                            </button>
+                            <button type="button" id="save-config-btn" class="btn-primary h-11 px-8">Save Configuration</button>
                         </div>
                     </form>
                 </section>
 
                 <section id="alerts-section" class="card-base">
-                    <div class="p-6 border-b">
-                        <h2 class="text-section-title">Maintenance Alerts</h2>
-                    </div>
-                    <div id="alerts-content" class="p-6 space-y-2">
-                        <p class="text-muted-foreground">Loading alerts based on configuration...</p>
-                    </div>
+                    <div class="p-6 border-b"><h2 class="text-section-title">Maintenance Alerts</h2></div>
+                    <div id="alerts-content" class="p-6 space-y-2"><p class="text-muted-foreground">Loading alerts based on configuration...</p></div>
                 </section>
 
                 <section id="filter-history-section" class="card-base">
-                    <div class="p-6 border-b">
-                        <h2 class="text-section-title">Filter Maintenance History</h2>
-                    </div>
+                    <div class="p-6 border-b"><h2 class="text-section-title">Filter Maintenance History</h2></div>
                     <div class="p-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                         <div>
-                            <label for="filter-start-date" class="text-label mb-2 block">Start Date</label>
-                            <input type="date" id="filter-start-date" class="input-base h-9 text-sm">
-                        </div>
-                         <div>
-                            <label for="filter-end-date" class="text-label mb-2 block">End Date</label>
-                            <input type="date" id="filter-end-date" class="input-base h-9 text-sm">
-                        </div>
-                         <div>
-                            <label for="filter-technician" class="text-label mb-2 block">Technician</label>
-                            <select id="filter-technician" class="input-base h-9 text-sm">
-                                <option value="">All Technicians</option>
-                            </select>
-                        </div>
-                         <div>
-                            <label for="filter-license-plate" class="text-label mb-2 block">License Plate</label>
-                            <input type="text" id="filter-license-plate" class="input-base h-9 text-sm" placeholder="Enter plate...">
-                        </div>
-                        <div class="lg:col-start-4 flex items-end">
-                            <button id="search-history-btn" class="btn-primary h-11 px-8 w-full">
-                                Search History
-                            </button>
-                        </div>
+                        <div><label for="filter-start-date" class="text-label mb-2 block">Start Date</label><input type="date" id="filter-start-date" class="input-base h-9 text-sm"></div>
+                        <div><label for="filter-end-date" class="text-label mb-2 block">End Date</label><input type="date" id="filter-end-date" class="input-base h-9 text-sm"></div>
+                        <div><label for="filter-technician" class="text-label mb-2 block">Technician</label><select id="filter-technician" class="input-base h-9 text-sm"><option value="">All Technicians</option></select></div>
+                        <div><label for="filter-license-plate" class="text-label mb-2 block">License Plate</label><input type="text" id="filter-license-plate" class="input-base h-9 text-sm" placeholder="Enter plate..."></div>
+                        <div class="lg:col-start-4 flex items-end"><button id="search-history-btn" class="btn-primary h-11 px-8 w-full">Search History</button></div>
                     </div>
                 </section>
 
@@ -291,7 +175,7 @@
                                     <th class="p-4 border-b">Oil/Filter</th>
                                     <th class="p-4 border-b">Brake</th>
                                     <th class="p-4 border-b">Battery</th>
-                                    <th class="p-4 border-b">Air Filter</th>
+                                    <th class="p-4 border-b">Other</th> {/* Cabeçalho renomeado */}
                                 </tr>
                             </thead>
                             <tbody id="cost-control-table-body" class="text-foreground text-sm">
@@ -312,6 +196,6 @@
             document.documentElement.classList.toggle('dark');
         });
     </script>
-    <script src="sidebar.js"></script> {/* Adicionado script da sidebar */}
+    <script src="sidebar.js"></script>
 </body>
 </html>
