@@ -358,14 +358,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record['technician'] || ''}</td>
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
                 <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td>
-                {/* Invoice agora está aqui e NÃO usa isChecked */}
                 <td class="p-4">${record['invoice_number'] || ''}</td>
-                {/* Colunas booleanas usam isChecked */}
                 <td class="p-4 text-center">${isChecked(record['tire_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['oil_and_filter_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['brake_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['battery_change'])}</td>
-                <td class="p-4 text-center">${isChecked(record['air_filter_change'])}</td> {/* Air Filter agora usa isChecked */}
+                <td class="p-4 text-center">${isChecked(record['air_filter_change'])}</td> 
             `;
             costControlTableBodyElement.appendChild(tableRowElement); // Adiciona linha à tabela
         });
