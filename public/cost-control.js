@@ -2,26 +2,26 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     // --- Seletores dos Elementos do DOM ---
-    const costControlFormElement = document.getElementById('cost-control-form'); // Nome completo
-    const costControlTableBodyElement = document.getElementById('cost-control-table-body'); // Nome completo
-    const technicianSelectElement = document.getElementById('technician'); // Nome completo
-    const licensePlateInputElement = document.getElementById('license_plate'); // Nome completo
-    const vinInputElement = document.getElementById('vin'); // Nome completo
-    const alertsContentElement = document.getElementById('alerts-content'); // Nome completo
-    const toastContainerElement = document.getElementById('toast-container'); // Nome completo
+    const costControlFormElement = document.getElementById('cost-control-form');
+    const costControlTableBodyElement = document.getElementById('cost-control-table-body');
+    const technicianSelectElement = document.getElementById('technician'); // Dropdown no formulário de registro
+    const licensePlateInputElement = document.getElementById('license_plate'); // Input Placa no formulário de registro
+    const vinInputElement = document.getElementById('vin'); // Input VIN no formulário de registro
+    const alertsContentElement = document.getElementById('alerts-content'); // Div para exibir alertas
+    const toastContainerElement = document.getElementById('toast-container'); // Container para notificações
 
     // Seletores do Formulário de Configuração
-    const configurationFormElement = document.getElementById('config-form'); // Nome completo
-    const saveConfigurationButtonElement = document.getElementById('save-config-btn'); // Nome completo
+    const configurationFormElement = document.getElementById('config-form');
+    const saveConfigurationButtonElement = document.getElementById('save-config-btn');
 
     // Seletores dos Filtros de Histórico
-    const filterHistorySectionElement = document.getElementById('filter-history-section'); // Nome completo
-    const filterStartDateInputElement = document.getElementById('filter-start-date'); // Nome completo
-    const filterEndDateInputElement = document.getElementById('filter-end-date'); // Nome completo
-    const filterTechnicianSelectElement = document.getElementById('filter-technician'); // Nome completo
-    const filterLicensePlateInputElement = document.getElementById('filter-license-plate'); // Nome completo
-    const searchHistoryButtonElement = document.getElementById('search-history-btn'); // Nome completo
-    const listingSectionElement = document.getElementById('listing-section'); // Nome completo
+    const filterHistorySectionElement = document.getElementById('filter-history-section');
+    const filterStartDateInputElement = document.getElementById('filter-start-date');
+    const filterEndDateInputElement = document.getElementById('filter-end-date');
+    const filterTechnicianSelectElement = document.getElementById('filter-technician'); // Dropdown no filtro de histórico
+    const filterLicensePlateInputElement = document.getElementById('filter-license-plate');
+    const searchHistoryButtonElement = document.getElementById('search-history-btn');
+    const listingSectionElement = document.getElementById('listing-section'); // Seção da tabela de histórico
 
     // --- Variáveis Globais de Estado ---
     let allCostControlData = []; // Armazena todos os registros de custo carregados
@@ -125,8 +125,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (typeof dateInput === 'string') {
             // Verifica YYYY-MM-DD (já no formato correto, sem hora) - Otimização
             if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-                const tempDate = new Date(dateInput + "T00:00:00Z"); // Usa UTC para validar
-                if (!isNaN(tempDate)) return dateInput; // Retorna como está se válido
+                const temporaryDate = new Date(dateInput + "T00:00:00Z"); // Usa UTC para validar
+                if (!isNaN(temporaryDate)) return dateInput; // Retorna como está se válido
             }
             // Verifica MM/DD/YYYY
             else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateInput)) {
@@ -137,9 +137,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Tenta parse genérico para outros formatos comuns (incluindo ISO com hora)
             else {
                 try {
-                    const tempDate = new Date(dateInput);
+                    const temporaryDate = new Date(dateInput);
                     // Verifica se o objeto criado é válido
-                    if (!isNaN(tempDate)) dateObject = tempDate;
+                    if (!isNaN(temporaryDate)) dateObject = temporaryDate;
                  } catch (error) {
                     // Ignora erro se o parse falhar
                  }
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Define a data atual no campo de data do formulário de registro
     function setTodaysDateInRegistrationForm() {
         const today = new Date();
-        const dateInputElement = document.getElementById('date'); // Nome completo
+        const dateInputElement = document.getElementById('date');
         if (dateInputElement) dateInputElement.value = formatDateForInput(today);
      }
 
@@ -235,12 +235,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                  } catch (error) { /* Ignora erro ao parsear JSON de erro */ }
                  throw new Error(errorMessage); // Lança o erro para ser pego pelo catch
             }
-            const configurationFromServer = await response.json(); // Nome completo
+            const configurationFromServer = await response.json();
              // Garante que configurationFromServer seja um objeto
              const validConfigurationFromServer = (typeof configurationFromServer === 'object' && configurationFromServer !== null) ? configurationFromServer : {};
 
             // Mescla config do servidor com defaults (cópia profunda)
-            const mergedConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS)); // Nome completo
+            const mergedConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
 
             // Itera sobre as chaves padrão para garantir a estrutura
             for (const key in DEFAULT_INTERVALS) {
@@ -327,8 +327,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("Attempting to save configuration:", newConfiguration); // Log para depuração
 
         // Desabilita o botão enquanto salva
-        saveConfigurationButtonElement.disabled = true; // Nome completo
-        saveConfigurationButtonElement.textContent = 'Saving...'; // Nome completo
+        saveConfigurationButtonElement.disabled = true;
+        saveConfigurationButtonElement.textContent = 'Saving...';
 
         try {
             // Envia a nova configuração para a API
@@ -353,8 +353,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToastNotification(`Failed to save configuration: ${error.message}`, 'error');
         } finally {
              // Reabilita o botão após a tentativa de salvar
-             saveConfigurationButtonElement.disabled = false; // Nome completo
-             saveConfigurationButtonElement.textContent = 'Save Configuration'; // Nome completo
+             saveConfigurationButtonElement.disabled = false;
+             saveConfigurationButtonElement.textContent = 'Save Configuration';
         }
     }
 
@@ -362,7 +362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function populateConfigurationForm() {
         // Verifica se o formulário e a configuração global existem e não estão vazios
         if (!configurationFormElement || !maintenanceIntervalConfiguration || Object.keys(maintenanceIntervalConfiguration).length === 0) {
-             console.warn("Configuration form or interval configuration not ready for population or is empty.");
+             console.warn("Configuration form or interval configuration not ready/empty.");
              // Tenta usar defaults puros se a configuração estiver vazia após o carregamento
              if (typeof maintenanceIntervalConfiguration !== 'object' || maintenanceIntervalConfiguration === null || Object.keys(maintenanceIntervalConfiguration).length === 0) {
                  maintenanceIntervalConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey; // Ex: 'tire_change.type' ou 'alert_threshold_days'
             const keys = keyPath.split('.'); // Divide para chaves aninhadas
-            let configurationValue; // Nome completo
+            let configurationValue; // Valor da configuração
 
             // Busca o valor na configuração global carregada (maintenanceIntervalConfiguration)
             if (keys.length === 2) { // Chave aninhada
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Se o valor não foi encontrado na config carregada, busca o valor padrão
             if (configurationValue === undefined) {
-                 let defaultValue; // Nome completo
+                 let defaultValue; // Valor padrão
                  if (keys.length === 2) {
                      defaultValue = DEFAULT_INTERVALS[keys[0]] ? DEFAULT_INTERVALS[keys[0]][keys[1]] : undefined;
                  } else {
@@ -413,49 +413,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Fetch Initial Data (Carros e Custos) ---
     async function fetchCoreData() {
         // Define mensagens de loading
-        costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center">Loading cost data...</td></tr>`; // Ajustado colspan e nome var
-        alertsContentElement.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>'; // Nome var
+        costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center">Loading cost data...</td></tr>`; // Ajustado colspan
+        alertsContentElement.innerHTML = '<p class="text-muted-foreground">Loading alerts...</p>';
         try {
             // Configuração já carregada em initializePage()
-            const [technicianCarsResponse, costControlResponse] = await Promise.all([ // Nomes completos
+            const [technicianCarsResponse, costControlResponse] = await Promise.all([
                 fetch('/api/get-tech-cars-data'),
                 fetch('/api/get-cost-control-data')
             ]);
 
             // Trata resposta de TechCars
             if (!technicianCarsResponse.ok) {
-                let errorMessage = 'Failed to load technician/car list.';
-                try { const errorJson = await technicianCarsResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${technicianCarsResponse.status}`; }
-                throw new Error(errorMessage);
-            }
-            const technicianCarsResult = await technicianCarsResponse.json(); // Nome completo
+                 let errorMessage = 'Failed to load technician/car list.';
+                 try { const errorJson = await technicianCarsResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${technicianCarsResponse.status}`; }
+                 throw new Error(errorMessage);
+             }
+            const technicianCarsResult = await technicianCarsResponse.json();
             technicianCarsData = technicianCarsResult.techCars || [];
             // Popula os dropdowns de técnico (registro e filtro)
-            populateDropdown(technicianSelectElement, technicianCarsData, 'Select Technician...', 'tech_name', 'tech_name'); // Nome completo
-            populateDropdown(filterTechnicianSelectElement, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name'); // Nome completo
+            populateDropdown(technicianSelectElement, technicianCarsData, 'Select Technician...', 'tech_name', 'tech_name');
+            populateDropdown(filterTechnicianSelectElement, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name');
 
             // Trata resposta de Custos
-            if (!costControlResponse.ok) { // Nome completo
+            if (!costControlResponse.ok) {
                 let errorMessage = 'Failed to load cost control data.';
                 try { const errorJson = await costControlResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${costControlResponse.status}`; }
                 throw new Error(errorMessage);
             }
-            const costDataResult = await costControlResponse.json(); // Nome completo
+            const costDataResult = await costControlResponse.json();
             // Filtra registros sem data válida ANTES de armazenar globalmente
             allCostControlData = (costDataResult.costs || []).filter(record => record.date && formatDateForInput(record.date));
 
             // Define mensagem inicial da tabela de histórico (não renderiza dados ainda)
-            costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`; // Ajustado colspan e nome var
+            costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`; // Ajustado colspan
             renderMaintenanceAlerts(allCostControlData); // Renderiza alertas usando a configuração já carregada
 
         } catch (error) {
             console.error('Error fetching cost/car data:', error);
             showToastNotification(`Error loading data: ${error.message}`, 'error');
-            costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`; // Ajustado colspan e nome var
-            alertsContentElement.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`; // Nome var
+            costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`; // Ajustado colspan
+            alertsContentElement.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
             // Desabilita dropdowns se o carregamento falhar
-            if (technicianSelectElement) { technicianSelectElement.disabled = true; populateDropdown(technicianSelectElement, [], 'Error loading'); } // Nome completo
-            if (filterTechnicianSelectElement) { filterTechnicianSelectElement.disabled = true; populateDropdown(filterTechnicianSelectElement, [], 'Error loading'); } // Nome completo
+            if (technicianSelectElement) { technicianSelectElement.disabled = true; populateDropdown(technicianSelectElement, [], 'Error loading'); }
+            if (filterTechnicianSelectElement) { filterTechnicianSelectElement.disabled = true; populateDropdown(filterTechnicianSelectElement, [], 'Error loading'); }
         }
     }
 
@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Verifica se há dados para exibir
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
             // Mensagem diferente se a seção ainda estiver oculta (antes da primeira busca)
-            if (listingSectionElement.classList.contains('hidden')) { // Nome completo
+            if (listingSectionElement.classList.contains('hidden')) {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
             } else { // Mensagem para quando a busca não retorna resultados
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Ordena os dados por data (mais recente primeiro)
-        const sortedData = dataToRender.sort((recordA, recordB) => { // Nomes completos
+        const sortedData = dataToRender.sort((recordA, recordB) => {
              const dateStringA = formatDateForInput(recordA.date);
              const dateStringB = formatDateForInput(recordB.date);
              // Coloca datas inválidas no final
@@ -492,18 +492,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Cria as linhas da tabela
         sortedData.forEach(record => {
-            const tableRow = document.createElement('tr'); // Nome completo
-            tableRow.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
+            const tableRowElement = document.createElement('tr'); // Nome completo
+            tableRowElement.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
             // Função interna para verificar checkboxes
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
             // Converte preço para número
             const priceValue = parseFloat(record.price);
             // Prepara descrição (completa para tooltip, curta para exibição)
             const fullDescription = record.description || '';
-            const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription; // Limite de 15 caracteres
+            const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription; // Limite 15 chars
 
             // Define o HTML interno da linha (removida a coluna Business)
-            tableRow.innerHTML = `
+            tableRowElement.innerHTML = `
                 <td class="p-4 whitespace-nowrap">${formatDateForDisplay(record.date)}</td>
                 <td class="p-4">${record.license_plate || ''}</td>
                 <td class="p-4">${record.odometer || ''}</td>
@@ -511,7 +511,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record.subtype || ''}</td>
                 <td class="p-4">${record.technician || ''}</td>
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
-                <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td>
+                <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td> {/* Descrição curta */}
+                {/* Coluna Business foi removida */}
                 <td class="p-4">${record.invoice_number || ''}</td>
                 <td class="p-4 text-center">${isChecked(record.tire_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.oil_and_filter_change)}</td>
@@ -519,7 +520,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4 text-center">${isChecked(record.battery_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.air_filter_change)}</td>
             `;
-            costControlTableBodyElement.appendChild(tableRow); // Adiciona linha à tabela
+            costControlTableBodyElement.appendChild(tableRowElement); // Adiciona linha à tabela
         });
     }
 
@@ -647,7 +648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Cria o HTML para um bloco de alerta de veículo
     function createAlertHTML(plate, vinNumber, technicianName, messages, severityType) { // Nomes completos
-        const alertDiv = document.createElement('div');
+        const alertDivElement = document.createElement('div'); // Nome completo
         // Define estilos padrão
         let borderColorClass = 'border-border';
         let backgroundColorClass = 'bg-muted/10';
@@ -668,7 +669,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
        // Define classes CSS para o container do alerta
-       alertDiv.className = `p-3 border ${borderColorClass} rounded-lg ${backgroundColorClass} mb-2`;
+       alertDivElement.className = `p-3 border ${borderColorClass} rounded-lg ${backgroundColorClass} mb-2`;
        // Junta as mensagens de alerta com um separador
        const messageString = messages.join(' • ');
 
@@ -676,16 +677,16 @@ document.addEventListener('DOMContentLoaded', async () => {
        const titleText = `${titlePrefix}: Vehicle ${plate} (VIN: ${vinNumber || 'N/A'}, Tech: ${technicianName || 'N/A'})`;
 
        // Define o HTML interno do alerta
-       alertDiv.innerHTML = `
+       alertDivElement.innerHTML = `
            <div class="flex justify-between items-center">
                 <span class="font-semibold text-sm ${titleColorClass}">${titleText}</span>
            </div>
            <p class="text-xs text-foreground mt-1">${messageString}</p>
        `;
-       alertsContentElement.appendChild(alertDiv); // Adiciona o alerta ao DOM
+       alertsContentElement.appendChild(alertDivElement); // Adiciona o alerta ao DOM
     }
 
-    // --- Lógica de Autofill para VIN e Placa ao selecionar Técnico ---
+    // --- Lógica de Autofill para VIN e Placa ---
     function handleTechnicianSelectionChange() { // Nome completo
         const selectedTechnicianName = technicianSelectElement.value; // Nome completo
         // Encontra os dados do carro do técnico selecionado
@@ -719,19 +720,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Adiciona VIN e Placa
         registrationData['vin'] = vinInputElement.value; // Nome completo
         registrationData['license_plate'] = licensePlateInputElement.value; // Nome completo
-
         // Converte checkboxes para 'TRUE'/'FALSE'
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
             registrationData[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
 
-        // --- Validações Essenciais Antes do Envio ---
+        // --- Validações Essenciais ---
         if (!registrationData.technician) { showToastNotification('Please select a Technician (Driver).', 'error'); return; }
         if (!registrationData.license_plate || !registrationData.vin) { showToastNotification('VIN and License Plate must be autofilled by selecting a Technician.', 'error'); return; }
         if (!registrationData.date || !registrationData.odometer || !registrationData.cost_type || registrationData.price === undefined || registrationData.price === '') {
-             showToastNotification('Date, Odometer, Cost Type, and Price are required.', 'error');
-             return;
-        }
+             showToastNotification('Date, Odometer, Cost Type, and Price are required.', 'error'); return; }
 
         // Desabilita botão de submit
         const submitButtonElement = costControlFormElement.querySelector('button[type="submit"]'); // Nome completo
@@ -741,19 +739,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             // Envia para API
             const response = await fetch('/api/register-cost-control', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(registrationData),
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData),
             });
 
             // Trata erro da API
             if (!response.ok) {
-                let errorText = `Server responded with status: ${response.status}`;
+                let errorText = `Server error ${response.status}`;
                 try { const errorResult = await response.json(); errorText = errorResult.message || errorText; } catch(error) {}
                  console.error("API Error Response:", await response.text());
-                 throw new Error(`Failed to save record. ${errorText}`);
+                 throw new Error(`Failed to save record: ${errorText}`);
             }
-
             const result = await response.json();
 
             // Se sucesso, limpa form e recarrega dados
@@ -764,9 +759,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 vinInputElement.value = ''; // Nome completo
                 licensePlateInputElement.value = ''; // Nome completo
                 await initializePage(); // Recarrega tudo
-            } else {
-                throw new Error(result.message || 'Failed to save record.');
-            }
+            } else { throw new Error(result.message || 'Failed to save record.'); }
         } catch (error) { // Captura erros
             console.error('Error submitting form:', error);
             showToastNotification(`Error: ${error.message || 'Could not save record.'}`, 'error');
@@ -792,7 +785,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const filteredData = allCostControlData.filter(record => {
             const recordDateString = formatDateForInput(record.date); // Garante YYYY-MM-DD
             const recordDateObject = recordDateString ? new Date(recordDateString + 'T00:00:00') : null;
-
             if (!recordDateObject || isNaN(recordDateObject)) return false; // Pula data inválida
 
             // Verifica condições
