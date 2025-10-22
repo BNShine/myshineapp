@@ -340,15 +340,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const numberOfColumns = 14;
         costControlTableBodyElement.innerHTML = '';
         let currentFilteredSum = 0;
+
+        function parsePriceSafely(value) {
+            if (value === null || value === undefined) return 0;
+            let stringValue = String(value).trim();
+            stringValue = stringValue.replace(/[$\s]|R\$/g, '');
+            const lastCommaIndex = stringValue.lastIndexOf(',');
+            const lastPeriodIndex = stringValue.lastIndexOf('.');
+            let decimalSeparator = '.';
+            if (lastCommaIndex > lastPeriodIndex) { decimalSeparator = ','; }
+            if (decimalSeparator === '.') { stringValue = stringValue.replace(/,/g, ''); }
+            else { stringValue = stringValue.replace(/\./g, ''); }
+            if (decimalSeparator === ',') { stringValue = stringValue.replace(',', '.'); }
+            const parsedValue = parseFloat(stringValue);
+            return isNaN(parsedValue) ? 0 : parsedValue;
+        }
+
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
             if (listingSectionElement.classList.contains('hidden')) {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">Use the filters above and click "Search History" to view records.</td></tr>`;
             } else {
                 costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found matching your filters.</td></tr>`;
             }
-            if (filteredPriceSumElement) {
-                filteredPriceSumElement.textContent = '$0.00';
-            }
+            if (filteredPriceSumElement) { filteredPriceSumElement.textContent = '$0.00'; }
             return;
         }
         const sortedData = dataToRender.sort((recordA, recordB) => {
@@ -363,9 +377,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tableRowElement = document.createElement('tr');
             tableRowElement.classList.add('border-b', 'border-border', 'hover:bg-muted/50', 'transition-colors');
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
-            const rawPrice = record['price'] || '';
-            const priceForSum = parseFloat(String(rawPrice).replace(',', '.')) || 0;
-            currentFilteredSum += priceForSum;
+            const rawPriceForDisplay = record['price'] || '';
+            const priceValueForSum = parsePriceSafely(record['price']);
+            currentFilteredSum += priceValueForSum;
             const fullDescription = record['description'] || '';
             const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
             tableRowElement.innerHTML = `
@@ -375,7 +389,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record['cost_type'] || ''}</td>
                 <td class="p-4">${record['subtype'] || ''}</td>
                 <td class="p-4">${record['technician'] || ''}</td>
-                <td class="p-4 text-right">${rawPrice}</td>
+                <td class="p-4 text-right">${rawPriceForDisplay}</td>
                 <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td>
                 <td class="p-4">${record['invoice_number'] || ''}</td>
                 <td class="p-4 text-center">${isChecked(record['tire_change'])}</td>
