@@ -511,8 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4">${record.subtype || ''}</td>
                 <td class="p-4">${record.technician || ''}</td>
                 <td class="p-4 text-right">${!isNaN(priceValue) ? `$${priceValue.toFixed(2)}` : ''}</td>
-                <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td> {/* Descrição curta */}
-                {/* Coluna Business foi removida */}
+                <td class="p-4 max-w-[150px] truncate" title="${fullDescription}">${shortDescription}</td>
                 <td class="p-4">${record.invoice_number || ''}</td>
                 <td class="p-4 text-center">${isChecked(record.tire_change)}</td>
                 <td class="p-4 text-center">${isChecked(record.oil_and_filter_change)}</td>
