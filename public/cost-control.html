@@ -125,6 +125,7 @@
                             <select data-config-key="battery_change.type" class="input-base h-9 text-sm"><option value="monthly">Monthly</option><option value="weekly">Weekly</option></select>
                             <input type="number" data-config-key="battery_change.value" min="1" class="input-base h-9 text-sm text-center" placeholder="Value">
                         </div>
+                        {/* Linhas para Air Filter e Other REMOVIDAS */}
                          <div class="grid grid-cols-3 gap-x-4 items-center pt-3 mt-3 border-t">
                             <label class="text-sm font-medium col-span-2">Warn how many days before due date?</label>
                             <input type="number" data-config-key="alert_threshold_days" min="0" class="input-base h-9 text-sm text-center" placeholder="Days">
@@ -149,6 +150,10 @@
                         <div><label for="filter-license-plate" class="text-label mb-2 block">License Plate</label><input type="text" id="filter-license-plate" class="input-base h-9 text-sm" placeholder="Enter plate..."></div>
                         <div class="lg:col-start-4 flex items-end"><button id="search-history-btn" class="btn-primary h-11 px-8 w-full">Search History</button></div>
                     </div>
+                    <div id="filtered-sum-display" class="p-6 pt-0 text-right">
+                         <span class="text-label font-medium">Sum of Filtered Prices: </span>
+                         <span id="filtered-price-sum" class="text-lg font-bold text-foreground">$0.00</span>
+                    </div>
                 </section>
 
                 <section id="listing-section" class="card-base hidden">
@@ -172,7 +177,7 @@
                                     <th class="p-4 border-b">Oil/Filter</th>
                                     <th class="p-4 border-b">Brake</th>
                                     <th class="p-4 border-b">Battery</th>
-                                    <th class="p-4 border-b">Other</th> {/* Cabeçalho renomeado */}
+                                    <th class="p-4 border-b">Other</th>
                                 </tr>
                             </thead>
                             <tbody id="cost-control-table-body" class="text-foreground text-sm">
