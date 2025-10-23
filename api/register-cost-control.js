@@ -15,25 +15,22 @@ const serviceAccountAuth = new JWT({
 
 const SPREADSHEET_ID = process.env.SHEET_ID;
 
-// --- Nova Função para converter YYYY-MM-DD para MM/DD/YYYY ---
 function convertYYYYMMDDtoMMDDYYYY(dateStringYYYYMMDD) {
     if (!dateStringYYYYMMDD || !/^\d{4}-\d{2}-\d{2}$/.test(dateStringYYYYMMDD)) {
-        return dateStringYYYYMMDD; // Retorna original se inválido
+        return dateStringYYYYMMDD;
     }
     const [year, month, day] = dateStringYYYYMMDD.split('-');
     return `${month}/${day}/${year}`;
 }
-// --- Fim da Função ---
 
-export default async function handler(request, response) { // Renomeado req/res
+export default async function handler(request, response) {
     if (request.method !== 'POST') {
         return response.status(405).json({ success: false, message: 'Method Not Allowed' });
     }
 
     try {
-        const requestData = request.body; // Nome completo
+        const requestData = request.body;
 
-        // Validação de campos essenciais
         if (!requestData.date || !requestData.odometer || !requestData.cost_type || !requestData.price) {
             return response.status(400).json({ success: false, message: 'Required fields are missing (Date, Odometer, Cost Type, Price).' });
         }
@@ -41,8 +38,7 @@ export default async function handler(request, response) { // Renomeado req/res
              return response.status(400).json({ success: false, message: 'Technician, License Plate, and VIN are required.' });
         }
 
-
-        const document = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth); // Nome completo
+        const document = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
         await document.loadInfo();
         const sheet = document.sheetsByTitle[SHEET_NAME_COST_CONTROL];
 
@@ -51,9 +47,7 @@ export default async function handler(request, response) { // Renomeado req/res
             return response.status(500).json({ success: false, message: `Spreadsheet tab "${SHEET_NAME_COST_CONTROL}" not found.` });
         }
 
-        // Prepara os dados da nova linha
-        const newRowData = { // Nome completo
-            // *** CONVERTE A DATA PARA MM/DD/YYYY ANTES DE SALVAR ***
+        const newRowData = {
             date: convertYYYYMMDDtoMMDDYYYY(requestData.date),
             license_plate: requestData.license_plate || '',
             vin: requestData.vin || '',
@@ -61,7 +55,7 @@ export default async function handler(request, response) { // Renomeado req/res
             cost_type: requestData.cost_type,
             subtype: requestData.subtype || '',
             technician: requestData.technician || '',
-            price: requestData.price, // Já deve estar com '.' vindo do frontend
+            price: requestData.price,
             description: requestData.description || '',
             business_name: requestData.business_name || '',
             business_address: requestData.business_address || '',
@@ -69,8 +63,9 @@ export default async function handler(request, response) { // Renomeado req/res
             tire_change: requestData.tire_change || 'FALSE',
             oil_and_filter_change: requestData.oil_and_filter_change || 'FALSE',
             brake_change: requestData.brake_change || 'FALSE',
-            battery_change: requestData.battery_change || 'FALSE', // Incluído
-            air_filter_change: requestData.air_filter_change || 'FALSE', // Incluído
+            battery_change: requestData.battery_change || 'FALSE',
+            others: requestData.others || 'FALSE', // Adicionado 'others'
+            // Removido 'air_filter_change'
         };
 
         await sheet.addRow(newRowData);
