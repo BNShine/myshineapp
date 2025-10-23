@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const costControlFormElement = document.getElementById('cost-control-form');
     const costControlTableBodyElement = document.getElementById('cost-control-table-body');
-    const technicianCarSelectElement = document.getElementById('technician-car'); // Make sure this ID exists in HTML
+    // MODIFICAÇÃO 1: Voltar a ter seletores separados
+    const technicianSelectElement = document.getElementById('technician'); // Para o nome do técnico
+    const vinSelectElement = document.getElementById('vin'); // NOVO: Dropdown para VIN
+    const licensePlateSelectElement = document.getElementById('license_plate'); // NOVO: Dropdown para Placa
     const alertsContentElement = document.getElementById('alerts-content');
     const toastContainerElement = document.getElementById('toast-container');
     const configurationFormElement = document.getElementById('config-form');
@@ -10,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalPriceSumElement = document.getElementById('total-price-sum');
 
     let allCostControlData = [];
-    let technicianCarsData = [];
+    let technicianCarsData = []; // Armazena os dados originais { tech_name, vin_number, car_plate }
     let maintenanceIntervalConfiguration = {};
 
     const MAINTENANCE_CATEGORIES = {
@@ -142,28 +145,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         return dueDate;
     }
 
-    function populateTechnicianCarDropdown(selectElement, items, defaultText = 'Select...') {
-        // Added Check: Prevent error if the element wasn't found in the HTML
+    // MODIFICAÇÃO 2: Função genérica para popular dropdowns com arrays de strings
+    function populateSimpleDropdown(selectElement, items, defaultText = 'Select...') {
         if (!selectElement) {
-             console.error("populateTechnicianCarDropdown: The select element provided is null. Check the HTML ID.");
-             return;
+            console.error(`populateSimpleDropdown: Elemento select não encontrado.`);
+            return;
         }
-         selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+        selectElement.innerHTML = `<option value="">${defaultText}</option>`;
         if (items && Array.isArray(items)) {
-            items.sort((a, b) => (a.tech_name || '').localeCompare(b.tech_name || '')).forEach(item => {
-                if (item.tech_name && item.vin_number && item.car_plate) {
+            // Remove duplicados e ordena
+            [...new Set(items)].sort((a, b) => (a || '').localeCompare(b || '')).forEach(item => {
+                if (item) { // Não adiciona opções vazias
                     const option = document.createElement('option');
-                    option.value = JSON.stringify({
-                        tech_name: item.tech_name,
-                        vin_number: item.vin_number,
-                        car_plate: item.car_plate
-                    });
-                    option.textContent = `${item.tech_name} - VIN: ${item.vin_number} (Plate: ${item.car_plate})`;
+                    option.value = item;
+                    option.textContent = item;
                     selectElement.appendChild(option);
                 }
             });
         }
     }
+
 
     function setTodaysDateInRegistrationForm() {
         const today = new Date();
@@ -307,13 +308,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const technicianCarsResult = await technicianCarsResponse.json();
             technicianCarsData = technicianCarsResult.techCars || [];
-            // Critical Check: Ensure technicianCarSelectElement is found before populating
-            if (technicianCarSelectElement) {
-                populateTechnicianCarDropdown(technicianCarSelectElement, technicianCarsData, 'Select Technician/Car...');
-            } else {
-                 console.error("fetchCoreData: Could not find the technician-car select element in the HTML.");
-                 showToastNotification("UI Error: Technician/Car dropdown not found.", "error");
-            }
+
+            // MODIFICAÇÃO 3: Popular os dropdowns separados
+            const techNames = technicianCarsData.map(car => car.tech_name);
+            const vinNumbers = technicianCarsData.map(car => car.vin_number);
+            const carPlates = technicianCarsData.map(car => car.car_plate);
+
+            populateSimpleDropdown(technicianSelectElement, techNames, 'Select Technician...');
+            populateSimpleDropdown(vinSelectElement, vinNumbers, 'Select VIN...');
+            populateSimpleDropdown(licensePlateSelectElement, carPlates, 'Select Plate...');
 
 
             if (!costControlResponse.ok) {
@@ -333,7 +336,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToastNotification(`Error loading data: ${error.message}`, 'error');
             costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`;
             alertsContentElement.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
-            if (technicianCarSelectElement) { technicianCarSelectElement.disabled = true; populateTechnicianCarDropdown(technicianCarSelectElement, [], 'Error loading'); }
+            // Desabilita todos os 3 selects em caso de erro
+            if (technicianSelectElement) { technicianSelectElement.disabled = true; populateSimpleDropdown(technicianSelectElement, [], 'Error loading'); }
+            if (vinSelectElement) { vinSelectElement.disabled = true; populateSimpleDropdown(vinSelectElement, [], 'Error loading'); }
+            if (licensePlateSelectElement) { licensePlateSelectElement.disabled = true; populateSimpleDropdown(licensePlateSelectElement, [], 'Error loading'); }
         }
     }
 
@@ -497,39 +503,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         event.preventDefault();
         const formData = new FormData(costControlFormElement);
         const registrationData = {};
-        let selectedTechnicianCarInfo = null;
 
+        // MODIFICAÇÃO 4: Pegar os valores dos selects individuais
+        registrationData['technician'] = technicianSelectElement.value;
+        registrationData['vin'] = vinSelectElement.value;
+        registrationData['license_plate'] = licensePlateSelectElement.value;
+
+        // Processar outros campos do formulário
         formData.forEach((value, key) => {
-            if (key === 'technician-car' && value) {
-                try {
-                    selectedTechnicianCarInfo = JSON.parse(value);
-                } catch (e) {
-                    console.error("Error parsing technician/car info:", e);
-                    showToastNotification('Invalid Technician/Car selection.', 'error');
-                    return;
+            // Ignora os campos já capturados
+            if (key !== 'technician' && key !== 'vin' && key !== 'license_plate') {
+                if (key === 'price' && typeof value === 'string') {
+                    registrationData[key] = value.replace(',', '.');
+                } else {
+                    registrationData[key] = value;
                 }
-            } else if (key === 'price' && typeof value === 'string') {
-                registrationData[key] = value.replace(',', '.');
-            } else {
-                registrationData[key] = value;
             }
         });
 
-        if (!selectedTechnicianCarInfo) {
-            showToastNotification('Please select a Technician/Car.', 'error');
-            return;
-        }
-        registrationData['technician'] = selectedTechnicianCarInfo.tech_name;
-        registrationData['vin'] = selectedTechnicianCarInfo.vin_number;
-        registrationData['license_plate'] = selectedTechnicianCarInfo.car_plate;
-
-        delete registrationData['technician-car'];
-
+        // Processar checkboxes
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
             registrationData[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
 
-        if (!registrationData.technician) { showToastNotification('Please select a Technician/Car.', 'error'); return; }
+        // Validações
+        if (!registrationData.technician) { showToastNotification('Please select a Technician (Driver).', 'error'); return; }
+        // MODIFICAÇÃO 5: Validar VIN e Placa selecionados
+        if (!registrationData.vin) { showToastNotification('Please select a VIN.', 'error'); return; }
+        if (!registrationData.license_plate) { showToastNotification('Please select a License Plate.', 'error'); return; }
         if (!registrationData.date || !registrationData.odometer || !registrationData.cost_type || registrationData.price === undefined || registrationData.price === '') {
              showToastNotification('Date, Odometer, Cost Type, and Price are required.', 'error'); return; }
 
@@ -551,6 +552,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToastNotification('Record saved successfully!', 'success');
                 costControlFormElement.reset();
                 setTodaysDateInRegistrationForm();
+                // Limpa os selects também
+                if (technicianSelectElement) technicianSelectElement.value = '';
+                if (vinSelectElement) vinSelectElement.value = '';
+                if (licensePlateSelectElement) licensePlateSelectElement.value = '';
                 await initializePage();
             } else { throw new Error(result.message || 'Failed to save record.'); }
         } catch (error) {
