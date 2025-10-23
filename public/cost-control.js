@@ -1,22 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const costControlFormElement = document.getElementById('cost-control-form');
     const costControlTableBodyElement = document.getElementById('cost-control-table-body');
-    const technicianSelectElement = document.getElementById('technician');
-    const licensePlateInputElement = document.getElementById('license_plate');
-    const vinInputElement = document.getElementById('vin');
+    const technicianCarSelectElement = document.getElementById('technician-car');
     const alertsContentElement = document.getElementById('alerts-content');
     const toastContainerElement = document.getElementById('toast-container');
     const configurationFormElement = document.getElementById('config-form');
     const saveConfigurationButtonElement = document.getElementById('save-config-btn');
-    // REMOVIDOS: Seletores de filtro
-    // const filterHistorySectionElement = document.getElementById('filter-history-section');
-    // const filterStartDateInputElement = document.getElementById('filter-start-date');
-    // const filterEndDateInputElement = document.getElementById('filter-end-date');
-    // const filterTechnicianSelectElement = document.getElementById('filter-technician');
-    // const filterLicensePlateInputElement = document.getElementById('filter-license-plate');
-    // const searchHistoryButtonElement = document.getElementById('search-history-btn');
     const listingSectionElement = document.getElementById('listing-section');
-    // Seletor para a soma TOTAL
     const totalPriceSumElement = document.getElementById('total-price-sum');
 
     let allCostControlData = [];
@@ -28,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': 'Oil & Filter Change',
         'brake_change': 'Brake Change',
         'battery_change': 'Battery Change',
-        'air_filter_change': 'Air Filter Change', // Mantido aqui para parsear dados existentes
+        'air_filter_change': 'Air Filter Change',
         'other': 'Other Maintenance'
     };
 
@@ -37,9 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': { type: 'monthly', value: 2 },
         'brake_change': { type: 'monthly', value: 4 },
         'battery_change': { type: 'monthly', value: 24 },
-        // Removidos da configuração padrão de alerta, mas mantidos em MAINTENANCE_CATEGORIES
-        // 'air_filter_change': { type: 'monthly', value: 12 },
-        // 'other': { type: 'monthly', value: 12 },
         'alert_threshold_days': 15
     };
 
@@ -155,20 +142,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         return dueDate;
     }
 
-    function populateDropdown(selectElement, items, defaultText = 'Select...', valueKey = null, textKey = null) {
+    function populateTechnicianCarDropdown(selectElement, items, defaultText = 'Select...') {
          selectElement.innerHTML = `<option value="">${defaultText}</option>`;
         if (items && Array.isArray(items)) {
-            items.sort((itemA, itemB) => {
-                const textA = textKey ? (itemA[textKey] || '') : (itemA || '');
-                const textB = textKey ? (itemB[textKey] || '') : (itemB || '');
-                return textA.localeCompare(textB);
-            }).forEach(item => {
-                const value = valueKey ? (item[valueKey] || '') : (item || '');
-                const text = textKey ? (item[textKey] || '') : (item || '');
-                if (value) {
+            items.sort((a, b) => (a.tech_name || '').localeCompare(b.tech_name || '')).forEach(item => {
+                if (item.tech_name && item.vin_number && item.car_plate) {
                     const option = document.createElement('option');
-                    option.value = value;
-                    option.textContent = text;
+                    option.value = JSON.stringify({
+                        tech_name: item.tech_name,
+                        vin_number: item.vin_number,
+                        car_plate: item.car_plate
+                    });
+                    option.textContent = `${item.tech_name} - VIN: ${item.vin_number} (Plate: ${item.car_plate})`;
                     selectElement.appendChild(option);
                 }
             });
@@ -193,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
              const validConfigurationFromServer = (typeof configurationFromServer === 'object' && configurationFromServer !== null) ? configurationFromServer : {};
             const mergedConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
             for (const key in DEFAULT_INTERVALS) {
-                 if (key === 'air_filter_change' || key === 'other') continue; // Pula config removida
+                 if (key === 'air_filter_change' || key === 'other') continue;
                 if (validConfigurationFromServer.hasOwnProperty(key)) {
                     if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof validConfigurationFromServer[key] === 'object' && validConfigurationFromServer[key] !== null) {
                         let type = validConfigurationFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
@@ -221,7 +206,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         let formIsValid = true;
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
-            // Pula as chaves removidas
              if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.')) return;
 
             let value = element.value;
@@ -282,7 +266,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
-             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.')) return; // Pula elementos removidos
+             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.')) return;
             const keys = keyPath.split('.');
             let configurationValue;
             if (keys.length === 2) { configurationValue = maintenanceIntervalConfiguration[keys[0]] ? maintenanceIntervalConfiguration[keys[0]][keys[1]] : undefined; }
@@ -318,9 +302,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const technicianCarsResult = await technicianCarsResponse.json();
             technicianCarsData = technicianCarsResult.techCars || [];
-            populateDropdown(technicianSelectElement, technicianCarsData, 'Select Technician...', 'tech_name', 'tech_name');
-            // MANTÉM populateDropdown para o filtro de histórico, mesmo que não seja mais usado
-            // populateDropdown(filterTechnicianSelectElement, technicianCarsData, 'All Technicians', 'tech_name', 'tech_name');
+            populateTechnicianCarDropdown(technicianCarSelectElement, technicianCarsData, 'Select Technician/Car...');
+
             if (!costControlResponse.ok) {
                 let errorMessage = 'Failed to load cost control data.';
                 try { const errorJson = await costControlResponse.json(); errorMessage = errorJson.error || errorJson.message || errorMessage; } catch(error){ errorMessage = `Status: ${costControlResponse.status}`; }
@@ -331,7 +314,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (allCostControlData.length < (costDataResult.costs || []).length) {
                 console.warn(`Filtered out ${ (costDataResult.costs || []).length - allCostControlData.length} records due to invalid date format received from API.`);
             }
-            // Chama renderHistoryTable diretamente aqui para exibir todos os dados
             renderHistoryTable(allCostControlData);
             renderMaintenanceAlerts(allCostControlData);
         } catch (error) {
@@ -339,16 +321,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToastNotification(`Error loading data: ${error.message}`, 'error');
             costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`;
             alertsContentElement.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
-            if (technicianSelectElement) { technicianSelectElement.disabled = true; populateDropdown(technicianSelectElement, [], 'Error loading'); }
-            // MANTÉM desabilitação do filtro de histórico
-            // if (filterTechnicianSelectElement) { filterTechnicianSelectElement.disabled = true; populateDropdown(filterTechnicianSelectElement, [], 'Error loading'); }
+            if (technicianCarSelectElement) { technicianCarSelectElement.disabled = true; populateTechnicianCarDropdown(technicianCarSelectElement, [], 'Error loading'); }
         }
     }
 
     function renderHistoryTable(dataToRender) {
         const numberOfColumns = 14;
         costControlTableBodyElement.innerHTML = '';
-        let currentTotalSum = 0; // Renomeado para soma total
+        let currentTotalSum = 0;
 
         function parsePriceSafely(value) {
             if (value === null || value === undefined) return 0;
@@ -366,10 +346,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (!Array.isArray(dataToRender) || dataToRender.length === 0) {
-            // Mensagem única, pois agora sempre mostra a tabela
             costControlTableBodyElement.innerHTML = `<tr><td colspan="${numberOfColumns}" class="p-4 text-center text-muted-foreground">No maintenance records found.</td></tr>`;
             if (totalPriceSumElement) {
-                totalPriceSumElement.textContent = '$0.00'; // Zera a soma total
+                totalPriceSumElement.textContent = '$0.00';
             }
             return;
         }
@@ -387,7 +366,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isChecked = (value) => value && String(value).toUpperCase() === 'TRUE' ? '✔️' : '❌';
             const rawPriceForDisplay = record['price'] || '';
             const priceValueForSum = parsePriceSafely(record['price']);
-            currentTotalSum += priceValueForSum; // Adiciona à soma total
+            currentTotalSum += priceValueForSum;
             const fullDescription = record['description'] || '';
             const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
             tableRowElement.innerHTML = `
@@ -408,7 +387,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
             costControlTableBodyElement.appendChild(tableRowElement);
         });
-        // Atualiza o elemento da soma TOTAL
         if (totalPriceSumElement) {
             totalPriceSumElement.textContent = `$${currentTotalSum.toFixed(2)}`;
         }
@@ -503,33 +481,43 @@ document.addEventListener('DOMContentLoaded', async () => {
        alertsContentElement.appendChild(alertDivElement);
     }
 
-    function handleTechnicianSelectionChange() {
-        const selectedTechnicianName = technicianSelectElement.value;
-        const selectedTechnicianCarData = technicianCarsData.find(technician => technician.tech_name === selectedTechnicianName);
-        if (selectedTechnicianCarData) {
-            vinInputElement.value = selectedTechnicianCarData.vin_number || '';
-            licensePlateInputElement.value = selectedTechnicianCarData.car_plate || '';
-        } else {
-            vinInputElement.value = '';
-            licensePlateInputElement.value = '';
-        }
-    }
-
     costControlFormElement.addEventListener('submit', async (event) => {
         event.preventDefault();
         const formData = new FormData(costControlFormElement);
         const registrationData = {};
+        let selectedTechnicianCarInfo = null;
+
         formData.forEach((value, key) => {
-            if (key === 'price' && typeof value === 'string') { registrationData[key] = value.replace(',', '.'); }
-            else { registrationData[key] = value; }
+            if (key === 'technician-car' && value) {
+                try {
+                    selectedTechnicianCarInfo = JSON.parse(value);
+                } catch (e) {
+                    console.error("Error parsing technician/car info:", e);
+                    showToastNotification('Invalid Technician/Car selection.', 'error');
+                    return;
+                }
+            } else if (key === 'price' && typeof value === 'string') {
+                registrationData[key] = value.replace(',', '.');
+            } else {
+                registrationData[key] = value;
+            }
         });
-        registrationData['vin'] = vinInputElement.value;
-        registrationData['license_plate'] = licensePlateInputElement.value;
+
+        if (!selectedTechnicianCarInfo) {
+            showToastNotification('Please select a Technician/Car.', 'error');
+            return;
+        }
+        registrationData['technician'] = selectedTechnicianCarInfo.tech_name;
+        registrationData['vin'] = selectedTechnicianCarInfo.vin_number;
+        registrationData['license_plate'] = selectedTechnicianCarInfo.car_plate;
+
+        delete registrationData['technician-car'];
+
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
             registrationData[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
-        if (!registrationData.technician) { showToastNotification('Please select a Technician (Driver).', 'error'); return; }
-        if (!registrationData.license_plate || !registrationData.vin) { showToastNotification('VIN and License Plate must be autofilled by selecting a Technician.', 'error'); return; }
+
+        if (!registrationData.technician) { showToastNotification('Please select a Technician/Car.', 'error'); return; }
         if (!registrationData.date || !registrationData.odometer || !registrationData.cost_type || registrationData.price === undefined || registrationData.price === '') {
              showToastNotification('Date, Odometer, Cost Type, and Price are required.', 'error'); return; }
 
@@ -551,8 +539,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToastNotification('Record saved successfully!', 'success');
                 costControlFormElement.reset();
                 setTodaysDateInRegistrationForm();
-                vinInputElement.value = '';
-                licensePlateInputElement.value = '';
                 await initializePage();
             } else { throw new Error(result.message || 'Failed to save record.'); }
         } catch (error) {
@@ -564,9 +550,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // REMOVIDO: Event listener do botão searchHistoryButtonElement
-
-    if (technicianSelectElement) { technicianSelectElement.addEventListener('change', handleTechnicianSelectionChange); }
     if (saveConfigurationButtonElement) { saveConfigurationButtonElement.addEventListener('click', saveMaintenanceIntervalConfiguration); }
 
     async function initializePage() {
@@ -576,10 +559,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("Configuration loaded, populating configuration form...");
         populateConfigurationForm();
         console.log("Configuration form populated, fetching core data (cars/costs)...");
-        await fetchCoreData(); // Agora fetchCoreData chama renderHistoryTable internamente
-        // MANTÉM: Garante que a soma inicial seja exibida
+        await fetchCoreData();
         if (totalPriceSumElement) {
-             // A soma será calculada e exibida por renderHistoryTable chamado dentro de fetchCoreData
         }
         console.log("Initialization complete.");
     }
