@@ -1,10 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const costControlFormElement = document.getElementById('cost-control-form');
     const costControlTableBodyElement = document.getElementById('cost-control-table-body');
-    // MODIFICAÇÃO 1: Voltar a ter seletores separados
-    const technicianSelectElement = document.getElementById('technician'); // Para o nome do técnico
-    const vinSelectElement = document.getElementById('vin'); // NOVO: Dropdown para VIN
-    const licensePlateSelectElement = document.getElementById('license_plate'); // NOVO: Dropdown para Placa
+    const technicianSelectElement = document.getElementById('technician');
+    const vinSelectElement = document.getElementById('vin');
+    const licensePlateSelectElement = document.getElementById('license_plate');
     const alertsContentElement = document.getElementById('alerts-content');
     const toastContainerElement = document.getElementById('toast-container');
     const configurationFormElement = document.getElementById('config-form');
@@ -13,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalPriceSumElement = document.getElementById('total-price-sum');
 
     let allCostControlData = [];
-    let technicianCarsData = []; // Armazena os dados originais { tech_name, vin_number, car_plate }
+    let technicianCarsData = [];
     let maintenanceIntervalConfiguration = {};
 
     const MAINTENANCE_CATEGORIES = {
@@ -21,8 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': 'Oil & Filter Change',
         'brake_change': 'Brake Change',
         'battery_change': 'Battery Change',
-        'air_filter_change': 'Air Filter Change',
-        'other': 'Other Maintenance'
+        'others': 'Others' // Adicionado Others
     };
 
     const DEFAULT_INTERVALS = {
@@ -30,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': { type: 'monthly', value: 2 },
         'brake_change': { type: 'monthly', value: 4 },
         'battery_change': { type: 'monthly', value: 24 },
+        // 'others' não precisa ter um intervalo padrão para alertas
         'alert_threshold_days': 15
     };
 
@@ -145,7 +144,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return dueDate;
     }
 
-    // MODIFICAÇÃO 2: Função genérica para popular dropdowns com arrays de strings
     function populateSimpleDropdown(selectElement, items, defaultText = 'Select...') {
         if (!selectElement) {
             console.error(`populateSimpleDropdown: Elemento select não encontrado.`);
@@ -153,9 +151,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         selectElement.innerHTML = `<option value="">${defaultText}</option>`;
         if (items && Array.isArray(items)) {
-            // Remove duplicados e ordena
             [...new Set(items)].sort((a, b) => (a || '').localeCompare(b || '')).forEach(item => {
-                if (item) { // Não adiciona opções vazias
+                if (item) {
                     const option = document.createElement('option');
                     option.value = item;
                     option.textContent = item;
@@ -164,7 +161,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
     }
-
 
     function setTodaysDateInRegistrationForm() {
         const today = new Date();
@@ -184,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
              const validConfigurationFromServer = (typeof configurationFromServer === 'object' && configurationFromServer !== null) ? configurationFromServer : {};
             const mergedConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
             for (const key in DEFAULT_INTERVALS) {
-                 if (key === 'air_filter_change' || key === 'other') continue;
+                 if (key === 'air_filter_change' || key === 'other' || key === 'others') continue; // Ignora também 'others' se existir
                 if (validConfigurationFromServer.hasOwnProperty(key)) {
                     if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof validConfigurationFromServer[key] === 'object' && validConfigurationFromServer[key] !== null) {
                         let type = validConfigurationFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
@@ -212,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let formIsValid = true;
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
-             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.')) return;
+             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.') || keyPath.startsWith('others.')) return; // Ignora removidos/novos
 
             let value = element.value;
             if (element.type === 'number') {
@@ -272,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
-             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.')) return;
+             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.') || keyPath.startsWith('others.')) return;
             const keys = keyPath.split('.');
             let configurationValue;
             if (keys.length === 2) { configurationValue = maintenanceIntervalConfiguration[keys[0]] ? maintenanceIntervalConfiguration[keys[0]][keys[1]] : undefined; }
@@ -309,7 +305,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const technicianCarsResult = await technicianCarsResponse.json();
             technicianCarsData = technicianCarsResult.techCars || [];
 
-            // MODIFICAÇÃO 3: Popular os dropdowns separados
             const techNames = technicianCarsData.map(car => car.tech_name);
             const vinNumbers = technicianCarsData.map(car => car.vin_number);
             const carPlates = technicianCarsData.map(car => car.car_plate);
@@ -336,7 +331,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToastNotification(`Error loading data: ${error.message}`, 'error');
             costControlTableBodyElement.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-red-600">Failed to load cost data. ${error.message}</td></tr>`;
             alertsContentElement.innerHTML = `<p class="text-destructive">Failed to load alert data. ${error.message}</p>`;
-            // Desabilita todos os 3 selects em caso de erro
             if (technicianSelectElement) { technicianSelectElement.disabled = true; populateSimpleDropdown(technicianSelectElement, [], 'Error loading'); }
             if (vinSelectElement) { vinSelectElement.disabled = true; populateSimpleDropdown(vinSelectElement, [], 'Error loading'); }
             if (licensePlateSelectElement) { licensePlateSelectElement.disabled = true; populateSimpleDropdown(licensePlateSelectElement, [], 'Error loading'); }
@@ -387,6 +381,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentTotalSum += priceValueForSum;
             const fullDescription = record['description'] || '';
             const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
+
+            // Ajuste na ordem e no conteúdo das células
             tableRowElement.innerHTML = `
                 <td class="p-4 whitespace-nowrap">${formatDateForDisplay(record['date'])}</td>
                 <td class="p-4">${record['license_plate'] || ''}</td>
@@ -401,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-4 text-center">${isChecked(record['oil_and_filter_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['brake_change'])}</td>
                 <td class="p-4 text-center">${isChecked(record['battery_change'])}</td>
-                <td class="p-4 text-center">${isChecked(record['air_filter_change'])}</td>
+                <td class="p-4 text-center">${isChecked(record['others'])}</td>
             `;
             costControlTableBodyElement.appendChild(tableRowElement);
         });
@@ -432,7 +428,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     oil_and_filter_change: String(record['oil_and_filter_change']).toUpperCase() === 'TRUE',
                     brake_change: String(record['brake_change']).toUpperCase() === 'TRUE',
                     battery_change: String(record['battery_change']).toUpperCase() === 'TRUE',
-                    air_filter_change: String(record['air_filter_change']).toUpperCase() === 'TRUE',
+                    // Não precisa mais ler air_filter_change aqui para alertas
+                    others: String(record['others']).toUpperCase() === 'TRUE', // Inclui 'others' se necessário para futuras lógicas
                     cost_type: record['cost_type'],
                 });
                 vehicleMaintenanceData[plate].lastTechnician = record['technician'];
@@ -447,7 +444,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             let alertMessagesForVehicle = [];
             let highestSeverityLevel = 'info';
             for (const categoryKey in MAINTENANCE_CATEGORIES) {
-                 if (categoryKey === 'air_filter_change' || categoryKey === 'other') continue;
+                 // Pula 'others' e 'air_filter_change' (se ainda existir nos dados antigos) para alertas
+                 if (categoryKey === 'air_filter_change' || categoryKey === 'others') continue;
                 const categoryConfiguration = maintenanceIntervalConfiguration[categoryKey];
                 if (!categoryConfiguration || !categoryConfiguration.type || isNaN(categoryConfiguration.value) || categoryConfiguration.value <= 0) continue;
                 let lastPerformedRecord;
@@ -504,14 +502,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const formData = new FormData(costControlFormElement);
         const registrationData = {};
 
-        // MODIFICAÇÃO 4: Pegar os valores dos selects individuais
         registrationData['technician'] = technicianSelectElement.value;
         registrationData['vin'] = vinSelectElement.value;
         registrationData['license_plate'] = licensePlateSelectElement.value;
 
-        // Processar outros campos do formulário
         formData.forEach((value, key) => {
-            // Ignora os campos já capturados
             if (key !== 'technician' && key !== 'vin' && key !== 'license_plate') {
                 if (key === 'price' && typeof value === 'string') {
                     registrationData[key] = value.replace(',', '.');
@@ -521,14 +516,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Processar checkboxes
-        ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'air_filter_change'].forEach(key => {
+        // Inclui 'others', remove 'air_filter_change'
+        ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'others'].forEach(key => {
             registrationData[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
+        // Garante que air_filter_change não seja enviado se ainda existir no form por algum motivo
+        delete registrationData['air_filter_change'];
 
-        // Validações
+
         if (!registrationData.technician) { showToastNotification('Please select a Technician (Driver).', 'error'); return; }
-        // MODIFICAÇÃO 5: Validar VIN e Placa selecionados
         if (!registrationData.vin) { showToastNotification('Please select a VIN.', 'error'); return; }
         if (!registrationData.license_plate) { showToastNotification('Please select a License Plate.', 'error'); return; }
         if (!registrationData.date || !registrationData.odometer || !registrationData.cost_type || registrationData.price === undefined || registrationData.price === '') {
@@ -552,7 +548,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showToastNotification('Record saved successfully!', 'success');
                 costControlFormElement.reset();
                 setTodaysDateInRegistrationForm();
-                // Limpa os selects também
                 if (technicianSelectElement) technicianSelectElement.value = '';
                 if (vinSelectElement) vinSelectElement.value = '';
                 if (licensePlateSelectElement) licensePlateSelectElement.value = '';
