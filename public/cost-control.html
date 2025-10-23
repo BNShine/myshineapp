@@ -70,18 +70,68 @@
                     </div>
                     <form id="cost-control-form" class="p-6 space-y-6">
                          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div><label for="date" class="text-label mb-2 block">Date</label><input type="date" id="date" name="date" required class="input-base"></div>
-                            <div><label for="technician" class="text-label mb-2 block">Technician (Driver)</label><select id="technician" name="technician" required class="input-base"><option value="">Select Technician...</option></select></div>
-                            <div><label for="vin" class="text-label mb-2 block">VIN</label><input type="text" id="vin" name="vin" class="input-base bg-muted" placeholder="Autofilled" readonly></div>
-                            <div><label for="license_plate" class="text-label mb-2 block">License Plate</label><input type="text" id="license_plate" name="license_plate" class="input-base bg-muted" placeholder="Autofilled" readonly></div>
-                            <div><label for="odometer" class="text-label mb-2 block">Odometer</label><input type="number" id="odometer" name="odometer" required class="input-base" placeholder="e.g., 50000"></div>
-                            <div><label for="cost_type" class="text-label mb-2 block">Cost Type</label><select id="cost_type" name="cost_type" required class="input-base"><option value="">Select Type...</option><option value="Maintenance">Maintenance</option><option value="Repair">Repair</option><option value="Fuel">Fuel</option><option value="Insurance">Insurance</option><option value="Registration">Registration</option><option value="Other">Other</option></select></div>
-                            <div><label for="subtype" class="text-label mb-2 block">Subtype</label><input type="text" id="subtype" name="subtype" class="input-base" placeholder="e.g., Oil Change"></div>
-                            <div><label for="price" class="text-label mb-2 block">Price ($)</label><input type="number" step="0.01" id="price" name="price" required class="input-base" placeholder="e.g., 150.50"></div>
-                            <div class="md:col-span-2 lg:col-span-4"><label for="description" class="text-label mb-2 block">Description</label><textarea id="description" name="description" rows="3" class="input-base" placeholder="Detailed description..."></textarea></div>
-                            <div><label for="business_name" class="text-label mb-2 block">Business Name</label><input type="text" id="business_name" name="business_name" class="input-base" placeholder="e.g., Auto Shop LLC"></div>
-                            <div class="md:col-span-2"><label for="business_address" class="text-label mb-2 block">Business Address</label><input type="text" id="business_address" name="business_address" class="input-base" placeholder="e.g., 123 Service Ln"></div>
-                            <div><label for="invoice_number" class="text-label mb-2 block">Invoice Number</label><input type="text" id="invoice_number" name="invoice_number" class="input-base" placeholder="e.g., INV-001"></div>
+                            <div>
+                                <label for="date" class="text-label mb-2 block">Date</label>
+                                <input type="date" id="date" name="date" required class="input-base">
+                            </div>
+                            <div>
+                                <label for="technician" class="text-label mb-2 block">Technician (Driver)</label>
+                                <select id="technician" name="technician" required class="input-base">
+                                    <option value="">Select Technician...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="vin" class="text-label mb-2 block">VIN</label>
+                                <select id="vin" name="vin" required class="input-base">
+                                    <option value="">Select VIN...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="license_plate" class="text-label mb-2 block">License Plate</label>
+                                <select id="license_plate" name="license_plate" required class="input-base">
+                                     <option value="">Select Plate...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="odometer" class="text-label mb-2 block">Odometer</label>
+                                <input type="number" id="odometer" name="odometer" required class="input-base" placeholder="e.g., 50000">
+                            </div>
+                            <div>
+                                <label for="cost_type" class="text-label mb-2 block">Cost Type</label>
+                                <select id="cost_type" name="cost_type" required class="input-base">
+                                    <option value="">Select Type...</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Repair">Repair</option>
+                                    <option value="Fuel">Fuel</option>
+                                    <option value="Insurance">Insurance</option>
+                                    <option value="Registration">Registration</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="subtype" class="text-label mb-2 block">Subtype</label>
+                                <input type="text" id="subtype" name="subtype" class="input-base" placeholder="e.g., Oil Change">
+                            </div>
+                            <div>
+                                <label for="price" class="text-label mb-2 block">Price ($)</label>
+                                <input type="number" step="0.01" id="price" name="price" required class="input-base" placeholder="e.g., 150.50">
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-4">
+                                <label for="description" class="text-label mb-2 block">Description</label>
+                                <textarea id="description" name="description" rows="3" class="input-base" placeholder="Detailed description..."></textarea>
+                            </div>
+                            <div>
+                                <label for="business_name" class="text-label mb-2 block">Business Name</label>
+                                <input type="text" id="business_name" name="business_name" class="input-base" placeholder="e.g., Auto Shop LLC">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="business_address" class="text-label mb-2 block">Business Address</label>
+                                <input type="text" id="business_address" name="business_address" class="input-base" placeholder="e.g., 123 Service Ln">
+                            </div>
+                            <div>
+                                <label for="invoice_number" class="text-label mb-2 block">Invoice Number</label>
+                                <input type="text" id="invoice_number" name="invoice_number" class="input-base" placeholder="e.g., INV-001">
+                            </div>
                         </div>
                         <div class="flex flex-wrap gap-6 items-center pt-4 border-t mt-4">
                             <label class="text-label">Service Performed:</label>
@@ -91,7 +141,9 @@
                             <label for="battery_change" class="checkbox-label"><input type="checkbox" id="battery_change" name="battery_change" value="TRUE" class="checkbox-input"> Battery Change</label>
                             <label for="air_filter_change" class="checkbox-label"><input type="checkbox" id="air_filter_change" name="air_filter_change" value="TRUE" class="checkbox-input"> Air Filter Change</label>
                         </div>
-                        <div class="flex justify-end pt-4"><button type="submit" class="btn-primary h-11 px-8">Save Record</button></div>
+                        <div class="flex justify-end pt-4">
+                            <button type="submit" class="btn-primary h-11 px-8">Save Record</button>
+                        </div>
                     </form>
                 </section>
 
@@ -165,7 +217,7 @@
                                     <th class="p-4 border-b">Oil/Filter</th>
                                     <th class="p-4 border-b">Brake</th>
                                     <th class="p-4 border-b">Battery</th>
-                                    <th class="p-4 border-b">Other</th>
+                                    <th class="p-4 border-b">Air Filter</th>
                                 </tr>
                             </thead>
                             <tbody id="cost-control-table-body" class="text-foreground text-sm">
