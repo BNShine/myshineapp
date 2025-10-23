@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const costControlFormElement = document.getElementById('cost-control-form');
     const costControlTableBodyElement = document.getElementById('cost-control-table-body');
-    const technicianCarSelectElement = document.getElementById('technician-car');
+    const technicianCarSelectElement = document.getElementById('technician-car'); // Make sure this ID exists in HTML
     const alertsContentElement = document.getElementById('alerts-content');
     const toastContainerElement = document.getElementById('toast-container');
     const configurationFormElement = document.getElementById('config-form');
@@ -143,6 +143,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function populateTechnicianCarDropdown(selectElement, items, defaultText = 'Select...') {
+        // Added Check: Prevent error if the element wasn't found in the HTML
+        if (!selectElement) {
+             console.error("populateTechnicianCarDropdown: The select element provided is null. Check the HTML ID.");
+             return;
+        }
          selectElement.innerHTML = `<option value="">${defaultText}</option>`;
         if (items && Array.isArray(items)) {
             items.sort((a, b) => (a.tech_name || '').localeCompare(b.tech_name || '')).forEach(item => {
@@ -302,7 +307,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const technicianCarsResult = await technicianCarsResponse.json();
             technicianCarsData = technicianCarsResult.techCars || [];
-            populateTechnicianCarDropdown(technicianCarSelectElement, technicianCarsData, 'Select Technician/Car...');
+            // Critical Check: Ensure technicianCarSelectElement is found before populating
+            if (technicianCarSelectElement) {
+                populateTechnicianCarDropdown(technicianCarSelectElement, technicianCarsData, 'Select Technician/Car...');
+            } else {
+                 console.error("fetchCoreData: Could not find the technician-car select element in the HTML.");
+                 showToastNotification("UI Error: Technician/Car dropdown not found.", "error");
+            }
+
 
             if (!costControlResponse.ok) {
                 let errorMessage = 'Failed to load cost control data.';
