@@ -47,9 +47,13 @@ export default async function handler(request, response) {
             return response.status(500).json({ success: false, message: `Spreadsheet tab "${SHEET_NAME_COST_CONTROL}" not found.` });
         }
 
+        // Garante que license_plate é tratado como string
+        const licensePlateValue = String(requestData.license_plate || '');
+
         const newRowData = {
             date: convertYYYYMMDDtoMMDDYYYY(requestData.date),
-            license_plate: requestData.license_plate || '',
+            // Força o valor a ser uma string antes de salvar
+            license_plate: licensePlateValue,
             vin: requestData.vin || '',
             odometer: requestData.odometer,
             cost_type: requestData.cost_type,
@@ -64,10 +68,11 @@ export default async function handler(request, response) {
             oil_and_filter_change: requestData.oil_and_filter_change || 'FALSE',
             brake_change: requestData.brake_change || 'FALSE',
             battery_change: requestData.battery_change || 'FALSE',
-            others: requestData.others || 'FALSE', // Adicionado 'others'
-            // Removido 'air_filter_change'
+            others: requestData.others || 'FALSE',
         };
 
+        // A biblioteca google-spreadsheet geralmente respeita o tipo,
+        // mas garantir que a coluna no Google Sheets está como "Texto simples" é crucial.
         await sheet.addRow(newRowData);
 
         return response.status(201).json({ success: true, message: 'Maintenance record added successfully!' });
