@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': 'Oil & Filter Change',
         'brake_change': 'Brake Change',
         'battery_change': 'Battery Change',
-        'others': 'Others' // Adicionado Others
+        'others': 'Others'
     };
 
     const DEFAULT_INTERVALS = {
@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         'oil_and_filter_change': { type: 'monthly', value: 2 },
         'brake_change': { type: 'monthly', value: 4 },
         'battery_change': { type: 'monthly', value: 24 },
-        // 'others' não precisa ter um intervalo padrão para alertas
         'alert_threshold_days': 15
     };
 
@@ -180,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
              const validConfigurationFromServer = (typeof configurationFromServer === 'object' && configurationFromServer !== null) ? configurationFromServer : {};
             const mergedConfiguration = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
             for (const key in DEFAULT_INTERVALS) {
-                 if (key === 'air_filter_change' || key === 'other' || key === 'others') continue; // Ignora também 'others' se existir
+                 if (key === 'air_filter_change' || key === 'other' || key === 'others') continue;
                 if (validConfigurationFromServer.hasOwnProperty(key)) {
                     if (typeof DEFAULT_INTERVALS[key] === 'object' && DEFAULT_INTERVALS[key] !== null && typeof validConfigurationFromServer[key] === 'object' && validConfigurationFromServer[key] !== null) {
                         let type = validConfigurationFromServer[key].type === 'weekly' ? 'weekly' : 'monthly';
@@ -208,7 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let formIsValid = true;
         configurationFormElement.querySelectorAll('[data-config-key]').forEach(element => {
             const keyPath = element.dataset.configKey;
-             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.') || keyPath.startsWith('others.')) return; // Ignora removidos/novos
+             if (keyPath.startsWith('air_filter_change.') || keyPath.startsWith('other.') || keyPath.startsWith('others.')) return;
 
             let value = element.value;
             if (element.type === 'number') {
@@ -320,10 +319,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(errorMessage);
             }
             const costDataResult = await costControlResponse.json();
+            // Guarda todos os dados válidos recebidos
             allCostControlData = (costDataResult.costs || []).filter(record => record['date'] && createDateObjectFromMMDDYYYY(record['date']));
             if (allCostControlData.length < (costDataResult.costs || []).length) {
                 console.warn(`Filtered out ${ (costDataResult.costs || []).length - allCostControlData.length} records due to invalid date format received from API.`);
             }
+            // Renderiza a tabela com todos os dados
             renderHistoryTable(allCostControlData);
             renderMaintenanceAlerts(allCostControlData);
         } catch (error) {
@@ -337,6 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // A função renderHistoryTable agora recebe os dados a serem exibidos
     function renderHistoryTable(dataToRender) {
         const numberOfColumns = 14;
         costControlTableBodyElement.innerHTML = '';
@@ -364,13 +366,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             return;
         }
+        // Ordena os dados recebidos antes de exibir
         const sortedData = dataToRender.sort((recordA, recordB) => {
              const dateObjectA = createDateObjectFromMMDDYYYY(recordA['date']);
              const dateObjectB = createDateObjectFromMMDDYYYY(recordB['date']);
              if (!dateObjectA && !dateObjectB) return 0;
              if (!dateObjectA) return 1;
              if (!dateObjectB) return -1;
-             return dateObjectB.getTime() - dateObjectA.getTime();
+             return dateObjectB.getTime() - dateObjectA.getTime(); // Mais recente primeiro
         });
         sortedData.forEach(record => {
             const tableRowElement = document.createElement('tr');
@@ -382,7 +385,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const fullDescription = record['description'] || '';
             const shortDescription = fullDescription.length > 15 ? fullDescription.substring(0, 15) + '...' : fullDescription;
 
-            // Ajuste na ordem e no conteúdo das células
             tableRowElement.innerHTML = `
                 <td class="p-4 whitespace-nowrap">${formatDateForDisplay(record['date'])}</td>
                 <td class="p-4">${record['license_plate'] || ''}</td>
@@ -428,8 +430,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     oil_and_filter_change: String(record['oil_and_filter_change']).toUpperCase() === 'TRUE',
                     brake_change: String(record['brake_change']).toUpperCase() === 'TRUE',
                     battery_change: String(record['battery_change']).toUpperCase() === 'TRUE',
-                    // Não precisa mais ler air_filter_change aqui para alertas
-                    others: String(record['others']).toUpperCase() === 'TRUE', // Inclui 'others' se necessário para futuras lógicas
+                    others: String(record['others']).toUpperCase() === 'TRUE',
                     cost_type: record['cost_type'],
                 });
                 vehicleMaintenanceData[plate].lastTechnician = record['technician'];
@@ -444,7 +445,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             let alertMessagesForVehicle = [];
             let highestSeverityLevel = 'info';
             for (const categoryKey in MAINTENANCE_CATEGORIES) {
-                 // Pula 'others' e 'air_filter_change' (se ainda existir nos dados antigos) para alertas
                  if (categoryKey === 'air_filter_change' || categoryKey === 'others') continue;
                 const categoryConfiguration = maintenanceIntervalConfiguration[categoryKey];
                 if (!categoryConfiguration || !categoryConfiguration.type || isNaN(categoryConfiguration.value) || categoryConfiguration.value <= 0) continue;
@@ -516,11 +516,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Inclui 'others', remove 'air_filter_change'
         ['tire_change', 'oil_and_filter_change', 'brake_change', 'battery_change', 'others'].forEach(key => {
             registrationData[key] = formData.has(key) ? 'TRUE' : 'FALSE';
         });
-        // Garante que air_filter_change não seja enviado se ainda existir no form por algum motivo
         delete registrationData['air_filter_change'];
 
 
@@ -551,7 +549,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (technicianSelectElement) technicianSelectElement.value = '';
                 if (vinSelectElement) vinSelectElement.value = '';
                 if (licensePlateSelectElement) licensePlateSelectElement.value = '';
-                await initializePage();
+                // Recarrega os dados e atualiza a tabela
+                await fetchCoreData();
             } else { throw new Error(result.message || 'Failed to save record.'); }
         } catch (error) {
             console.error('Error submitting form:', error);
@@ -571,8 +570,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("Configuration loaded, populating configuration form...");
         populateConfigurationForm();
         console.log("Configuration form populated, fetching core data (cars/costs)...");
+        // fetchCoreData agora renderiza a tabela com todos os dados
         await fetchCoreData();
         if (totalPriceSumElement) {
+            // A soma é calculada e exibida dentro de renderHistoryTable
         }
         console.log("Initialization complete.");
     }
