@@ -1,13 +1,52 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const franchisesContainer = document.getElementById('franchises-container');
-    const addFranchiseBtn = document.getElementById('add-franchise-btn');
-    const franchiseTemplate = document.getElementById('franchise-template');
+    // --- Elementos DOM ---
+    const franchisesContainer = document.getElementById('franchises-container'); // Container principal (agora só tem uma seção de cálculo)
+    const franchiseSelect = document.getElementById('franchise-select');
+    const reportMonthSelect = document.getElementById('report-month-select');
+    const fileInput = document.getElementById('file-input');
+    const royaltyRateInput = document.getElementById('royalty-rate-input');
+    const marketingRateInput = document.getElementById('marketing-rate-input');
+    const loadingSpinner = document.querySelector('#royalty-calculation-section .loading-spinner');
+    const calculationTbody = document.querySelector('#royalty-calculation-section .calculation-tbody');
+    const calculationTotalDisplay = document.querySelector('#royalty-calculation-section .calculation-total');
+    const addCalculationRowBtn = document.querySelector('#royalty-calculation-section .add-calculation-row-btn');
+    const metricPets = document.querySelector('#royalty-calculation-section .metric-pets');
+    const metricServicesCount = document.querySelector('#royalty-calculation-section .metric-services-count');
+    const metricTotalValue = document.querySelector('#royalty-calculation-section .metric-total-value');
+    const metricTotalFees = document.querySelector('#royalty-calculation-section .metric-total-fees');
+
+    // Elementos da Seção de Registro
+    const addFranchiseForm = document.getElementById('add-franchise-form');
+    const newFranchiseNameInput = document.getElementById('new-franchise-name');
+    const newFeeCheckboxes = document.querySelectorAll('.new-fee-checkbox');
+    const registeredFranchisesList = document.getElementById('registered-franchises-list');
+
+    // Elementos do Modal de Edição
+    const editModal = document.getElementById('edit-franchise-modal');
+    const editForm = document.getElementById('edit-franchise-form');
+    const editOriginalNameInput = document.getElementById('edit-original-franchise-name');
+    const editNameInput = document.getElementById('edit-franchise-name');
+    const editFeeCheckboxes = document.querySelectorAll('.edit-fee-checkbox');
+    const editModalSaveBtn = document.getElementById('edit-modal-save-btn');
+    const editModalCancelBtn = document.getElementById('edit-modal-cancel-btn');
+
 
     const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const BASE_FEE_ITEMS = ["Royalty Fee", "Marketing Fee", "Software Fee", "Call Center Fee", "Call Center Fee Extra"];
 
-    // Estado da aplicação (armazena dados de todas as franquias)
-    let franchisesState = [];
-    let nextFranchiseId = 0;
+    // --- Estado da Aplicação ---
+    let franchisesConfig = []; // Armazena [{ franchiseName: "...", IncludeRoyalty: true, ... }, ...]
+    let currentCalculationData = {
+        selectedFranchiseName: null,
+        config: null, // Configuração da franquia selecionada
+        month: MONTHS[new Date().getMonth()],
+        royaltyRate: 6.0,
+        marketingRate: 1.0,
+        totalValue: 0,
+        calculationRows: [], // Linhas da tabela DESTA instância
+        fileData: [], // Dados brutos do arquivo processado
+        metrics: { pets: 0, services: 0 }
+    };
 
     // --- Funções Auxiliares ---
     function formatCurrency(value) {
@@ -22,426 +61,608 @@ document.addEventListener('DOMContentLoaded', () => {
         return parseFloat(cleaned) || 0;
     }
 
+    // Mapeamento Coluna API <-> Nome do Item (para facilitar)
+    const feeItemToApiField = {
+        "Royalty Fee": "IncludeRoyalty",
+        "Marketing Fee": "IncludeMarketing",
+        "Software Fee": "IncludeSoftware",
+        "Call Center Fee": "IncludeCallCenter",
+        "Call Center Fee Extra": "IncludeCallCenterExtra"
+    };
+    const apiFieldToFeeItem = Object.fromEntries(Object.entries(feeItemToApiField).map(([key, value]) => [value, key]));
+
     // --- Lógica de Cálculo (Traduzida do Python) ---
     function calculateServiceValue(description, currentServiceValue) {
-        description = String(description || '');
-        currentServiceValue = parseCurrency(currentServiceValue);
+         description = String(description || '');
+         currentServiceValue = parseCurrency(currentServiceValue);
+         // Regras copiadas da versão Python...
+         if (description.includes("01- Dog Cleaning - Small - Under 30 Lbs") || description.includes("Dental Under 40 LBS")) return currentServiceValue < 170 ? 180 : currentServiceValue;
+         if (description.includes("02- Dog Cleaning - Medium - 31 to 70 Lbs")) return currentServiceValue < 200 ? 210 : currentServiceValue;
+         if (description.includes("03- Dog Cleaning - Max - 71 to 1000 Lbs") || description.includes("03- Dog Cleaning - Max - 71 to 100 Lbs")) return currentServiceValue < 230 ? 240 : currentServiceValue;
+         if (description.includes("04- Dog Cleaning - Ultra - Above 101 Lbs")) return currentServiceValue < 260 ? 270 : currentServiceValue;
+         if (description.includes("05- Cat Cleaning")) return currentServiceValue < 200 ? 210 : currentServiceValue;
+         if (description.includes("Nail Clipping")) return 10;
+         return currentServiceValue;
+    }
 
-        if (description.includes("01- Dog Cleaning - Small - Under 30 Lbs") || description.includes("Dental Under 40 LBS")) {
-            return currentServiceValue < 170 ? 180 : currentServiceValue;
-        } else if (description.includes("02- Dog Cleaning - Medium - 31 to 70 Lbs")) {
-            return currentServiceValue < 200 ? 210 : currentServiceValue;
-        } else if (description.includes("03- Dog Cleaning - Max - 71 to 1000 Lbs") || description.includes("03- Dog Cleaning - Max - 71 to 100 Lbs")) {
-            return currentServiceValue < 230 ? 240 : currentServiceValue;
-        } else if (description.includes("04- Dog Cleaning - Ultra - Above 101 Lbs")) {
-            return currentServiceValue < 260 ? 270 : currentServiceValue;
-        } else if (description.includes("05- Cat Cleaning")) {
-            return currentServiceValue < 200 ? 210 : currentServiceValue;
-        } else if (description.includes("Nail Clipping")) {
-            return 10; // Nail Clipping tem valor fixo
-        } else {
-            return currentServiceValue; // Retorna o valor atual se não houver regra específica
+    // --- Funções API ---
+    async function fetchFranchiseConfigs() {
+        try {
+            registeredFranchisesList.innerHTML = `<p class="p-4 text-muted-foreground italic">Loading...</p>`;
+            const response = await fetch('/api/manage-franchise-config');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error ${response.status}`);
+            }
+            franchisesConfig = await response.json();
+            renderRegisteredFranchises();
+            populateFranchiseSelect();
+        } catch (error) {
+            console.error("Error fetching franchise configurations:", error);
+            registeredFranchisesList.innerHTML = `<p class="p-4 text-red-600">Error loading configurations: ${error.message}</p>`;
+            franchisesConfig = []; // Reseta em caso de erro
+            populateFranchiseSelect(); // Popula o select mesmo vazio
         }
     }
 
-    // --- Funções de Manipulação do DOM ---
-
-    function createFranchiseBlock(id) {
-        const content = franchiseTemplate.content.cloneNode(true);
-        const franchiseBlock = content.querySelector('.franchise-block');
-        franchiseBlock.dataset.id = id;
-
-        // Populate month dropdown
-        const monthSelect = franchiseBlock.querySelector('.franchise-month');
-        const currentMonthIndex = new Date().getMonth();
-        MONTHS.forEach((month, index) => {
-            const option = document.createElement('option');
-            option.value = month;
-            option.textContent = month;
-            if (index === currentMonthIndex) {
-                option.selected = true;
-            }
-            monthSelect.appendChild(option);
-        });
-
-        // Add initial calculation rows
-        updateCalculationTable(franchiseBlock, getDefaultCalculationRows());
-
-        // Attach event listeners for this specific block
-        attachFranchiseEventListeners(franchiseBlock);
-
-        return franchiseBlock;
-    }
-
-    function addFranchise() {
-        const newId = nextFranchiseId++;
-        const newBlock = createFranchiseBlock(newId);
-        franchisesContainer.appendChild(newBlock);
-        // Add to state (optional, can also manage directly via DOM data attributes if preferred)
-        franchisesState.push({
-            id: newId,
-            name: '',
-            month: MONTHS[new Date().getMonth()],
-            royaltyRate: 6.0,
-            marketingRate: 1.0,
-            totalValue: 0,
-            calculationRows: getDefaultCalculationRows()
-        });
-        updateFranchiseTitle(newBlock, newId); // Update title after adding
-    }
-
-    function deleteFranchise(franchiseId) {
-        const blockToDelete = franchisesContainer.querySelector(`.franchise-block[data-id="${franchiseId}"]`);
-        if (blockToDelete && confirm('Are you sure you want to delete this franchise block?')) {
-            blockToDelete.remove();
-            franchisesState = franchisesState.filter(f => f.id !== parseInt(franchiseId));
-        }
-    }
-
-    function updateFranchiseTitle(franchiseBlock, id) {
-        const nameInput = franchiseBlock.querySelector('.franchise-name');
-        const titleElement = franchiseBlock.querySelector('.franchise-title');
-        const name = nameInput.value.trim();
-        titleElement.textContent = name ? `Franchise: ${name}` : `Franchise #${parseInt(id) + 1}`;
-    }
-
-    function getDefaultCalculationRows() {
-        // Retorna uma cópia profunda para evitar modificação do template
-        return JSON.parse(JSON.stringify([
-            { Item: "Royalty Fee", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: true },
-            { Item: "Marketing Fee", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: true },
-            { Item: "Software Fee", Description: "", Qty: 1, Unit_price: 350.00, Amount: 0, verified: false, fixed: true },
-            { Item: "Call Center Fee", Description: "", Qty: 1, Unit_price: 1200.00, Amount: 0, verified: false, fixed: true },
-            { Item: "Call Center Fee Extra", Description: "", Qty: 0, Unit_price: 600.00, Amount: 0, verified: false, fixed: true }
-        ]));
-    }
-
-    function updateCalculationTable(franchiseBlock, calculationRows) {
-        const tbody = franchiseBlock.querySelector('.calculation-tbody');
-        tbody.innerHTML = ''; // Clear existing rows
-
-        calculationRows.forEach((rowData, rowIndex) => {
-            const tr = document.createElement('tr');
-            tr.className = 'border-b border-border';
-            tr.dataset.index = rowIndex;
-
-            const isFixed = rowData.fixed || false;
-            const isRateFee = rowData.Item === "Royalty Fee" || rowData.Item === "Marketing Fee";
-            const isSoftwareFee = rowData.Item === "Software Fee";
-            const isCallCenterBase = rowData.Item === "Call Center Fee";
-            const isCallCenterExtra = rowData.Item === "Call Center Fee Extra";
-
-            // Determine Qty value and disable state
-            let qtyValue = rowData.Qty;
-            let qtyDisabled = isFixed; // Disable for all fixed initially
-            if (isRateFee) {
-                const rate = parseCurrency(franchiseBlock.querySelector(rowData.Item === "Royalty Fee" ? '.royalty-rate' : '.marketing-rate').value) || 0;
-                qtyValue = rate.toFixed(1); // Show rate as percentage
-                rowData.Qty = rate; // Store rate internally
-                qtyDisabled = true;
-            } else if (isSoftwareFee || isCallCenterBase) {
-                 qtyValue = 1; // Always 1
-                 rowData.Qty = 1;
-                 qtyDisabled = false; // Allow changing Qty for software/call center base
-            } else if (isCallCenterExtra) {
-                qtyValue = rowData.Qty; // Use stored Qty
-                qtyDisabled = false; // Allow changing Qty for extra
-            } else if (!isFixed) {
-                qtyDisabled = false; // Enable for custom rows
-                qtyValue = rowData.Qty;
-            }
-
-
-            // Determine Unit Price value and disable state
-            let unitPriceValue = rowData.Unit_price;
-            let unitPriceDisabled = isFixed; // Disable for all fixed initially
-            let unitPriceElement = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${unitPriceDisabled ? 'disabled' : ''}>`;
-
-            if (isRateFee) {
-                const totalServiceValue = parseCurrency(franchiseBlock.querySelector('.metric-total-value').textContent);
-                unitPriceValue = totalServiceValue;
-                rowData.Unit_price = totalServiceValue;
-                unitPriceDisabled = true;
-                unitPriceElement = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" disabled>`;
-            } else if (isSoftwareFee) {
-                // Use a select box for Software Fee Unit Price
-                const options = [0.00, 250.00, 350.00];
-                unitPriceValue = rowData.Unit_price; // Use stored value
-                unitPriceDisabled = false; // Allow changing
-                unitPriceElement = `
-                    <select class="w-full text-right unit-price">
-                        ${options.map(o => `<option value="${o.toFixed(2)}" ${Math.abs(o - unitPriceValue) < 0.01 ? 'selected' : ''}>${formatCurrency(o)}</option>`).join('')}
-                    </select>`;
-            } else if (isCallCenterBase || isCallCenterExtra) {
-                unitPriceValue = rowData.Item === "Call Center Fee" ? 1200.00 : 600.00; // Fixed unit prices
-                rowData.Unit_price = unitPriceValue;
-                unitPriceDisabled = true;
-                 unitPriceElement = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" disabled>`;
-            } else if (!isFixed) {
-                 unitPriceDisabled = false; // Enable for custom rows
-                 unitPriceValue = rowData.Unit_price;
-                 unitPriceElement = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}">`;
-            }
-
-
-            // Calculate Amount
-            let amount = 0;
-            const qty = parseFloat(rowData.Qty) || 0;
-            const unitPrice = parseFloat(rowData.Unit_price) || 0;
-            if (isRateFee) {
-                amount = (qty / 100) * unitPrice; // Rate calculation
-            } else {
-                amount = qty * unitPrice; // Standard calculation
-            }
-            rowData.Amount = amount; // Update the stored amount
-
-            tr.innerHTML = `
-                <td class="p-2"><input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixed ? 'disabled' : ''}></td>
-                <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}"></td>
-                <td class="p-2"><input type="number" step="0.1" class="w-full text-center qty ${qty === 0 && !isFixed ? 'red-text' : ''}" value="${isRateFee ? qty.toFixed(1) : qty}" ${qtyDisabled ? 'disabled' : ''}></td>
-                <td class="p-2">${unitPriceElement}</td>
-                <td class="p-2"><input type="text" class="w-full text-right amount" value="${formatCurrency(amount)}" disabled></td>
-                <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''}></td>
-                <td class="p-2">
-                    ${!isFixed ? '<button class="text-red-600 hover:text-red-800 delete-calculation-row-btn">🗑️</button>' : ''}
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-
-        calculateAndDisplayTotals(franchiseBlock);
-    }
-
-    function addCalculationRow(franchiseBlock) {
-        const franchiseId = parseInt(franchiseBlock.dataset.id);
-        const state = franchisesState.find(f => f.id === franchiseId);
-        if (state) {
-            state.calculationRows.push({ Item: "", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: false });
-            updateCalculationTable(franchiseBlock, state.calculationRows);
-        }
-    }
-
-     function deleteCalculationRow(franchiseBlock, rowIndex) {
-        const franchiseId = parseInt(franchiseBlock.dataset.id);
-        const state = franchisesState.find(f => f.id === franchiseId);
-        // Only allow deleting custom rows (index 5 or greater)
-        if (state && rowIndex >= 5) {
-            state.calculationRows.splice(rowIndex, 1);
-            updateCalculationTable(franchiseBlock, state.calculationRows);
-        }
-    }
-
-    function calculateAndDisplayTotals(franchiseBlock) {
-        let totalAmount = 0;
-        const franchiseId = parseInt(franchiseBlock.dataset.id);
-        const state = franchisesState.find(f => f.id === franchiseId);
-
-        if (state) {
-            // Recalculate amounts based on current inputs before summing
-             state.calculationRows.forEach(row => {
-                const isRateFee = row.Item === "Royalty Fee" || row.Item === "Marketing Fee";
-                const qty = parseFloat(row.Qty) || 0;
-                const unitPrice = parseFloat(row.Unit_price) || 0;
-                 if (isRateFee) {
-                    row.Amount = (qty / 100) * unitPrice;
-                 } else {
-                    row.Amount = qty * unitPrice;
-                 }
-                totalAmount += row.Amount;
+    async function addFranchiseConfig(name, includedFees) {
+        try {
+            const response = await fetch('/api/manage-franchise-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ franchiseName: name, includedFees: includedFees })
             });
-
-            // Update the total display in the footer
-            franchiseBlock.querySelector('.calculation-total').textContent = formatCurrency(totalAmount);
-            franchiseBlock.querySelector('.metric-total-fees').textContent = formatCurrency(totalAmount);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            alert(result.message);
+            await fetchFranchiseConfigs(); // Recarrega a lista
+            addFranchiseForm.reset(); // Limpa o formulário
+        } catch (error) {
+            console.error("Error adding franchise:", error);
+            alert(`Error adding franchise: ${error.message}`);
         }
     }
 
+     async function updateFranchiseConfig(originalName, newName, includedFees) {
+         try {
+             const response = await fetch('/api/manage-franchise-config', {
+                 method: 'PUT',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFees })
+             });
+             const result = await response.json();
+             if (!result.success) throw new Error(result.message);
+             alert(result.message);
+             closeEditModal();
+             await fetchFranchiseConfigs(); // Recarrega a lista
+         } catch (error) {
+             console.error("Error updating franchise:", error);
+             alert(`Error updating franchise: ${error.message}`);
+         }
+     }
 
-    // --- File Processing ---
-    async function handleFileUpload(event) {
-        const franchiseBlock = event.target.closest('.franchise-block');
-        const fileInput = event.target;
-        const loadingSpinner = franchiseBlock.querySelector('.loading-spinner');
+     async function deleteFranchiseConfig(name) {
+         if (!confirm(`Are you sure you want to delete the franchise "${name}"? This cannot be undone.`)) {
+             return;
+         }
+         try {
+             const response = await fetch('/api/manage-franchise-config', {
+                 method: 'DELETE',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ franchiseName: name })
+             });
+             const result = await response.json();
+             if (!result.success) throw new Error(result.message);
+             alert(result.message);
+             await fetchFranchiseConfigs(); // Recarrega a lista
+         } catch (error) {
+             console.error("Error deleting franchise:", error);
+             alert(`Error deleting franchise: ${error.message}`);
+         }
+     }
 
-        if (fileInput.files.length === 0) return;
 
-        loadingSpinner.classList.remove('hidden');
-        let combinedData = [];
+    // --- Funções de Renderização ---
 
-        for (const file of fileInput.files) {
-            try {
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data);
-                const sheetName = workbook.SheetNames[0]; // Assume data is on the first sheet
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: null });
-                combinedData.push(...jsonData);
-            } catch (error) {
-                console.error(`Error processing file ${file.name}:`, error);
-                alert(`Error reading file ${file.name}. Please ensure it's a valid CSV or XLSX file.`);
-            }
+    function populateFranchiseSelect() {
+        const currentSelection = franchiseSelect.value;
+        franchiseSelect.innerHTML = '<option value="">-- Select a Registered Franchise --</option>';
+        franchisesConfig.sort((a, b) => a.franchiseName.localeCompare(b.franchiseName)).forEach(config => {
+            const option = document.createElement('option');
+            option.value = config.franchiseName;
+            option.textContent = config.franchiseName;
+            franchiseSelect.appendChild(option);
+        });
+         // Tenta manter a seleção anterior, se ainda existir
+        if (franchisesConfig.some(c => c.franchiseName === currentSelection)) {
+            franchiseSelect.value = currentSelection;
+        } else {
+             franchiseSelect.value = ""; // Reseta se a seleção anterior não existe mais
+             resetCalculationSection();
         }
-
-        loadingSpinner.classList.add('hidden');
-        processUploadedData(franchiseBlock, combinedData);
+         // Habilita/desabilita campos dependendo se uma franquia está selecionada
+         toggleCalculationFields(franchiseSelect.value !== "");
     }
 
-    function processUploadedData(franchiseBlock, data) {
-        if (!data || data.length === 0) {
-            alert("No valid data found in the uploaded file(s).");
-            // Reset metrics if no data
-            franchiseBlock.querySelector('.metric-pets').textContent = '0';
-            franchiseBlock.querySelector('.metric-services-count').textContent = '0';
-            franchiseBlock.querySelector('.metric-total-value').textContent = formatCurrency(0);
-             // Trigger recalculation which will likely set Royalty/Marketing unit price to 0
-            updateRatesAndRecalculate(franchiseBlock);
-            return;
-        }
+     function renderRegisteredFranchises() {
+         registeredFranchisesList.innerHTML = ''; // Limpa a lista
+         if (franchisesConfig.length === 0) {
+             registeredFranchisesList.innerHTML = `<p class="p-4 text-muted-foreground italic">No franchises registered yet.</p>`;
+             return;
+         }
 
-        let petsServiced = 0;
-        let servicesCount = 0;
-        let totalAdjustedValue = 0;
+         franchisesConfig.sort((a, b) => a.franchiseName.localeCompare(b.franchiseName)).forEach(config => {
+             const includedItems = Object.entries(config)
+                 .filter(([key, value]) => key.startsWith('Include') && value === true)
+                 .map(([key]) => apiFieldToFeeItem[key] || key.replace('Include', '')) // Mapeia de volta para nome amigável
+                 .join(', ');
 
-        data.forEach(row => {
-            // Skip "Grand Total" rows often found in reports
-            if (row['Ticket ID'] === 'Grand Total' || String(row['Description']).includes('Grand Total')) {
-                return;
-            }
+             const listItem = document.createElement('div');
+             listItem.className = 'franchise-list-item';
+             listItem.innerHTML = `
+                 <div>
+                     <p class="font-semibold">${config.franchiseName}</p>
+                     <p class="text-xs text-muted-foreground">Includes: ${includedItems || 'None'}</p>
+                 </div>
+                 <div class="space-x-2">
+                     <button class="edit-franchise-btn text-blue-600 hover:text-blue-800" data-name="${config.franchiseName}" title="Edit">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                     </button>
+                     <button class="delete-registered-franchise-btn text-red-600 hover:text-red-800" data-name="${config.franchiseName}" title="Delete">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                     </button>
+                 </div>
+             `;
+             registeredFranchisesList.appendChild(listItem);
+         });
 
-            const description = row['Description'];
-            const totalValue = parseCurrency(row['Total']); // Use 'Total' column
+         // Adiciona listeners para os botões de editar e deletar da lista
+         registeredFranchisesList.querySelectorAll('.edit-franchise-btn').forEach(btn => {
+             btn.addEventListener('click', (e) => openEditModal(e.currentTarget.dataset.name));
+         });
+         registeredFranchisesList.querySelectorAll('.delete-registered-franchise-btn').forEach(btn => {
+             btn.addEventListener('click', (e) => deleteFranchiseConfig(e.currentTarget.dataset.name));
+         });
+     }
 
-            if (description && totalValue > 0) { // Consider only rows with description and positive value
+     function populateMonthSelect() {
+         const currentMonthIndex = new Date().getMonth();
+         reportMonthSelect.innerHTML = MONTHS.map((month, index) =>
+             `<option value="${month}" ${index === currentMonthIndex ? 'selected' : ''}>${month}</option>`
+         ).join('');
+     }
+
+     // Gera as linhas da tabela de cálculo baseadas na configuração da franquia selecionada
+     function generateCalculationRows(config) {
+         if (!config) return [];
+
+         const defaultRows = getDefaultCalculationRows(); // Pega o template base
+         const rowsToShow = [];
+
+         defaultRows.forEach(defaultRow => {
+             const apiField = feeItemToApiField[defaultRow.Item];
+             // Inclui a linha se for uma linha fixa E estiver marcada na configuração
+             if (defaultRow.fixed && apiField && config[apiField]) {
+                  // Cria uma cópia profunda para evitar modificar o template original
+                 rowsToShow.push(JSON.parse(JSON.stringify(defaultRow)));
+             }
+         });
+         return rowsToShow;
+     }
+
+     // Atualiza a tabela de cálculo no DOM
+     function updateCalculationTableDOM(calculationRows) {
+         calculationTbody.innerHTML = ''; // Limpa antes de renderizar
+
+         if (!currentCalculationData.selectedFranchiseName || calculationRows.length === 0) {
+              calculationTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select a franchise and upload a file to calculate fees.</td></tr>`;
+              calculateAndDisplayTotals(); // Atualiza o total (deve ser $0.00)
+              return;
+         }
+
+
+         calculationRows.forEach((rowData, rowIndex) => {
+             const tr = document.createElement('tr');
+             tr.className = 'border-b border-border calculation-row';
+             tr.dataset.index = rowIndex;
+
+             const isFixed = rowData.fixed || false;
+             const isRateFee = rowData.Item === "Royalty Fee" || rowData.Item === "Marketing Fee";
+             const isSoftwareFee = rowData.Item === "Software Fee";
+             const isCallCenterBase = rowData.Item === "Call Center Fee";
+             const isCallCenterExtra = rowData.Item === "Call Center Fee Extra";
+
+             // Qty
+             let qtyValue = rowData.Qty;
+             let qtyDisabled = isFixed;
+             if (isRateFee) {
+                 const rate = rowData.Item === "Royalty Fee" ? currentCalculationData.royaltyRate : currentCalculationData.marketingRate;
+                 qtyValue = rate.toFixed(1);
+                 qtyDisabled = true;
+             } else if (isSoftwareFee || isCallCenterBase) {
+                 qtyValue = 1;
+                 qtyDisabled = false; // Permitir edição
+             } else if (isCallCenterExtra) {
+                 qtyValue = rowData.Qty;
+                 qtyDisabled = false; // Permitir edição
+             } else if (!isFixed) { // Custom row
+                  qtyValue = rowData.Qty;
+                  qtyDisabled = false;
+             }
+
+             // Unit Price
+             let unitPriceValue = rowData.Unit_price;
+             let unitPriceDisabled = isFixed;
+             let unitPriceElementHTML;
+
+             if (isRateFee) {
+                 unitPriceValue = currentCalculationData.totalValue; // Usa o valor total calculado do arquivo
+                 unitPriceDisabled = true;
+                 unitPriceElementHTML = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" disabled>`;
+             } else if (isSoftwareFee) {
+                 const options = [0.00, 250.00, 350.00];
+                 unitPriceValue = rowData.Unit_price; // Usa valor guardado
+                 unitPriceDisabled = false;
+                 unitPriceElementHTML = `
+                     <select class="w-full text-right unit-price">
+                         ${options.map(o => `<option value="${o.toFixed(2)}" ${Math.abs(o - unitPriceValue) < 0.01 ? 'selected' : ''}>${formatCurrency(o)}</option>`).join('')}
+                     </select>`;
+             } else if (isCallCenterBase || isCallCenterExtra) {
+                 unitPriceValue = isCallCenterBase ? 1200.00 : 600.00;
+                 unitPriceDisabled = true;
+                 unitPriceElementHTML = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" disabled>`;
+             } else { // Custom row
+                 unitPriceValue = rowData.Unit_price;
+                 unitPriceDisabled = false;
+                 unitPriceElementHTML = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}">`;
+             }
+
+             // Amount (calculated)
+             let amount = 0;
+             const currentQty = parseFloat(qtyValue) || 0; // Usa o valor exibido para cálculo imediato
+             const currentUnitPrice = parseFloat(unitPriceValue) || 0;
+              if (isRateFee) {
+                  amount = (currentQty / 100) * currentUnitPrice;
+              } else {
+                  amount = currentQty * currentUnitPrice;
+              }
+             // NÃO atualiza rowData.Amount aqui, isso é feito no handler de change
+
+
+             tr.innerHTML = `
+                 <td class="p-2"><input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixed ? 'disabled' : ''}></td>
+                 <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}"></td>
+                 <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${currentQty === 0 && !isFixed ? 'red-text' : ''}" value="${isRateFee ? qtyValue : currentQty}" ${qtyDisabled ? 'disabled' : ''}></td>
+                 <td class="p-2">${unitPriceElementHTML}</td>
+                 <td class="p-2"><input type="text" class="w-full text-right amount" value="${formatCurrency(amount)}" disabled></td>
+                 <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''}></td>
+                 <td class="p-2">
+                     ${!isFixed ? '<button class="text-red-600 hover:text-red-800 delete-calculation-row-btn">🗑️</button>' : ''}
+                 </td>
+             `;
+             calculationTbody.appendChild(tr);
+         });
+
+         calculateAndDisplayTotals(); // Calcula e exibe o total geral
+     }
+
+     function addCalculationRowUI() {
+         if (!currentCalculationData.selectedFranchiseName) return; // Não adiciona se nenhuma franquia selecionada
+
+         currentCalculationData.calculationRows.push({ Item: "", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: false });
+         updateCalculationTableDOM(currentCalculationData.calculationRows);
+     }
+
+      function deleteCalculationRowUI(rowIndex) {
+         if (!currentCalculationData.selectedFranchiseName || rowIndex < 0 || rowIndex >= currentCalculationData.calculationRows.length) return;
+
+         // Impede deletar linhas fixas (as primeiras N, onde N é o número de fees base)
+         const baseFeeCount = BASE_FEE_ITEMS.filter(item => {
+             const apiField = feeItemToApiField[item];
+             return currentCalculationData.config && currentCalculationData.config[apiField];
+         }).length;
+
+         if (rowIndex < baseFeeCount) {
+              console.warn("Cannot delete base fee rows.");
+              return;
+         }
+
+
+         currentCalculationData.calculationRows.splice(rowIndex, 1);
+         updateCalculationTableDOM(currentCalculationData.calculationRows); // Re-renderiza a tabela
+     }
+
+    function calculateAndDisplayTotals() {
+        let totalAmount = 0;
+        // Recalcula todos os amounts antes de somar, pegando valores direto do DOM para garantir atualização
+        calculationTbody.querySelectorAll('.calculation-row').forEach(tr => {
+            const rowIndex = parseInt(tr.dataset.index);
+            const rowData = currentCalculationData.calculationRows[rowIndex];
+            if(!rowData) return; // Skip if row data doesn't exist
+
+            const qtyInput = tr.querySelector('.qty');
+            const unitPriceInput = tr.querySelector('.unit-price'); // Pode ser input ou select
+            const amountInput = tr.querySelector('.amount');
+
+            const isRateFee = rowData.Item === "Royalty Fee" || rowData.Item === "Marketing Fee";
+
+            const qty = parseFloat(qtyInput.value) || 0;
+            const unitPrice = parseFloat(unitPriceInput.value) || 0;
+            let amount = 0;
+
+             if (isRateFee) {
+                 amount = (qty / 100) * unitPrice;
+             } else {
+                 amount = qty * unitPrice;
+             }
+             rowData.Amount = amount; // Atualiza o valor no estado interno
+             amountInput.value = formatCurrency(amount); // Atualiza o display do amount
+             totalAmount += amount;
+        });
+
+
+        calculationTotalDisplay.textContent = formatCurrency(totalAmount);
+        metricTotalFees.textContent = formatCurrency(totalAmount);
+    }
+
+    function updateMetrics() {
+        metricPets.textContent = currentCalculationData.metrics.pets;
+        metricServicesCount.textContent = currentCalculationData.metrics.services;
+        metricTotalValue.textContent = formatCurrency(currentCalculationData.totalValue);
+        // Total Fees é atualizado por calculateAndDisplayTotals()
+    }
+
+    // Reseta a seção de cálculo
+    function resetCalculationSection() {
+        fileInput.value = ''; // Limpa seleção de arquivo
+        royaltyRateInput.value = '6.0';
+        marketingRateInput.value = '1.0';
+        currentCalculationData = {
+             selectedFranchiseName: null,
+             config: null,
+             month: reportMonthSelect.value || MONTHS[new Date().getMonth()],
+             royaltyRate: 6.0,
+             marketingRate: 1.0,
+             totalValue: 0,
+             calculationRows: [],
+             fileData: [],
+             metrics: { pets: 0, services: 0 }
+        };
+        updateMetrics();
+        calculationTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select a franchise and upload a file to calculate fees.</td></tr>`;
+        calculationTotalDisplay.textContent = formatCurrency(0);
+    }
+
+     // Habilita/desabilita campos da seção de cálculo
+     function toggleCalculationFields(enabled) {
+         fileInput.disabled = !enabled;
+         royaltyRateInput.disabled = !enabled;
+         marketingRateInput.disabled = !enabled;
+         addCalculationRowBtn.disabled = !enabled;
+         // Também reseta se desabilitado
+         if (!enabled) {
+             resetCalculationSection();
+         }
+     }
+
+     // --- File Processing ---
+     async function handleFileUpload(event) {
+         if (!currentCalculationData.selectedFranchiseName) {
+             alert("Please select a franchise before uploading a file.");
+             fileInput.value = ''; // Limpa seleção
+             return;
+         }
+
+         const files = event.target.files;
+         if (files.length === 0) return;
+
+         loadingSpinner.classList.remove('hidden');
+         let combinedData = [];
+
+         for (const file of files) {
+             try {
+                 const data = await file.arrayBuffer();
+                 const workbook = XLSX.read(data);
+                 const sheetName = workbook.SheetNames[0];
+                 const worksheet = workbook.Sheets[sheetName];
+                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+                 combinedData.push(...jsonData);
+             } catch (error) {
+                 console.error(`Error processing file ${file.name}:`, error);
+                 alert(`Error reading file ${file.name}.`);
+             }
+         }
+
+         loadingSpinner.classList.add('hidden');
+         currentCalculationData.fileData = combinedData; // Armazena dados brutos
+         processUploadedData(); // Processa os dados armazenados
+     }
+
+     function processUploadedData() {
+         const data = currentCalculationData.fileData;
+         const config = currentCalculationData.config;
+
+         if (!config || !data || data.length === 0) {
+             // Reset metrics and table if no data or config
+             currentCalculationData.metrics = { pets: 0, services: 0 };
+             currentCalculationData.totalValue = 0;
+             currentCalculationData.calculationRows = generateCalculationRows(config); // Gera linhas baseadas no config (podem estar vazias)
+             updateMetrics();
+             updateCalculationTableDOM(currentCalculationData.calculationRows); // Renderiza (provavelmente a msg 'Select...')
+             if (data && data.length > 0) alert("No valid service data found in the uploaded file(s).");
+             return;
+         }
+
+         let petsServiced = 0;
+         let servicesCount = 0;
+         let totalAdjustedValue = 0;
+
+         data.forEach(row => {
+             if (row['Ticket ID'] === 'Grand Total' || String(row['Description']).includes('Grand Total')) return;
+
+             const description = row['Description'];
+             const totalValue = parseCurrency(row['Total']);
+
+             if (description && totalValue > 0) {
                  const adjustedValue = calculateServiceValue(description, totalValue);
                  totalAdjustedValue += adjustedValue;
                  servicesCount++;
-                 // Basic pet count assumption: one service = one pet (can be refined if needed)
-                 petsServiced++;
-            }
-        });
-
-        // Update metric cards
-        franchiseBlock.querySelector('.metric-pets').textContent = petsServiced;
-        franchiseBlock.querySelector('.metric-services-count').textContent = servicesCount;
-        franchiseBlock.querySelector('.metric-total-value').textContent = formatCurrency(totalAdjustedValue);
-
-        // Update state and recalculate table
-        const franchiseId = parseInt(franchiseBlock.dataset.id);
-        const state = franchisesState.find(f => f.id === franchiseId);
-        if (state) {
-            state.totalValue = totalAdjustedValue;
-        }
-
-        // Trigger recalculation of the table based on the new total value
-        updateRatesAndRecalculate(franchiseBlock);
-    }
-
-    function updateRatesAndRecalculate(franchiseBlock) {
-         const franchiseId = parseInt(franchiseBlock.dataset.id);
-         const state = franchisesState.find(f => f.id === franchiseId);
-         if (!state) return;
-
-         // Get current rates from inputs
-         state.royaltyRate = parseCurrency(franchiseBlock.querySelector('.royalty-rate').value) || 0;
-         state.marketingRate = parseCurrency(franchiseBlock.querySelector('.marketing-rate').value) || 0;
-
-         // Update the Qty and Unit Price for Royalty and Marketing rows in the state
-         state.calculationRows.forEach(row => {
-             if (row.Item === "Royalty Fee") {
-                 row.Qty = state.royaltyRate;
-                 row.Unit_price = state.totalValue;
-             } else if (row.Item === "Marketing Fee") {
-                 row.Qty = state.marketingRate;
-                 row.Unit_price = state.totalValue;
+                 petsServiced++; // Ajustar se a lógica for mais complexa
              }
-             // Recalculate amount for all rows
-              const qty = parseFloat(row.Qty) || 0;
-              const unitPrice = parseFloat(row.Unit_price) || 0;
-              if (row.Item === "Royalty Fee" || row.Item === "Marketing Fee") {
-                  row.Amount = (qty / 100) * unitPrice; // Rate calculation
-              } else {
-                  row.Amount = qty * unitPrice; // Standard calculation
-              }
          });
 
-         // Re-render the table which includes recalculating amounts and totals
-         updateCalculationTable(franchiseBlock, state.calculationRows);
-    }
+         // Atualiza estado
+         currentCalculationData.metrics = { pets: petsServiced, services: servicesCount };
+         currentCalculationData.totalValue = totalAdjustedValue;
+         currentCalculationData.calculationRows = generateCalculationRows(config); // Gera linhas com base no config ATUAL
 
+         // Atualiza DOM
+         updateMetrics();
+         updateCalculationTableDOM(currentCalculationData.calculationRows); // Renderiza a tabela agora com valores
+     }
+
+
+     // --- Funções do Modal de Edição ---
+     function openEditModal(franchiseName) {
+         const config = franchisesConfig.find(c => c.franchiseName === franchiseName);
+         if (!config) return;
+
+         editOriginalNameInput.value = config.franchiseName;
+         editNameInput.value = config.franchiseName;
+         editFeeCheckboxes.forEach(checkbox => {
+             const feeItem = checkbox.dataset.feeItem;
+             const apiField = feeItemToApiField[feeItem];
+             checkbox.checked = config[apiField] || false;
+         });
+         editModal.classList.remove('hidden');
+     }
+
+     function closeEditModal() {
+         editModal.classList.add('hidden');
+         editForm.reset(); // Limpa o formulário do modal
+     }
+
+     function handleSaveEdit() {
+         const originalName = editOriginalNameInput.value;
+         const newName = editNameInput.value.trim();
+         const includedFees = {};
+         editFeeCheckboxes.forEach(checkbox => {
+             includedFees[checkbox.dataset.feeItem] = checkbox.checked;
+         });
+
+         if (!newName) {
+             alert("Franchise name cannot be empty.");
+             return;
+         }
+
+         updateFranchiseConfig(originalName, newName, includedFees);
+     }
 
     // --- Event Listeners ---
-
-    function attachFranchiseEventListeners(franchiseBlock) {
-        franchiseBlock.querySelector('.delete-franchise-btn').addEventListener('click', (e) => {
-            const id = e.target.closest('.franchise-block').dataset.id;
-            deleteFranchise(id);
+    addFranchiseForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = newFranchiseNameInput.value.trim();
+        const includedFees = {};
+        newFeeCheckboxes.forEach(checkbox => {
+            includedFees[checkbox.dataset.feeItem] = checkbox.checked;
         });
+        if (name) {
+            addFranchiseConfig(name, includedFees);
+        } else {
+            alert("Please enter a franchise name.");
+        }
+    });
 
-        franchiseBlock.querySelector('.franchise-name').addEventListener('input', (e) => {
-             const id = e.target.closest('.franchise-block').dataset.id;
-             updateFranchiseTitle(franchiseBlock, id);
-             // Update state if managing state separately
-             const state = franchisesState.find(f => f.id === parseInt(id));
-             if (state) state.name = e.target.value;
-        });
+    franchiseSelect.addEventListener('change', (e) => {
+        const selectedName = e.target.value;
+        if (selectedName) {
+            currentCalculationData.selectedFranchiseName = selectedName;
+            currentCalculationData.config = franchisesConfig.find(c => c.franchiseName === selectedName);
+             // Limpa dados anteriores e gera a estrutura da tabela, mas espera o upload
+             currentCalculationData.fileData = [];
+             currentCalculationData.totalValue = 0;
+             currentCalculationData.metrics = { pets: 0, services: 0 };
+             currentCalculationData.calculationRows = generateCalculationRows(currentCalculationData.config);
+             updateMetrics(); // Reseta métricas
+             updateCalculationTableDOM(currentCalculationData.calculationRows); // Mostra estrutura da tabela
+             toggleCalculationFields(true); // Habilita campos
+             fileInput.value = ''; // Limpa seleção de arquivo anterior
+        } else {
+            // Se desmarcar, reseta tudo
+            resetCalculationSection();
+            toggleCalculationFields(false);
+        }
+    });
 
-         franchiseBlock.querySelector('.franchise-month').addEventListener('change', (e) => {
-            const id = e.target.closest('.franchise-block').dataset.id;
-            const state = franchisesState.find(f => f.id === parseInt(id));
-            if (state) state.month = e.target.value;
-         });
+     reportMonthSelect.addEventListener('change', (e) => {
+          if(currentCalculationData) currentCalculationData.month = e.target.value;
+     });
 
-        franchiseBlock.querySelector('.file-input').addEventListener('change', handleFileUpload);
+     fileInput.addEventListener('change', handleFileUpload);
 
-        franchiseBlock.querySelector('.royalty-rate').addEventListener('change', (e) => updateRatesAndRecalculate(franchiseBlock));
-        franchiseBlock.querySelector('.marketing-rate').addEventListener('change', (e) => updateRatesAndRecalculate(franchiseBlock));
+     royaltyRateInput.addEventListener('change', (e) => {
+         if(currentCalculationData.selectedFranchiseName) {
+             currentCalculationData.royaltyRate = parseCurrency(e.target.value) || 0;
+             updateCalculationTableDOM(currentCalculationData.calculationRows); // Recalcula e re-renderiza
+         }
+     });
 
-        franchiseBlock.querySelector('.add-calculation-row-btn').addEventListener('click', (e) => addCalculationRow(franchiseBlock));
+     marketingRateInput.addEventListener('change', (e) => {
+          if(currentCalculationData.selectedFranchiseName) {
+             currentCalculationData.marketingRate = parseCurrency(e.target.value) || 0;
+             updateCalculationTableDOM(currentCalculationData.calculationRows); // Recalcula e re-renderiza
+          }
+     });
 
-        // Event delegation for calculation table inputs/selects/checkboxes/delete
-        franchiseBlock.querySelector('.calculation-tbody').addEventListener('change', (e) => {
-            const target = e.target;
-            const rowElement = target.closest('tr');
-            if (!rowElement) return;
+     addCalculationRowBtn.addEventListener('click', addCalculationRowUI);
 
-            const rowIndex = parseInt(rowElement.dataset.index);
-            const franchiseId = parseInt(franchiseBlock.dataset.id);
-            const state = franchisesState.find(f => f.id === franchiseId);
-            if (!state || rowIndex >= state.calculationRows.length) return;
+     // Event delegation para a tabela de cálculo
+     calculationTbody.addEventListener('change', (e) => {
+         const target = e.target;
+         const rowElement = target.closest('.calculation-row');
+         if (!rowElement) return;
 
-             const rowData = state.calculationRows[rowIndex];
+         const rowIndex = parseInt(rowElement.dataset.index);
+         if (isNaN(rowIndex) || rowIndex >= currentCalculationData.calculationRows.length) return;
 
-            if (target.classList.contains('item-name')) {
-                rowData.Item = target.value;
-            } else if (target.classList.contains('description')) {
-                rowData.Description = target.value;
-            } else if (target.classList.contains('qty')) {
-                 rowData.Qty = target.value; // Store as string temporarily, will be parsed later
-                 target.classList.toggle('red-text', (parseFloat(target.value) || 0) === 0 && !rowData.fixed);
-            } else if (target.classList.contains('unit-price')) {
-                 rowData.Unit_price = target.value; // Store as string temporarily
-            } else if (target.classList.contains('verified')) {
-                 rowData.verified = target.checked;
-            }
+         const rowData = currentCalculationData.calculationRows[rowIndex];
 
-            // Always recalculate and update the table state on any change
-             updateRatesAndRecalculate(franchiseBlock); // This re-renders the whole table section
-        });
+         if (target.classList.contains('item-name')) {
+             rowData.Item = target.value;
+         } else if (target.classList.contains('description')) {
+             rowData.Description = target.value;
+         } else if (target.classList.contains('qty')) {
+             rowData.Qty = target.value; // Guarda como string, será parseado no cálculo
+             target.classList.toggle('red-text', (parseFloat(target.value) || 0) === 0 && !rowData.fixed);
+         } else if (target.classList.contains('unit-price')) {
+             rowData.Unit_price = target.value; // Guarda como string
+         } else if (target.classList.contains('verified')) {
+             rowData.verified = target.checked;
+         }
 
-         franchiseBlock.querySelector('.calculation-tbody').addEventListener('click', (e) => {
-             if (e.target.classList.contains('delete-calculation-row-btn')) {
-                 const rowElement = e.target.closest('tr');
-                 if (rowElement) {
-                     const rowIndex = parseInt(rowElement.dataset.index);
-                     deleteCalculationRow(franchiseBlock, rowIndex);
-                 }
-             }
-         });
-    }
+         // Recalcula totais sempre que algo na tabela muda
+         calculateAndDisplayTotals();
+     });
 
-    addFranchiseBtn.addEventListener('click', addFranchise);
+      calculationTbody.addEventListener('click', (e) => {
+          if (e.target.classList.contains('delete-calculation-row-btn')) {
+              const rowElement = e.target.closest('.calculation-row');
+              if (rowElement) {
+                  const rowIndex = parseInt(rowElement.dataset.index);
+                   deleteCalculationRowUI(rowIndex); // Chama a função que atualiza o estado e re-renderiza
+              }
+          }
+      });
+
+      // Listeners do Modal de Edição
+      editModalSaveBtn.addEventListener('click', handleSaveEdit);
+      editModalCancelBtn.addEventListener('click', closeEditModal);
+
 
     // --- Inicialização ---
-    addFranchise(); // Adiciona o primeiro bloco ao carregar a página
+    populateMonthSelect();
+    fetchFranchiseConfigs(); // Carrega configs, popula dropdown e lista
+    resetCalculationSection(); // Garante estado inicial limpo
+    toggleCalculationFields(false); // Começa com campos desabilitados
 
 });
