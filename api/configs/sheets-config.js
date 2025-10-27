@@ -12,3 +12,4 @@ export const SHEET_NAME_SOURCES = 'Source';
 export const SHEET_NAME_COST_CONTROL = 'CostControl';
 export const SHEET_NAME_TECH_CARS = 'TechCars';
 export const SHEET_NAME_CONFIG = 'Config';
+export const SHEET_NAME_FRANCHISE_CONFIG = 'FranchiseConfig';
