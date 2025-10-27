@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const newFeeCheckboxElements = document.querySelectorAll('.new-fee-checkbox');
     const registeredFranchisesListElement = document.getElementById('registered-franchises-list');
     const registerSectionElement = document.getElementById('franchise-register-section');
-    const registerSectionOverlayElement = registerSectionElement?.querySelector('.loading-overlay');
+    const registerSectionOverlayElementById = document.getElementById('register-section-loader');
 
     const editModalElement = document.getElementById('edit-franchise-modal');
     const editFormElement = document.getElementById('edit-franchise-form');
@@ -70,20 +70,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
      function showLoadingOverlay(overlayElement) {
-         if (overlayElement) {
+         const theOverlay = overlayElement || registerSectionOverlayElementById;
+         if (theOverlay) {
              console.log("Showing overlay...");
-             overlayElement.classList.remove('hidden');
+             theOverlay.classList.remove('hidden');
          } else {
-             console.warn("showLoadingOverlay: Overlay element not found.");
+             console.error("showLoadingOverlay: TARGET OVERLAY ELEMENT NOT FOUND IN DOM!");
          }
      }
 
      function hideLoadingOverlay(overlayElement) {
-         if (overlayElement) {
+         const theOverlay = overlayElement || registerSectionOverlayElementById;
+         if (theOverlay) {
               console.log("Hiding overlay...");
-             overlayElement.classList.add('hidden');
+             theOverlay.classList.add('hidden');
          } else {
-              console.warn("hideLoadingOverlay: Overlay element not found.");
+              console.error("hideLoadingOverlay: TARGET OVERLAY ELEMENT NOT FOUND IN DOM!");
          }
      }
 
@@ -100,7 +102,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchFranchiseConfigs() {
-        const overlayElement = registerSectionOverlayElement;
+        const overlayElement = document.getElementById('register-section-loader');
+        if (!overlayElement) {
+             console.error("CRITICAL: Overlay element with ID 'register-section-loader' not found!");
+             registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">Error: UI component missing (loader). Cannot proceed.</p>`;
+             return;
+        }
+
         showLoadingOverlay(overlayElement);
         registeredFranchisesListElement.innerHTML = `<p class="p-4 text-muted-foreground italic">Loading configurations...</p>`;
         console.log("[fetchFranchiseConfigs] Attempting to fetch...");
@@ -146,18 +154,21 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(">>> CRITICAL Error during fetchFranchiseConfigs:", error);
             const errorDisplayMessage = `Error loading configurations: ${error.message}`;
-            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">${errorDisplayMessage}</p>`;
+            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">${errorDisplayMessage}`;
             franchisesConfiguration = [];
             populateFranchiseSelect();
         } finally {
             console.log("[fetchFranchiseConfigs] Entering finally block...");
-            hideLoadingOverlay(overlayElement);
+            const overlayCheck = document.getElementById('register-section-loader');
+            console.log("[fetchFranchiseConfigs] Overlay element in finally:", overlayCheck ? 'Found' : 'NOT FOUND');
+            hideLoadingOverlay(overlayCheck);
             console.log("[fetchFranchiseConfigs] Finished fetch attempt.");
         }
     }
 
     async function addFranchiseConfig(name, includedFees) {
-        showLoadingOverlay(registerSectionOverlayElement);
+        const overlayElement = document.getElementById('register-section-loader');
+        showLoadingOverlay(overlayElement);
         try {
             const response = await fetch('/api/manage-franchise-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchiseName: name, includedFees: includedFees }) });
             const result = await response.json();
@@ -165,17 +176,18 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(result.message, 'success');
             await fetchFranchiseConfigs();
             addFranchiseFormElement.reset();
-            newFeeCheckboxElements.forEach(cb => cb.checked = (cb.dataset.feeItem !== 'Call Center Fee Extra'));
+            newFeeCheckboxElements.forEach(checkboxElement => checkboxElement.checked = (checkboxElement.dataset.feeItem !== 'Call Center Fee Extra'));
         } catch (error) {
             console.error("Error adding franchise:", error);
             showToast(`Error adding franchise: ${error.message}`, 'error');
         } finally {
-            hideLoadingOverlay(registerSectionOverlayElement);
+            hideLoadingOverlay(overlayElement);
         }
     }
 
     async function updateFranchiseConfig(originalName, newName, includedFees) {
-         showLoadingOverlay(editModalElement);
+         const overlayElement = document.getElementById('register-section-loader');
+         showLoadingOverlay(overlayElement);
          editModalSaveButtonElement.disabled = true;
          try {
              const response = await fetch('/api/manage-franchise-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFees }) });
@@ -188,14 +200,15 @@ document.addEventListener('DOMContentLoaded', () => {
              console.error("Error updating franchise:", error);
              showToast(`Error updating franchise: ${error.message}`, 'error');
          } finally {
-             hideLoadingOverlay(editModalElement);
+             hideLoadingOverlay(overlayElement);
              editModalSaveButtonElement.disabled = false;
          }
      }
 
     async function deleteFranchiseConfig(name) {
          if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
-         showLoadingOverlay(registerSectionOverlayElement);
+         const overlayElement = document.getElementById('register-section-loader');
+         showLoadingOverlay(overlayElement);
          try {
              const response = await fetch('/api/manage-franchise-config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchiseName: name }) });
              const result = await response.json();
@@ -206,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
              console.error("Error deleting franchise:", error);
              showToast(`Error deleting franchise: ${error.message}`, 'error');
          } finally {
-             hideLoadingOverlay(registerSectionOverlayElement);
+             hideLoadingOverlay(overlayElement);
          }
      }
 
@@ -219,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
              option.textContent = config.franchiseName;
              franchiseSelectElement.appendChild(option);
          });
-         if (franchisesConfiguration.some(c => c.franchiseName === currentSelection)) {
+         if (franchisesConfiguration.some(config => config.franchiseName === currentSelection)) {
              franchiseSelectElement.value = currentSelection;
          } else {
              franchiseSelectElement.value = "";
@@ -384,10 +397,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalAmountSum = 0;
         calculationTbodyElement.querySelectorAll('.calculation-row').forEach(tableRowElement => {
             const rowIndex = parseInt(tableRowElement.dataset.index);
-            if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) {
+             if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) {
                  console.warn("Skipping row with invalid index during total calculation:", rowIndex);
                  return;
-            }
+             }
             const rowData = currentCalculationState.calculationRows[rowIndex];
             const quantityInputElement = tableRowElement.querySelector('.qty');
             const unitPriceInputElement = tableRowElement.querySelector('.unit-price');
