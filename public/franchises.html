@@ -23,7 +23,6 @@
         .fee-checkbox { @apply h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary; }
         .franchise-list-item { @apply flex justify-between items-center p-3 border-b border-border; }
         .franchise-list-item:last-child { @apply border-b-0; }
-        /* Estilo para feedback visual durante chamadas API */
         .loading-overlay { position: absolute; inset: 0; background-color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; justify-content: center; z-index: 10; }
         .dark .loading-overlay { background-color: rgba(0, 0, 0, 0.7); }
     </style>
@@ -32,7 +31,7 @@
 
     <div class="flex">
         <aside class="sidebar">
-            <div class="flex h-16 items-center justify-center border-b px-6">
+             <div class="flex h-16 items-center justify-center border-b px-6">
                 <a class="flex items-center gap-2 font-semibold" href="appointments.html">
                     <img src="https://i.imgur.com/bW695v3.png" alt="Logo" class="h-10 w-auto"/>
                     <span class="sr-only">Myshineapp</span>
@@ -51,8 +50,9 @@
             </nav>
         </aside>
 
-        <div class="main-content flex flex-col flex-1 relative"> <header class="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card px-6">
-                <div class="text-sm text-muted-foreground">
+        <div class="main-content flex flex-col flex-1 relative">
+            <header class="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card px-6">
+                 <div class="text-sm text-muted-foreground">
                     <span class="font-semibold text-foreground">Franchises</span> / Royalty Calculation
                 </div>
                 <div class="ml-auto flex items-center gap-2">
@@ -66,7 +66,9 @@
             <main class="flex-1 p-4 sm:p-6 space-y-6">
                 <h1 class="text-page-title">Franchise Management & Royalty Calculation</h1>
 
-                <section class="card-base relative"> <div class="loading-overlay hidden"> <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+                <section id="franchise-register-section" class="card-base relative">
+                    <div class="loading-overlay hidden absolute inset-0 bg-background/70 dark:bg-background/50 flex items-center justify-center z-10">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
                     </div>
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Franchise Register</h2>
@@ -101,7 +103,7 @@
                 </section>
 
                 <section id="royalty-calculation-section" class="card-base">
-                    <div class="p-6 border-b flex justify-between items-center">
+                     <div class="p-6 border-b flex justify-between items-center">
                         <h2 class="text-section-title">Royalty Calculation</h2>
                     </div>
                     <div class="p-6 space-y-6">
@@ -159,14 +161,13 @@
                         </div>
                     </div>
                 </section>
-
             </main>
-             <div id="toast-container" class="fixed bottom-5 right-5 z-[100] space-y-2"></div>
+            <div id="toast-container" class="fixed bottom-5 right-5 z-[100] space-y-2"></div>
         </div>
     </div>
 
      <div id="edit-franchise-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-lg relative">
+         <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-lg relative">
             <h3 class="text-xl font-bold text-foreground mb-4">Edit Franchise Configuration</h3>
             <input type="hidden" id="edit-original-franchise-name">
             <form id="edit-franchise-form" class="space-y-4">
