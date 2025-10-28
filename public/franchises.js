@@ -823,15 +823,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const newCurrent = parseIntInput(modalLoanCurrentInstallmentInput.value, 0);
         const newTotal = parseIntInput(modalLoanTotalInstallmentsInput.value, 0);
         const newValue = parseNumberInput(modalLoanValueInput.value, 0);
+
+        const includedFeesMap = {};
+        Object.keys(feeItemToApiFieldMap).forEach(feeItem => {
+            const apiField = feeItemToApiFieldMap[feeItem];
+            includedFeesMap[feeItem] = configToUpdate[apiField] || false;
+        });
+
         const updatedConfigData = {
              ...configToUpdate,
              originalFranchiseName: franchiseNameToUpdate,
              newFranchiseName: franchiseNameToUpdate,
+             includedFees: includedFeesMap,
              hasLoan: true,
              loanCurrentInstallment: newCurrent,
              loanTotalInstallments: newTotal,
-             loanValue: newValue
+             loanValue: newValue,
+             serviceValueRules: configToUpdate.serviceValueRules || [],
+             customFeesConfig: configToUpdate.customFeesConfig || []
         };
+
+        Object.values(feeItemToApiFieldMap).forEach(apiField => {
+            delete updatedConfigData[apiField];
+        });
+
         updateFranchiseConfig(updatedConfigData);
     }
 
@@ -845,17 +860,33 @@ document.addEventListener('DOMContentLoaded', () => {
          if (!confirm(`Are you sure you want to remove the loan configuration for ${franchiseNameToUpdate}?`)) {
              return;
          }
+
+        const includedFeesMap = {};
+        Object.keys(feeItemToApiFieldMap).forEach(feeItem => {
+            const apiField = feeItemToApiFieldMap[feeItem];
+            includedFeesMap[feeItem] = configToUpdate[apiField] || false;
+        });
+
          const updatedConfigData = {
               ...configToUpdate,
               originalFranchiseName: franchiseNameToUpdate,
               newFranchiseName: franchiseNameToUpdate,
+              includedFees: includedFeesMap,
               hasLoan: false,
               loanCurrentInstallment: 0,
               loanTotalInstallments: 0,
-              loanValue: 0
+              loanValue: 0,
+              serviceValueRules: configToUpdate.serviceValueRules || [],
+              customFeesConfig: configToUpdate.customFeesConfig || []
          };
+
+        Object.values(feeItemToApiFieldMap).forEach(apiField => {
+            delete updatedConfigData[apiField];
+        });
+
          updateFranchiseConfig(updatedConfigData);
      }
+
 
     addFranchiseFormElement.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -1021,13 +1052,11 @@ document.addEventListener('DOMContentLoaded', () => {
      if(editLoanCancelButton) editLoanCancelButton.addEventListener('click', closeEditLoanModal);
      if(editLoanRemoveButton) editLoanRemoveButton.addEventListener('click', handleRemoveLoan);
 
-    console.log("Initializing page...");
     populateMonthSelect();
     populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
     populateCustomFeeInputs(newCustomFeesContainer, []);
     fetchFranchiseConfigs();
     resetCalculationSection();
     resetNewFeeInputs();
-    console.log("Page initialization scripts running.");
 
 });
