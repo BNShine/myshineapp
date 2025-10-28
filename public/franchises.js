@@ -13,14 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const metricTotalValueElement = document.querySelector('#royalty-calculation-section .metric-total-value');
     const metricTotalFeesElement = document.querySelector('#royalty-calculation-section .metric-total-fees');
     const toastContainerElement = document.getElementById('toast-container');
-    const mainContentElement = document.querySelector('.main-content');
 
     const addFranchiseFormElement = document.getElementById('add-franchise-form');
     const newFranchiseNameInputElement = document.getElementById('new-franchise-name');
     const newFeeCheckboxElements = document.querySelectorAll('.new-fee-checkbox');
     const registeredFranchisesListElement = document.getElementById('registered-franchises-list');
     const registerSectionElement = document.getElementById('franchise-register-section');
-    const registerSectionOverlayElementById = document.getElementById('register-section-loader');
 
     const editModalElement = document.getElementById('edit-franchise-modal');
     const editFormElement = document.getElementById('edit-franchise-form');
@@ -69,23 +67,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }, duration);
     }
 
-     function showLoadingOverlay(overlayElement) {
-         const theOverlay = overlayElement || registerSectionOverlayElementById;
-         if (theOverlay) {
-             console.log("Showing overlay...");
-             theOverlay.classList.remove('hidden');
+    function showLoadingOverlayById(elementId) {
+         const overlayElement = document.getElementById(elementId);
+         if (overlayElement) {
+             console.log(`Showing overlay for ID: ${elementId}`);
+             overlayElement.classList.remove('hidden');
          } else {
-             console.error("showLoadingOverlay: TARGET OVERLAY ELEMENT NOT FOUND IN DOM!");
+             console.error(`showLoadingOverlayById: Overlay element with ID '${elementId}' NOT FOUND!`);
          }
      }
 
-     function hideLoadingOverlay(overlayElement) {
-         const theOverlay = overlayElement || registerSectionOverlayElementById;
-         if (theOverlay) {
-              console.log("Hiding overlay...");
-             theOverlay.classList.add('hidden');
+     function hideLoadingOverlayById(elementId) {
+         const overlayElement = document.getElementById(elementId);
+         if (overlayElement) {
+              console.log(`Hiding overlay for ID: ${elementId}`);
+             overlayElement.classList.add('hidden');
          } else {
-              console.error("hideLoadingOverlay: TARGET OVERLAY ELEMENT NOT FOUND IN DOM!");
+              console.error(`hideLoadingOverlayById: Overlay element with ID '${elementId}' NOT FOUND!`);
          }
      }
 
@@ -102,14 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchFranchiseConfigs() {
-        const overlayElement = document.getElementById('register-section-loader');
-        if (!overlayElement) {
-             console.error("CRITICAL: Overlay element with ID 'register-section-loader' not found!");
-             registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">Error: UI component missing (loader). Cannot proceed.</p>`;
-             return;
-        }
-
-        showLoadingOverlay(overlayElement);
+        const overlayId = 'register-section-loader';
+        showLoadingOverlayById(overlayId);
         registeredFranchisesListElement.innerHTML = `<p class="p-4 text-muted-foreground italic">Loading configurations...</p>`;
         console.log("[fetchFranchiseConfigs] Attempting to fetch...");
 
@@ -154,21 +146,20 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(">>> CRITICAL Error during fetchFranchiseConfigs:", error);
             const errorDisplayMessage = `Error loading configurations: ${error.message}`;
-            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">${errorDisplayMessage}`;
+            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">${errorDisplayMessage}</p>`;
             franchisesConfiguration = [];
             populateFranchiseSelect();
         } finally {
             console.log("[fetchFranchiseConfigs] Entering finally block...");
-            const overlayCheck = document.getElementById('register-section-loader');
-            console.log("[fetchFranchiseConfigs] Overlay element in finally:", overlayCheck ? 'Found' : 'NOT FOUND');
-            hideLoadingOverlay(overlayCheck);
-            console.log("[fetchFranchiseConfigs] Finished fetch attempt.");
+            // Tenta esconder o overlay usando o ID diretamente aqui
+            hideLoadingOverlayById(overlayId);
+            console.log("[fetchFranchiseConfigs] Finished fetch attempt (finally executed).");
         }
     }
 
     async function addFranchiseConfig(name, includedFees) {
-        const overlayElement = document.getElementById('register-section-loader');
-        showLoadingOverlay(overlayElement);
+        const overlayId = 'register-section-loader';
+        showLoadingOverlayById(overlayId);
         try {
             const response = await fetch('/api/manage-franchise-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchiseName: name, includedFees: includedFees }) });
             const result = await response.json();
@@ -181,13 +172,13 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error adding franchise:", error);
             showToast(`Error adding franchise: ${error.message}`, 'error');
         } finally {
-            hideLoadingOverlay(overlayElement);
+            hideLoadingOverlayById(overlayId);
         }
     }
 
     async function updateFranchiseConfig(originalName, newName, includedFees) {
-         const overlayElement = document.getElementById('register-section-loader');
-         showLoadingOverlay(overlayElement);
+         const overlayId = 'register-section-loader';
+         showLoadingOverlayById(overlayId);
          editModalSaveButtonElement.disabled = true;
          try {
              const response = await fetch('/api/manage-franchise-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFees }) });
@@ -200,15 +191,15 @@ document.addEventListener('DOMContentLoaded', () => {
              console.error("Error updating franchise:", error);
              showToast(`Error updating franchise: ${error.message}`, 'error');
          } finally {
-             hideLoadingOverlay(overlayElement);
+             hideLoadingOverlayById(overlayId);
              editModalSaveButtonElement.disabled = false;
          }
      }
 
     async function deleteFranchiseConfig(name) {
          if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
-         const overlayElement = document.getElementById('register-section-loader');
-         showLoadingOverlay(overlayElement);
+         const overlayId = 'register-section-loader';
+         showLoadingOverlayById(overlayId);
          try {
              const response = await fetch('/api/manage-franchise-config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchiseName: name }) });
              const result = await response.json();
@@ -219,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
              console.error("Error deleting franchise:", error);
              showToast(`Error deleting franchise: ${error.message}`, 'error');
          } finally {
-             hideLoadingOverlay(overlayElement);
+             hideLoadingOverlayById(overlayId);
          }
      }
 
