@@ -2,8 +2,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const franchiseSelectElement = document.getElementById('franchise-select');
     const reportMonthSelectElement = document.getElementById('report-month-select');
     const fileInputElement = document.getElementById('file-input');
-    const royaltyRateInputElement = document.getElementById('royalty-rate-input');
-    const marketingRateInputElement = document.getElementById('marketing-rate-input');
     const loadingSpinnerElement = document.querySelector('#royalty-calculation-section .loading-spinner');
     const calculationTbodyElement = document.querySelector('#royalty-calculation-section .calculation-tbody');
     const calculationTotalDisplayElement = document.querySelector('#royalty-calculation-section .calculation-total');
@@ -17,15 +15,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const addFranchiseFormElement = document.getElementById('add-franchise-form');
     const newFranchiseNameInputElement = document.getElementById('new-franchise-name');
     const newFeeCheckboxElements = document.querySelectorAll('.new-fee-checkbox');
+    const newRoyaltyRateInputElement = document.getElementById('new-royalty-rate');
+    const newMarketingRateInputElement = document.getElementById('new-marketing-rate');
+    const newSoftwareFeeInputElement = document.getElementById('new-software-fee');
+    const newCallCenterFeeInputElement = document.getElementById('new-callcenter-fee');
+    const newCallCenterExtraInputElement = document.getElementById('new-callcenter-extra');
+    const newCustomFeeNameInputElement = document.getElementById('new-custom-fee-name');
+    const newCustomFeeTypeElement = document.getElementById('new-custom-fee-type');
+    const newCustomFeeValueInputElement = document.getElementById('new-custom-fee-value');
+    const newCustomFeeEnabledCheckbox = document.getElementById('new-custom-fee-enabled');
+    const newServiceRulesContainer = document.getElementById('new-service-rules-container');
     const registeredFranchisesListElement = document.getElementById('registered-franchises-list');
     const registerSectionElement = document.getElementById('franchise-register-section');
-    const newServiceRulesContainer = document.getElementById('new-service-rules-container');
+    const registerSectionOverlayElementById = document.getElementById('register-section-loader');
 
     const editModalElement = document.getElementById('edit-franchise-modal');
     const editFormElement = document.getElementById('edit-franchise-form');
     const editOriginalNameInputElement = document.getElementById('edit-original-franchise-name');
     const editNameInputElement = document.getElementById('edit-franchise-name');
     const editFeeCheckboxElements = document.querySelectorAll('.edit-fee-checkbox');
+    const editRoyaltyRateInputElement = document.getElementById('edit-royalty-rate');
+    const editMarketingRateInputElement = document.getElementById('edit-marketing-rate');
+    const editSoftwareFeeInputElement = document.getElementById('edit-software-fee');
+    const editCallCenterFeeInputElement = document.getElementById('edit-callcenter-fee');
+    const editCallCenterExtraInputElement = document.getElementById('edit-callcenter-extra');
+    const editCustomFeeNameInputElement = document.getElementById('edit-custom-fee-name');
+    const editCustomFeeTypeElement = document.getElementById('edit-custom-fee-type');
+    const editCustomFeeValueInputElement = document.getElementById('edit-custom-fee-value');
+    const editCustomFeeEnabledCheckbox = document.getElementById('edit-custom-fee-enabled');
     const editServiceRulesContainer = document.getElementById('edit-service-rules-container');
     const editModalSaveButtonElement = document.getElementById('edit-modal-save-btn');
     const editModalCancelButtonElement = document.getElementById('edit-modal-cancel-btn');
@@ -45,10 +62,19 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'nail_clipping', keyword: 'Nail Clipping', threshold: 0, adjusted: 10, enabled: true }
     ];
 
+    const defaultRatesAndFees = {
+        royaltyRate: 6.0,
+        marketingRate: 1.0,
+        softwareFeeValue: 350.00,
+        callCenterFeeValue: 1200.00,
+        callCenterExtraFeeValue: 600.00,
+        customFeeConfig: { name: "", type: "percentage", value: 0, enabled: false }
+    };
+
     let franchisesConfiguration = [];
     let currentCalculationState = {
         selectedFranchiseName: null, config: null, month: MONTHS[new Date().getMonth()],
-        royaltyRate: 6.0, marketingRate: 1.0, totalValue: 0,
+        totalValue: 0,
         calculationRows: [], fileData: [], metrics: { pets: 0, services: 0 }
     };
 
@@ -62,6 +88,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof value !== 'string') return 0;
         const cleaned = value.replace(/[$,]/g, '');
         return parseFloat(cleaned) || 0;
+    }
+
+    function parseNumberInput(value, defaultValue = 0) {
+        const num = parseFloat(value);
+        return isNaN(num) ? defaultValue : num;
     }
 
     function showToast(message, type = 'info', duration = 4000) {
@@ -131,10 +162,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchFranchiseConfigs() {
         const overlayId = 'register-section-loader';
         const overlayElementDirect = document.getElementById(overlayId);
-
         if (!overlayElementDirect) {
-             console.error(`CRITICAL: Overlay element with ID '${overlayId}' not found during initialization! Check HTML.`);
-             registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">Error: UI component missing (loader). Cannot proceed.</p>`;
+             console.error(`CRITICAL: Overlay element with ID '${overlayId}' not found!`);
+             registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">Error: UI component missing (loader).</p>`;
              return;
         }
 
@@ -142,72 +172,56 @@ document.addEventListener('DOMContentLoaded', () => {
         registeredFranchisesListElement.innerHTML = `<p class="p-4 text-muted-foreground italic">Loading configurations...</p>`;
         console.log("[fetchFranchiseConfigs] Attempting to fetch...");
 
-        let response = null;
-        let responseText = null;
-
         try {
-            response = await fetch('/api/manage-franchise-config');
-            console.log("[fetchFranchiseConfigs] API Response Status:", response.status);
-
-            responseText = await response.text();
-            console.log("[fetchFranchiseConfigs] API Raw Response Text:", responseText);
+            const response = await fetch('/api/manage-franchise-config');
+            const responseText = await response.text();
+            console.log("[fetchFranchiseConfigs] API Response Status:", response.status, "Text:", responseText.substring(0,100)+"...");
 
             if (!response.ok) {
                 let errorMessage = `API Error: Status ${response.status}`;
-                try {
-                    const errorData = JSON.parse(responseText);
-                    console.error("[fetchFranchiseConfigs] API Error Response Body (Parsed):", errorData);
-                    errorMessage = errorData.message || errorMessage;
-                } catch (jsonParseError) {
-                    console.error("[fetchFranchiseConfigs] Failed to parse error response as JSON:", jsonParseError);
-                    errorMessage += ` - Response: ${responseText.substring(0, 150)}...`;
-                }
+                try { const errorData = JSON.parse(responseText); errorMessage = errorData.message || errorMessage; }
+                catch (e) { errorMessage += ` - Response: ${responseText.substring(0, 150)}...`; }
                 throw new Error(errorMessage);
             }
 
             try {
                 franchisesConfiguration = JSON.parse(responseText);
                 if (!Array.isArray(franchisesConfiguration)) {
-                    console.warn("[fetchFranchiseConfigs] API response was OK but not an array, resetting config.", franchisesConfiguration);
-                    franchisesConfiguration = [];
+                    console.warn("[fetchFranchiseConfigs] API response not an array.", franchisesConfiguration); franchisesConfiguration = [];
                  } else {
                       franchisesConfiguration.forEach(config => {
-                          if (!config.serviceValueRules || !Array.isArray(config.serviceValueRules)) {
-                              console.warn(`[fetchFranchiseConfigs] Config for ${config.franchiseName} missing/invalid serviceValueRules, using default.`);
-                              config.serviceValueRules = JSON.parse(JSON.stringify(defaultServiceValueRules));
-                          }
+                          config.serviceValueRules = config.serviceValueRules && Array.isArray(config.serviceValueRules) ? config.serviceValueRules : JSON.parse(JSON.stringify(defaultServiceValueRules));
+                          config.customFeeConfig = config.customFeeConfig && typeof config.customFeeConfig === 'object' ? config.customFeeConfig : { ...defaultRatesAndFees.customFeeConfig };
                       });
                  }
-                console.log("[fetchFranchiseConfigs] Configs received and processed:", franchisesConfiguration);
+                console.log("[fetchFranchiseConfigs] Configs received:", franchisesConfiguration);
             } catch (parseError) {
-                console.error("[fetchFranchiseConfigs] Error parsing successful API response as JSON:", parseError);
-                throw new Error("Received invalid data format from server.");
+                console.error("[fetchFranchiseConfigs] Error parsing API response:", parseError); throw new Error("Invalid data format received.");
             }
 
             renderRegisteredFranchises();
             populateFranchiseSelect();
 
         } catch (error) {
-            console.error(">>> CRITICAL Error during fetchFranchiseConfigs:", error);
-            const errorDisplayMessage = `Error loading configurations: ${error.message}`;
-            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">${errorDisplayMessage}</p>`;
+            console.error(">>> Error during fetchFranchiseConfigs:", error);
+            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">Error loading configurations: ${error.message}</p>`;
             franchisesConfiguration = [];
             populateFranchiseSelect();
         } finally {
-            console.log("[fetchFranchiseConfigs] Entering finally block...");
             hideLoadingOverlayById(overlayId);
-            console.log("[fetchFranchiseConfigs] Finished fetch attempt (finally executed).");
+            console.log("[fetchFranchiseConfigs] Finished fetch attempt.");
         }
     }
 
-    async function addFranchiseConfig(name, includedFees, serviceValueRules) {
+    async function addFranchiseConfig(configData) {
         const overlayId = 'register-section-loader';
         showLoadingOverlayById(overlayId);
+        addFranchiseFormElement.querySelector('button[type="submit"]').disabled = true;
         try {
             const response = await fetch('/api/manage-franchise-config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ franchiseName: name, includedFees: includedFees, serviceValueRules: serviceValueRules })
+                body: JSON.stringify(configData)
              });
             const result = await response.json();
             if (!result.success) throw new Error(result.message);
@@ -215,16 +229,18 @@ document.addEventListener('DOMContentLoaded', () => {
             await fetchFranchiseConfigs();
             addFranchiseFormElement.reset();
             populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
+            resetNewFeeInputs();
             newFeeCheckboxElements.forEach(checkboxElement => checkboxElement.checked = (checkboxElement.dataset.feeItem !== 'Call Center Fee Extra'));
         } catch (error) {
             console.error("Error adding franchise:", error);
             showToast(`Error adding franchise: ${error.message}`, 'error');
         } finally {
             hideLoadingOverlayById(overlayId);
+            addFranchiseFormElement.querySelector('button[type="submit"]').disabled = false;
         }
     }
 
-    async function updateFranchiseConfig(originalName, newName, includedFees, serviceValueRules) {
+    async function updateFranchiseConfig(configData) {
          const overlayId = 'register-section-loader';
          showLoadingOverlayById(overlayId);
          editModalSaveButtonElement.disabled = true;
@@ -232,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
              const response = await fetch('/api/manage-franchise-config', {
                  method: 'PUT',
                  headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFees, serviceValueRules: serviceValueRules })
+                 body: JSON.stringify(configData)
               });
              const result = await response.json();
              if (!result.success) throw new Error(result.message);
@@ -313,7 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return rules;
     }
 
-
     function populateFranchiseSelect() {
          const currentSelection = franchiseSelectElement.value;
          franchiseSelectElement.innerHTML = '<option value="">-- Select a Registered Franchise --</option>';
@@ -350,7 +365,8 @@ document.addEventListener('DOMContentLoaded', () => {
             listItem.innerHTML = `
                 <div>
                     <p class="font-semibold">${config.franchiseName}</p>
-                    <p class="text-xs text-muted-foreground">Includes: ${includedItems || 'None'}</p>
+                    <p class="text-xs text-muted-foreground">Fees: R ${config.royaltyRate}% | M ${config.marketingRate}% ${config.customFeeConfig?.enabled ? `| ${config.customFeeConfig.name} ` + (config.customFeeConfig.type === 'percentage' ? `${config.customFeeConfig.value}%` : `${formatCurrency(config.customFeeConfig.value)}`) : ''}</p>
+                    <p class="text-xs text-muted-foreground">Included: ${includedItems || 'None'}</p>
                 </div>
                 <div class="space-x-2">
                     <button class="edit-franchise-btn text-blue-600 hover:text-blue-800 p-1" data-name="${config.franchiseName}" title="Edit">
@@ -383,14 +399,79 @@ document.addEventListener('DOMContentLoaded', () => {
     function generateCalculationRows() {
          const config = currentCalculationState.config;
          if (!config) return [];
-         const defaultRowTemplates = getDefaultCalculationRowTemplates();
+
          const rowsToShow = [];
-         defaultRowTemplates.forEach(templateRow => {
-             const apiField = feeItemToApiFieldMap[templateRow.Item];
-             if (templateRow.fixed && apiField && config[apiField]) {
-                 rowsToShow.push(JSON.parse(JSON.stringify(templateRow)));
+         const baseFeeItemsOrder = ["Royalty Fee", "Marketing Fee", "Software Fee", "Call Center Fee", "Call Center Fee Extra"];
+
+         baseFeeItemsOrder.forEach(itemName => {
+             const apiField = feeItemToApiFieldMap[itemName];
+             if (config[apiField]) { // Verifica se está incluído
+                 let unitPrice = 0;
+                 let quantity = 1; // Default quantity
+                 let isRate = false;
+
+                 switch (itemName) {
+                    case "Royalty Fee":
+                        unitPrice = currentCalculationState.totalValue; // Base de cálculo é o total
+                        quantity = config.royaltyRate; // Quantidade é a taxa
+                        isRate = true;
+                        break;
+                    case "Marketing Fee":
+                        unitPrice = currentCalculationState.totalValue; // Base de cálculo é o total
+                        quantity = config.marketingRate; // Quantidade é a taxa
+                        isRate = true;
+                        break;
+                    case "Software Fee":
+                        unitPrice = config.softwareFeeValue;
+                        break;
+                    case "Call Center Fee":
+                        unitPrice = config.callCenterFeeValue;
+                        break;
+                    case "Call Center Fee Extra":
+                        unitPrice = config.callCenterExtraFeeValue;
+                        quantity = 0; // Começa com 0, editável na tabela
+                        break;
+                 }
+
+                 rowsToShow.push({
+                     Item: itemName,
+                     Description: "",
+                     Qty: quantity,
+                     Unit_price: unitPrice,
+                     Amount: 0, // Será calculado depois
+                     verified: false,
+                     fixed: true, // Indica que é uma linha base/configurada
+                     isRate: isRate // Flag para cálculo percentual
+                 });
              }
          });
+
+         // Adiciona a linha da taxa customizada se estiver habilitada
+         if (config.customFeeConfig?.enabled && config.customFeeConfig.name) {
+             let customUnitPrice = 0;
+             let customQuantity = 1;
+             let isCustomRate = config.customFeeConfig.type === 'percentage';
+
+             if (isCustomRate) {
+                 customUnitPrice = currentCalculationState.totalValue; // Base é o total
+                 customQuantity = config.customFeeConfig.value; // Quantidade é a taxa
+             } else {
+                 customUnitPrice = config.customFeeConfig.value; // Preço unitário é o valor fixo
+                 customQuantity = 1; // Quantidade é 1
+             }
+
+             rowsToShow.push({
+                Item: config.customFeeConfig.name,
+                Description: "Custom Fee",
+                Qty: customQuantity,
+                Unit_price: customUnitPrice,
+                Amount: 0,
+                verified: false,
+                fixed: true, // Considera configurada como fixa na estrutura
+                isRate: isCustomRate
+             });
+         }
+
          return rowsToShow;
      }
 
@@ -409,53 +490,33 @@ document.addEventListener('DOMContentLoaded', () => {
             tableRow.className = 'border-b border-border calculation-row';
             tableRow.dataset.index = rowIndex;
 
-            const isFixed = rowData.fixed || false;
-            const isRateFee = rowData.Item === "Royalty Fee" || rowData.Item === "Marketing Fee";
-            const isSoftwareFee = rowData.Item === "Software Fee";
-            const isCallCenterBase = rowData.Item === "Call Center Fee";
-            const isCallCenterExtra = rowData.Item === "Call Center Fee Extra";
+            const isFixedRow = rowData.fixed || false; // Linhas base/configuradas + custom
+            const isRateFee = rowData.isRate || false; // Flag para %
+            const isEditableQuantity = rowData.Item === "Call Center Fee Extra" || !isFixedRow; // Só CallCenterExtra e custom podem ter Qty editado
 
             let quantityValue = rowData.Qty;
-            let isQuantityDisabled = isFixed;
-            if (isRateFee) {
-                quantityValue = (rowData.Item === "Royalty Fee" ? currentCalculationState.royaltyRate : currentCalculationState.marketingRate).toFixed(1);
-                isQuantityDisabled = true;
-            } else if (isSoftwareFee || isCallCenterBase) {
-                quantityValue = 1; isQuantityDisabled = false;
-            } else if (isCallCenterExtra) {
-                quantityValue = rowData.Qty; isQuantityDisabled = false;
-            } else { quantityValue = rowData.Qty; isQuantityDisabled = false; }
-
             let unitPriceValue = rowData.Unit_price;
-            let isUnitPriceDisabled = isFixed;
-            let unitPriceElementHTML;
+            let amount = 0;
+
             if (isRateFee) {
-                unitPriceValue = currentCalculationState.totalValue; isUnitPriceDisabled = true;
-                unitPriceElementHTML = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" disabled>`;
-            } else if (isSoftwareFee) {
-                const options = [0.00, 250.00, 350.00]; unitPriceValue = rowData.Unit_price; isUnitPriceDisabled = false;
-                unitPriceElementHTML = `<select class="w-full text-right unit-price">${options.map(o => `<option value="${o.toFixed(2)}" ${Math.abs(o - unitPriceValue) < 0.01 ? 'selected' : ''}>${formatCurrency(o)}</option>`).join('')}</select>`;
-            } else if (isCallCenterBase || isCallCenterExtra) {
-                unitPriceValue = isCallCenterBase ? 1200.00 : 600.00; isUnitPriceDisabled = true;
-                unitPriceElementHTML = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" disabled>`;
-            } else { unitPriceValue = rowData.Unit_price; isUnitPriceDisabled = false;
-                 unitPriceElementHTML = `<input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}">`;
+                amount = (parseFloat(quantityValue) / 100) * parseFloat(unitPriceValue);
+            } else {
+                amount = parseFloat(quantityValue) * parseFloat(unitPriceValue);
             }
 
-            let amount = 0;
-            const currentQuantity = parseFloat(quantityValue) || 0;
-            const currentUnitPrice = parseFloat(unitPriceValue) || 0;
-            if (isRateFee) { amount = (currentQuantity / 100) * currentUnitPrice; }
-            else { amount = currentQuantity * currentUnitPrice; }
+            // Garante que não sejam NaN
+            quantityValue = isNaN(quantityValue) ? 0 : quantityValue;
+            unitPriceValue = isNaN(unitPriceValue) ? 0 : unitPriceValue;
+            amount = isNaN(amount) ? 0 : amount;
 
             tableRow.innerHTML = `
-                <td class="p-2"><input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixed ? 'disabled title="Base fee item"' : 'placeholder="Custom item"'}></td>
-                <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}" placeholder="Optional description"></td>
-                <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${currentQuantity === 0 && !isFixed ? 'red-text' : ''}" value="${isRateFee ? quantityValue : currentQuantity}" ${isQuantityDisabled ? 'disabled' : ''}></td>
-                <td class="p-2">${unitPriceElementHTML}</td>
+                <td class="p-2"><input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixedRow ? 'disabled' : ''}></td>
+                <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}" ${!isFixedRow ? 'placeholder="Optional description"' : 'disabled'}></td>
+                <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${quantityValue === 0 && !isFixedRow ? 'red-text' : ''}" value="${isRateFee ? quantityValue.toFixed(1) : quantityValue}" ${!isEditableQuantity ? 'disabled' : ''}></td>
+                <td class="p-2"><input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${isFixedRow ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="text" class="w-full text-right amount" value="${formatCurrency(amount)}" disabled title="${formatCurrency(amount)}"></td>
                 <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''}></td>
-                <td class="p-2 text-center"> ${!isFixed ? '<button class="delete-calculation-row-btn text-red-600 hover:text-red-800 p-1" title="Delete row">🗑️</button>' : ''} </td>
+                <td class="p-2 text-center"> ${!isFixedRow ? '<button class="delete-calculation-row-btn text-red-600 hover:text-red-800 p-1" title="Delete row">🗑️</button>' : ''} </td>
             `;
             calculationTbodyElement.appendChild(tableRow);
         });
@@ -468,16 +529,16 @@ document.addEventListener('DOMContentLoaded', () => {
              showToast("Select a franchise before adding custom rows.", "warning");
              return;
          }
-         currentCalculationState.calculationRows.push({ Item: "", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: false });
+         currentCalculationState.calculationRows.push({ Item: "", Description: "", Qty: 1, Unit_price: 0, Amount: 0, verified: false, fixed: false, isRate: false });
          updateCalculationTableDOM();
     }
 
     function deleteCalculationRowUI(rowIndex) {
          if (!currentCalculationState.selectedFranchiseName || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) return;
-         const baseFeeCount = currentCalculationState.calculationRows.filter(row => row.fixed).length;
-         if (rowIndex < baseFeeCount) {
-             console.warn("Cannot delete base fee rows.");
-             showToast("Base fee rows cannot be deleted.", "warning");
+         // Permite deletar apenas linhas que NÃO são 'fixed' (ou seja, apenas as adicionadas manualmente)
+         if(currentCalculationState.calculationRows[rowIndex].fixed) {
+             console.warn("Cannot delete configured fee rows.");
+             showToast("Configured fee rows cannot be deleted.", "warning");
              return;
          }
          currentCalculationState.calculationRows.splice(rowIndex, 1);
@@ -489,19 +550,35 @@ document.addEventListener('DOMContentLoaded', () => {
         calculationTbodyElement.querySelectorAll('.calculation-row').forEach(tableRowElement => {
             const rowIndex = parseInt(tableRowElement.dataset.index);
              if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) {
-                 console.warn("Skipping row with invalid index during total calculation:", rowIndex);
-                 return;
+                 console.warn("Skipping row with invalid index during total calculation:", rowIndex); return;
              }
             const rowData = currentCalculationState.calculationRows[rowIndex];
             const quantityInputElement = tableRowElement.querySelector('.qty');
             const unitPriceInputElement = tableRowElement.querySelector('.unit-price');
             const amountInputElement = tableRowElement.querySelector('.amount');
-            const isRateFee = rowData.Item === "Royalty Fee" || rowData.Item === "Marketing Fee";
+
             const quantity = parseFloat(quantityInputElement.value) || 0;
-            const unitPrice = parseFloat(unitPriceInputElement.value) || 0;
+            let unitPrice = parseFloat(unitPriceInputElement.value) || 0;
             let currentAmount = 0;
-            if (isRateFee) { currentAmount = (quantity / 100) * unitPrice; }
-            else { currentAmount = quantity * unitPrice; }
+
+            // Para taxas (%) base ou custom, a base (unitPrice) é sempre o totalValue atualizado
+            if (rowData.isRate) {
+                unitPrice = currentCalculationState.totalValue; // Atualiza unit price no cálculo
+                unitPriceInputElement.value = unitPrice.toFixed(2); // Atualiza display do unit price
+                currentAmount = (quantity / 100) * unitPrice;
+            } else {
+                 // Para linhas custom (não-rate), atualiza o unitPrice no estado se editado
+                 if(!rowData.fixed) {
+                      rowData.Unit_price = unitPrice;
+                 }
+                currentAmount = quantity * unitPrice;
+            }
+
+             // Atualiza Qty no estado APENAS se for editável
+             if(rowData.Item === "Call Center Fee Extra" || !rowData.fixed) {
+                 rowData.Qty = quantity;
+             }
+
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
             amountInputElement.title = formatCurrency(currentAmount);
@@ -519,12 +596,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetCalculationSection() {
         fileInputElement.value = '';
-        royaltyRateInputElement.value = '6.0';
-        marketingRateInputElement.value = '1.0';
         currentCalculationState = {
             selectedFranchiseName: null, config: null,
             month: reportMonthSelectElement.value || MONTHS[new Date().getMonth()],
-            royaltyRate: 6.0, marketingRate: 1.0, totalValue: 0,
+            totalValue: 0,
             calculationRows: [], fileData: [], metrics: { pets: 0, services: 0 }
         };
         updateMetrics();
@@ -533,10 +608,20 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleCalculationFields(false);
     }
 
+     function resetNewFeeInputs() {
+         newRoyaltyRateInputElement.value = defaultRatesAndFees.royaltyRate;
+         newMarketingRateInputElement.value = defaultRatesAndFees.marketingRate;
+         newSoftwareFeeInputElement.value = defaultRatesAndFees.softwareFeeValue.toFixed(2);
+         newCallCenterFeeInputElement.value = defaultRatesAndFees.callCenterFeeValue.toFixed(2);
+         newCallCenterExtraInputElement.value = defaultRatesAndFees.callCenterExtraFeeValue.toFixed(2);
+         newCustomFeeNameInputElement.value = defaultRatesAndFees.customFeeConfig.name;
+         newCustomFeeTypeElement.value = defaultRatesAndFees.customFeeConfig.type;
+         newCustomFeeValueInputElement.value = defaultRatesAndFees.customFeeConfig.value;
+         newCustomFeeEnabledCheckbox.checked = defaultRatesAndFees.customFeeConfig.enabled;
+     }
+
     function toggleCalculationFields(enabled) {
          fileInputElement.disabled = !enabled;
-         royaltyRateInputElement.disabled = !enabled;
-         marketingRateInputElement.disabled = !enabled;
          addCalculationRowButtonElement.disabled = !enabled;
          if (!enabled && franchiseSelectElement.value !== "") {
               resetCalculationSection();
@@ -545,11 +630,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getDefaultCalculationRowTemplates() {
          return JSON.parse(JSON.stringify([
-           { Item: "Royalty Fee", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: true },
-           { Item: "Marketing Fee", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: true },
-           { Item: "Software Fee", Description: "", Qty: 1, Unit_price: 350.00, Amount: 0, verified: false, fixed: true },
-           { Item: "Call Center Fee", Description: "", Qty: 1, Unit_price: 1200.00, Amount: 0, verified: false, fixed: true },
-           { Item: "Call Center Fee Extra", Description: "", Qty: 0, Unit_price: 600.00, Amount: 0, verified: false, fixed: true }
+           { Item: "Royalty Fee", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: true, isRate: true },
+           { Item: "Marketing Fee", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: true, isRate: true },
+           { Item: "Software Fee", Description: "", Qty: 1, Unit_price: 0, Amount: 0, verified: false, fixed: true, isRate: false },
+           { Item: "Call Center Fee", Description: "", Qty: 1, Unit_price: 0, Amount: 0, verified: false, fixed: true, isRate: false },
+           { Item: "Call Center Fee Extra", Description: "", Qty: 0, Unit_price: 0, Amount: 0, verified: false, fixed: true, isRate: false }
        ]));
    }
 
@@ -598,9 +683,9 @@ document.addEventListener('DOMContentLoaded', () => {
          });
          currentCalculationState.metrics = { pets: petsServicedCount, services: servicesPerformedCount };
          currentCalculationState.totalValue = totalAdjustedRevenue;
-         currentCalculationState.calculationRows = generateCalculationRows();
+         currentCalculationState.calculationRows = generateCalculationRows(); // Regenera linhas com base no novo totalValue
          updateMetrics();
-         updateCalculationTableDOM();
+         updateCalculationTableDOM(); // Re-renderiza a tabela
     }
 
     function openEditModal(franchiseName) {
@@ -613,6 +698,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const apiField = feeItemToApiFieldMap[feeItem];
             checkbox.checked = configToEdit[apiField] || false;
         });
+        editRoyaltyRateInputElement.value = configToEdit.royaltyRate;
+        editMarketingRateInputElement.value = configToEdit.marketingRate;
+        editSoftwareFeeInputElement.value = configToEdit.softwareFeeValue.toFixed(2);
+        editCallCenterFeeInputElement.value = configToEdit.callCenterFeeValue.toFixed(2);
+        editCallCenterExtraInputElement.value = configToEdit.callCenterExtraFeeValue.toFixed(2);
+
+        const customFee = configToEdit.customFeeConfig || defaultRatesAndFees.customFeeConfig;
+        editCustomFeeNameInputElement.value = customFee.name;
+        editCustomFeeTypeElement.value = customFee.type;
+        editCustomFeeValueInputElement.value = customFee.value;
+        editCustomFeeEnabledCheckbox.checked = customFee.enabled;
+
         populateServiceRuleInputs(editServiceRulesContainer, configToEdit.serviceValueRules || defaultServiceValueRules);
         editModalElement.classList.remove('hidden');
     }
@@ -631,8 +728,30 @@ document.addEventListener('DOMContentLoaded', () => {
             includedFeesMap[checkbox.dataset.feeItem] = checkbox.checked;
         });
         const serviceValueRules = getServiceRulesFromInputs(editServiceRulesContainer);
+
+        const customFeeConfig = {
+             name: editCustomFeeNameInputElement.value.trim(),
+             type: editCustomFeeTypeElement.value,
+             value: parseNumberInput(editCustomFeeValueInputElement.value, 0),
+             enabled: editCustomFeeEnabledCheckbox.checked
+        };
+
         if (!newName) { alert("Franchise name cannot be empty."); return; }
-        updateFranchiseConfig(originalName, newName, includedFeesMap, serviceValueRules);
+
+        const configData = {
+            originalFranchiseName: originalName,
+            newFranchiseName: newName,
+            includedFees: includedFeesMap,
+            royaltyRate: parseNumberInput(editRoyaltyRateInputElement.value, defaultRatesAndFees.royaltyRate),
+            marketingRate: parseNumberInput(editMarketingRateInputElement.value, defaultRatesAndFees.marketingRate),
+            softwareFeeValue: parseNumberInput(editSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
+            callCenterFeeValue: parseNumberInput(editCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
+            callCenterExtraFeeValue: parseNumberInput(editCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
+            customFeeConfig: customFeeConfig,
+            serviceValueRules: serviceValueRules
+        };
+
+        updateFranchiseConfig(configData);
     }
 
     addFranchiseFormElement.addEventListener('submit', (event) => {
@@ -641,11 +760,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const includedFeesMap = {};
         newFeeCheckboxElements.forEach(checkbox => { includedFeesMap[checkbox.dataset.feeItem] = checkbox.checked; });
         const serviceValueRules = getServiceRulesFromInputs(newServiceRulesContainer);
-        if (franchiseName) {
-            addFranchiseConfig(franchiseName, includedFeesMap, serviceValueRules);
-        } else {
-            alert("Please enter a franchise name.");
-        }
+
+        const customFeeConfig = {
+             name: newCustomFeeNameInputElement.value.trim(),
+             type: newCustomFeeTypeElement.value,
+             value: parseNumberInput(newCustomFeeValueInputElement.value, 0),
+             enabled: newCustomFeeEnabledCheckbox.checked
+        };
+
+        if (!franchiseName) { alert("Please enter a franchise name."); return; }
+
+        const configData = {
+            franchiseName: franchiseName,
+            includedFees: includedFeesMap,
+            royaltyRate: parseNumberInput(newRoyaltyRateInputElement.value, defaultRatesAndFees.royaltyRate),
+            marketingRate: parseNumberInput(newMarketingRateInputElement.value, defaultRatesAndFees.marketingRate),
+            softwareFeeValue: parseNumberInput(newSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
+            callCenterFeeValue: parseNumberInput(newCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
+            callCenterExtraFeeValue: parseNumberInput(newCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
+            customFeeConfig: customFeeConfig,
+            serviceValueRules: serviceValueRules
+        };
+        addFranchiseConfig(configData);
     });
 
     franchiseSelectElement.addEventListener('change', (event) => {
@@ -657,9 +793,9 @@ document.addEventListener('DOMContentLoaded', () => {
             currentCalculationState.fileData = [];
             currentCalculationState.totalValue = 0;
             currentCalculationState.metrics = { pets: 0, services: 0 };
-            currentCalculationState.calculationRows = generateCalculationRows();
+            currentCalculationState.calculationRows = generateCalculationRows(); // Gera linhas com base na config
             updateMetrics();
-            updateCalculationTableDOM();
+            updateCalculationTableDOM(); // Renderiza a tabela
             toggleCalculationFields(true);
         } else {
             resetCalculationSection();
@@ -668,8 +804,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     reportMonthSelectElement.addEventListener('change', (event) => { currentCalculationState.month = event.target.value; });
     fileInputElement.addEventListener('change', handleFileUpload);
-    royaltyRateInputElement.addEventListener('change', (event) => { if (currentCalculationState.selectedFranchiseName) { currentCalculationState.royaltyRate = parseCurrency(event.target.value) || 0; updateCalculationTableDOM(); } });
-    marketingRateInputElement.addEventListener('change', (event) => { if (currentCalculationState.selectedFranchiseName) { currentCalculationState.marketingRate = parseCurrency(event.target.value) || 0; updateCalculationTableDOM(); } });
     addCalculationRowButtonElement.addEventListener('click', addCalculationRowUI);
 
     calculationTbodyElement.addEventListener('change', (event) => {
@@ -679,11 +813,17 @@ document.addEventListener('DOMContentLoaded', () => {
          const rowIndex = parseInt(tableRowElement.dataset.index);
          if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) return;
          const rowData = currentCalculationState.calculationRows[rowIndex];
-         if (targetElement.classList.contains('item-name')) { rowData.Item = targetElement.value; }
-         else if (targetElement.classList.contains('description')) { rowData.Description = targetElement.value; }
-         else if (targetElement.classList.contains('qty')) { rowData.Qty = targetElement.value; targetElement.classList.toggle('red-text', (parseFloat(targetElement.value) || 0) === 0 && !rowData.fixed); }
-         else if (targetElement.classList.contains('unit-price')) { rowData.Unit_price = targetElement.value; }
+
+         // Apenas permite editar Qty de Call Center Extra e linhas manuais
+         if (targetElement.classList.contains('qty') && (rowData.Item === "Call Center Fee Extra" || !rowData.fixed)) {
+             rowData.Qty = targetElement.value;
+             targetElement.classList.toggle('red-text', (parseFloat(targetElement.value) || 0) === 0);
+         }
+         // Apenas permite editar Descrição e Preço Unitário de linhas manuais
+         else if (targetElement.classList.contains('description') && !rowData.fixed) { rowData.Description = targetElement.value; }
+         else if (targetElement.classList.contains('unit-price') && !rowData.fixed) { rowData.Unit_price = targetElement.value; }
          else if (targetElement.classList.contains('verified')) { rowData.verified = targetElement.checked; }
+
          calculateAndDisplayTotals();
      });
 
@@ -702,6 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
     fetchFranchiseConfigs();
     resetCalculationSection();
+    resetNewFeeInputs(); // Garante valores padrão no form de adicionar
     console.log("Page initialization scripts running.");
 
 });
