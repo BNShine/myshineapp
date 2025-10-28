@@ -44,8 +44,8 @@ const getDefaultServiceRules = () => ([
 const defaultRatesAndFees = {
     royaltyRate: 6.0,
     marketingRate: 1.0,
-    hasMinRoyaltyFee: false, // Novo
-    minRoyaltyFeeValue: 0, // Novo
+    hasMinRoyaltyFee: false,
+    minRoyaltyFeeValue: 0,
     softwareFeeValue: 350.00,
     callCenterFeeValue: 1200.00,
     callCenterExtraFeeValue: 600.00,
@@ -53,7 +53,7 @@ const defaultRatesAndFees = {
     customFeesConfig: [],
     hasLoan: false,
     loanCurrentInstallment: 0,
-    loanTotalInstallments: 0,
+    loanTotalInstallments: 0, // Novo
     loanValue: 0
 };
 
@@ -72,9 +72,9 @@ export default async function handler(request, response) {
         const expectedHeaders = [
             'FranchiseName', ...Object.values(feeItemToColumnMap),
             'RoyaltyRate', 'MarketingRate',
-            'HasMinRoyaltyFee', 'MinRoyaltyFeeValue', // Novos campos Royalty Mínimo
+            'HasMinRoyaltyFee', 'MinRoyaltyFeeValue',
             'SoftwareFeeValue', 'CallCenterFeeValue', 'CallCenterExtraFeeValue', 'ExtraVehicles',
-            'HasLoan', 'LoanCurrentInstallment', 'LoanTotalInstallments', 'LoanValue',
+            'HasLoan', 'LoanCurrentInstallment', 'LoanTotalInstallments', 'LoanValue', // Campos Loan atualizados
             'CustomFeesConfig', 'ServiceValueRules'
         ];
 
@@ -108,15 +108,15 @@ export default async function handler(request, response) {
                     franchiseName: row.get('FranchiseName'),
                     royaltyRate: parseNumber(row.get('RoyaltyRate'), defaultRatesAndFees.royaltyRate),
                     marketingRate: parseNumber(row.get('MarketingRate'), defaultRatesAndFees.marketingRate),
-                    hasMinRoyaltyFee: parseBoolean(row.get('HasMinRoyaltyFee')), // Lê Min Royalty
-                    minRoyaltyFeeValue: parseNumber(row.get('MinRoyaltyFeeValue'), defaultRatesAndFees.minRoyaltyFeeValue), // Lê Min Royalty Value
+                    hasMinRoyaltyFee: parseBoolean(row.get('HasMinRoyaltyFee')),
+                    minRoyaltyFeeValue: parseNumber(row.get('MinRoyaltyFeeValue'), defaultRatesAndFees.minRoyaltyFeeValue),
                     softwareFeeValue: parseNumber(row.get('SoftwareFeeValue'), defaultRatesAndFees.softwareFeeValue),
                     callCenterFeeValue: parseNumber(row.get('CallCenterFeeValue'), defaultRatesAndFees.callCenterFeeValue),
                     callCenterExtraFeeValue: parseNumber(row.get('CallCenterExtraFeeValue'), defaultRatesAndFees.callCenterExtraFeeValue),
                     extraVehicles: parseIntStrict(row.get('ExtraVehicles'), defaultRatesAndFees.extraVehicles),
                     hasLoan: parseBoolean(row.get('HasLoan')),
                     loanCurrentInstallment: parseIntStrict(row.get('LoanCurrentInstallment'), defaultRatesAndFees.loanCurrentInstallment),
-                    loanTotalInstallments: parseIntStrict(row.get('LoanTotalInstallments'), defaultRatesAndFees.loanTotalInstallments),
+                    loanTotalInstallments: parseIntStrict(row.get('LoanTotalInstallments'), defaultRatesAndFees.loanTotalInstallments), // Lê Total
                     loanValue: parseNumber(row.get('LoanValue'), defaultRatesAndFees.loanValue)
                 };
                 Object.values(feeItemToColumnMap).forEach(colName => { configData[colName] = parseBoolean(row.get(colName)); });
@@ -138,9 +138,9 @@ export default async function handler(request, response) {
 
         if (request.method === 'POST') {
             const { franchiseName, includedFees, serviceValueRules, royaltyRate, marketingRate,
-                    hasMinRoyaltyFee, minRoyaltyFeeValue, // Novos campos Royalty Min
+                    hasMinRoyaltyFee, minRoyaltyFeeValue,
                     softwareFeeValue, callCenterFeeValue, callCenterExtraFeeValue, extraVehicles,
-                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue,
+                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue, // Campos loan atualizados
                     customFeesConfig } = request.body;
 
             if (!franchiseName || !includedFees || !Array.isArray(serviceValueRules) || !Array.isArray(customFeesConfig)) {
@@ -154,15 +154,15 @@ export default async function handler(request, response) {
                 FranchiseName: franchiseName.trim(),
                 RoyaltyRate: parseNumber(royaltyRate, defaultRatesAndFees.royaltyRate),
                 MarketingRate: parseNumber(marketingRate, defaultRatesAndFees.marketingRate),
-                HasMinRoyaltyFee: formatBoolean(hasMinRoyaltyFee), // Salva Min Royalty
-                MinRoyaltyFeeValue: parseNumber(minRoyaltyFeeValue, defaultRatesAndFees.minRoyaltyFeeValue), // Salva Min Royalty Value
+                HasMinRoyaltyFee: formatBoolean(hasMinRoyaltyFee),
+                MinRoyaltyFeeValue: parseNumber(minRoyaltyFeeValue, defaultRatesAndFees.minRoyaltyFeeValue),
                 SoftwareFeeValue: parseNumber(softwareFeeValue, defaultRatesAndFees.softwareFeeValue),
                 CallCenterFeeValue: parseNumber(callCenterFeeValue, defaultRatesAndFees.callCenterFeeValue),
                 CallCenterExtraFeeValue: parseNumber(callCenterExtraFeeValue, defaultRatesAndFees.callCenterExtraFeeValue),
                 ExtraVehicles: parseIntStrict(extraVehicles, defaultRatesAndFees.extraVehicles),
                 HasLoan: formatBoolean(hasLoan),
                 LoanCurrentInstallment: parseIntStrict(loanCurrentInstallment, defaultRatesAndFees.loanCurrentInstallment),
-                LoanTotalInstallments: parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments),
+                LoanTotalInstallments: parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments), // Salva Total
                 LoanValue: parseNumber(loanValue, defaultRatesAndFees.loanValue)
             };
             Object.keys(feeItemToColumnMap).forEach(item => { newRowData[feeItemToColumnMap[item]] = formatBoolean(includedFees[item]); });
@@ -177,15 +177,15 @@ export default async function handler(request, response) {
                  franchiseName: addedRowGSheet.get('FranchiseName'),
                  royaltyRate: parseNumber(addedRowGSheet.get('RoyaltyRate')),
                  marketingRate: parseNumber(addedRowGSheet.get('MarketingRate')),
-                 hasMinRoyaltyFee: parseBoolean(addedRowGSheet.get('HasMinRoyaltyFee')), // Retorna Min Royalty
-                 minRoyaltyFeeValue: parseNumber(addedRowGSheet.get('MinRoyaltyFeeValue')), // Retorna Min Royalty Value
+                 hasMinRoyaltyFee: parseBoolean(addedRowGSheet.get('HasMinRoyaltyFee')),
+                 minRoyaltyFeeValue: parseNumber(addedRowGSheet.get('MinRoyaltyFeeValue')),
                  softwareFeeValue: parseNumber(addedRowGSheet.get('SoftwareFeeValue')),
                  callCenterFeeValue: parseNumber(addedRowGSheet.get('CallCenterFeeValue')),
                  callCenterExtraFeeValue: parseNumber(addedRowGSheet.get('CallCenterExtraFeeValue')),
                  extraVehicles: parseIntStrict(addedRowGSheet.get('ExtraVehicles')),
                  hasLoan: parseBoolean(addedRowGSheet.get('HasLoan')),
                  loanCurrentInstallment: parseIntStrict(addedRowGSheet.get('LoanCurrentInstallment')),
-                 loanTotalInstallments: parseIntStrict(addedRowGSheet.get('LoanTotalInstallments')),
+                 loanTotalInstallments: parseIntStrict(addedRowGSheet.get('LoanTotalInstallments')), // Retorna Total
                  loanValue: parseNumber(addedRowGSheet.get('LoanValue')),
                  serviceValueRules: serviceValueRules,
                  customFeesConfig: customFeesConfig
@@ -197,9 +197,9 @@ export default async function handler(request, response) {
 
         if (request.method === 'PUT') {
             const { originalFranchiseName, newFranchiseName, includedFees, serviceValueRules,
-                    royaltyRate, marketingRate, hasMinRoyaltyFee, minRoyaltyFeeValue, // Novos campos Royalty Min
+                    royaltyRate, marketingRate, hasMinRoyaltyFee, minRoyaltyFeeValue,
                     softwareFeeValue, callCenterFeeValue, callCenterExtraFeeValue, extraVehicles,
-                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue,
+                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue, // Campos loan atualizados
                     customFeesConfig } = request.body;
              if (!originalFranchiseName || !newFranchiseName || !includedFees || !Array.isArray(serviceValueRules) || !Array.isArray(customFeesConfig)) {
                  return response.status(400).json({ success: false, message: 'Bad Request: Missing fields for update.' });
@@ -216,15 +216,15 @@ export default async function handler(request, response) {
             rowToUpdate.set('FranchiseName', newFranchiseName.trim());
             rowToUpdate.set('RoyaltyRate', parseNumber(royaltyRate, defaultRatesAndFees.royaltyRate));
             rowToUpdate.set('MarketingRate', parseNumber(marketingRate, defaultRatesAndFees.marketingRate));
-            rowToUpdate.set('HasMinRoyaltyFee', formatBoolean(hasMinRoyaltyFee)); // Salva Min Royalty
-            rowToUpdate.set('MinRoyaltyFeeValue', parseNumber(minRoyaltyFeeValue, defaultRatesAndFees.minRoyaltyFeeValue)); // Salva Min Royalty Value
+            rowToUpdate.set('HasMinRoyaltyFee', formatBoolean(hasMinRoyaltyFee));
+            rowToUpdate.set('MinRoyaltyFeeValue', parseNumber(minRoyaltyFeeValue, defaultRatesAndFees.minRoyaltyFeeValue));
             rowToUpdate.set('SoftwareFeeValue', parseNumber(softwareFeeValue, defaultRatesAndFees.softwareFeeValue));
             rowToUpdate.set('CallCenterFeeValue', parseNumber(callCenterFeeValue, defaultRatesAndFees.callCenterFeeValue));
             rowToUpdate.set('CallCenterExtraFeeValue', parseNumber(callCenterExtraFeeValue, defaultRatesAndFees.callCenterExtraFeeValue));
             rowToUpdate.set('ExtraVehicles', parseIntStrict(extraVehicles, defaultRatesAndFees.extraVehicles));
             rowToUpdate.set('HasLoan', formatBoolean(hasLoan));
             rowToUpdate.set('LoanCurrentInstallment', parseIntStrict(loanCurrentInstallment, defaultRatesAndFees.loanCurrentInstallment));
-            rowToUpdate.set('LoanTotalInstallments', parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments));
+            rowToUpdate.set('LoanTotalInstallments', parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments)); // Salva Total
             rowToUpdate.set('LoanValue', parseNumber(loanValue, defaultRatesAndFees.loanValue));
             Object.keys(feeItemToColumnMap).forEach(item => { rowToUpdate.set(feeItemToColumnMap[item], formatBoolean(includedFees[item])); });
             try {
@@ -238,15 +238,15 @@ export default async function handler(request, response) {
                  franchiseName: rowToUpdate.get('FranchiseName'),
                  royaltyRate: parseNumber(rowToUpdate.get('RoyaltyRate')),
                  marketingRate: parseNumber(rowToUpdate.get('MarketingRate')),
-                 hasMinRoyaltyFee: parseBoolean(rowToUpdate.get('HasMinRoyaltyFee')), // Retorna Min Royalty
-                 minRoyaltyFeeValue: parseNumber(rowToUpdate.get('MinRoyaltyFeeValue')), // Retorna Min Royalty Value
+                 hasMinRoyaltyFee: parseBoolean(rowToUpdate.get('HasMinRoyaltyFee')),
+                 minRoyaltyFeeValue: parseNumber(rowToUpdate.get('MinRoyaltyFeeValue')),
                  softwareFeeValue: parseNumber(rowToUpdate.get('SoftwareFeeValue')),
                  callCenterFeeValue: parseNumber(rowToUpdate.get('CallCenterFeeValue')),
                  callCenterExtraFeeValue: parseNumber(rowToUpdate.get('CallCenterExtraFeeValue')),
                  extraVehicles: parseIntStrict(rowToUpdate.get('ExtraVehicles')),
                  hasLoan: parseBoolean(rowToUpdate.get('HasLoan')),
                  loanCurrentInstallment: parseIntStrict(rowToUpdate.get('LoanCurrentInstallment')),
-                 loanTotalInstallments: parseIntStrict(rowToUpdate.get('LoanTotalInstallments')),
+                 loanTotalInstallments: parseIntStrict(rowToUpdate.get('LoanTotalInstallments')), // Retorna Total
                  loanValue: parseNumber(rowToUpdate.get('LoanValue')),
                  serviceValueRules: serviceValueRules,
                  customFeesConfig: customFeesConfig
