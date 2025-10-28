@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function updateFranchiseConfig(configData) {
+     async function updateFranchiseConfig(configData) {
          const overlayId = 'register-section-loader';
          showLoadingOverlayById(overlayId);
          if(editModalSaveButtonElement) editModalSaveButtonElement.disabled = true;
@@ -804,39 +804,79 @@ document.addEventListener('DOMContentLoaded', () => {
         editLoanFormElement.reset();
     }
 
-    function handleSaveLoanChanges() {
+     function handleSaveLoanChanges() {
         const franchiseNameToUpdate = editLoanFranchiseNameHiddenInput.value;
         const configToUpdate = franchisesConfiguration.find(f => f.franchiseName === franchiseNameToUpdate);
-        if (!configToUpdate) { showToast("Error: Could not find franchise to update loan.", "error"); return; }
+
+        if (!configToUpdate) {
+            showToast("Error: Could not find franchise to update loan.", "error");
+            return;
+        }
+
         const newCurrent = parseIntInput(modalLoanCurrentInstallmentInput.value, 0);
         const newTotal = parseIntInput(modalLoanTotalInstallmentsInput.value, 0);
         const newValue = parseNumberInput(modalLoanValueInput.value, 0);
+
         const updatedConfigData = {
-             ...configToUpdate,
              originalFranchiseName: franchiseNameToUpdate,
              newFranchiseName: franchiseNameToUpdate,
+             includedFees: extractIncludedFeesMap(configToUpdate),
+             serviceValueRules: configToUpdate.serviceValueRules || defaultServiceValueRules,
+             customFeesConfig: configToUpdate.customFeesConfig || [],
+             royaltyRate: configToUpdate.royaltyRate,
+             marketingRate: configToUpdate.marketingRate,
+             hasMinRoyaltyFee: configToUpdate.hasMinRoyaltyFee,
+             minRoyaltyFeeValue: configToUpdate.minRoyaltyFeeValue,
+             softwareFeeValue: configToUpdate.softwareFeeValue,
+             callCenterFeeValue: configToUpdate.callCenterFeeValue,
+             callCenterExtraFeeValue: configToUpdate.callCenterExtraFeeValue,
+             extraVehicles: configToUpdate.extraVehicles,
              hasLoan: true,
              loanCurrentInstallment: newCurrent,
              loanTotalInstallments: newTotal,
              loanValue: newValue
         };
+
+        function extractIncludedFeesMap(config) {
+            const map = {};
+            Object.keys(feeItemToApiFieldMap).forEach(feeItem => {
+                const apiField = feeItemToApiFieldMap[feeItem];
+                map[feeItem] = config[apiField] || false;
+            });
+            return map;
+        }
+
         updateFranchiseConfig(updatedConfigData);
     }
+
 
      function handleRemoveLoan() {
          const franchiseNameToUpdate = editLoanFranchiseNameHiddenInput.value;
          const configToUpdate = franchisesConfiguration.find(f => f.franchiseName === franchiseNameToUpdate);
          if (!configToUpdate) { showToast("Error: Could not find franchise to remove loan.", "error"); return; }
          if (!confirm(`Are you sure you want to remove the loan configuration for ${franchiseNameToUpdate}?`)) { return; }
+
          const updatedConfigData = {
-              ...configToUpdate,
+              ...configToUpdate, // Include all existing fields
               originalFranchiseName: franchiseNameToUpdate,
               newFranchiseName: franchiseNameToUpdate,
+              includedFees: extractIncludedFeesMap(configToUpdate), // Make sure includedFees is present
               hasLoan: false,
               loanCurrentInstallment: 0,
               loanTotalInstallments: 0,
               loanValue: 0
          };
+
+         // Helper function needed here as well
+         function extractIncludedFeesMap(config) {
+             const map = {};
+             Object.keys(feeItemToApiFieldMap).forEach(feeItem => {
+                 const apiField = feeItemToApiFieldMap[feeItem];
+                 map[feeItem] = config[apiField] || false;
+             });
+             return map;
+         }
+
          updateFranchiseConfig(updatedConfigData);
      }
 
