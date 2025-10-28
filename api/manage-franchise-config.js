@@ -1,4 +1,3 @@
-// api/manage-franchise-config.js
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import dotenv from 'dotenv';
@@ -48,60 +47,79 @@ const defaultRatesAndFees = {
     callCenterFeeValue: 1200.00,
     callCenterExtraFeeValue: 600.00,
     extraVehicles: 0,
-    customFeesConfig: [], // Agora um array
-    hasLoan: false, // Novo
-    loanInstallment: 0, // Novo
-    loanValue: 0 // Novo
+    customFeesConfig: [],
+    hasLoan: false,
+    loanInstallment: 0,
+    loanValue: 0
 };
 
-export default async function handler(req, res) {
-    const logPrefix = `[API ${req.method} ${new Date().toISOString()}]`;
+export default async function handler(request, response) { // Changed req, res to request, response
+    const logPrefix = `[API ${request.method} ${new Date().toISOString()}]`;
     console.log(`${logPrefix} Received request for /api/manage-franchise-config.`);
 
-    const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
+    const document = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth); // Changed doc to document
 
     try {
-        await doc.loadInfo();
-        if (!doc.title) { throw new Error('Failed to load spreadsheet information.'); }
-        console.log(`${logPrefix} Spreadsheet loaded: "${doc.title}".`);
+        await document.loadInfo();
+        if (!document.title) {
+             throw new Error('Failed to load spreadsheet information. Verify Service Account credentials and Sheet permissions.');
+        }
+        const sheetTitles = document.sheetTitles || [];
+        console.log(`${logPrefix} Spreadsheet loaded: "${document.title}". Available sheets: ${sheetTitles.join(', ')}`);
 
-        let sheet = doc.sheetsByTitle[SHEET_NAME_FRANCHISE_CONFIG];
+        let sheet = document.sheetsByTitle[SHEET_NAME_FRANCHISE_CONFIG];
         const expectedHeaders = [
             'FranchiseName', ...Object.values(feeItemToColumnMap),
             'RoyaltyRate', 'MarketingRate', 'SoftwareFeeValue', 'CallCenterFeeValue',
             'CallCenterExtraFeeValue', 'ExtraVehicles',
-            'HasLoan', 'LoanInstallment', 'LoanValue', // Novos campos Loan
-            'CustomFeesConfig', // Mudou para plural
+            'HasLoan', 'LoanInstallment', 'LoanValue',
+            'CustomFeesConfig',
             'ServiceValueRules'
         ];
 
         if (!sheet) {
-            if (req.method === 'GET') { return res.status(200).json([]); }
+            if (request.method === 'GET') {
+                console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Returning [] for GET.`);
+                return response.status(200).json([]);
+            }
+             console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Attempting to create...`);
              try {
-                 sheet = await doc.addSheet({ title: SHEET_NAME_FRANCHISE_CONFIG, headerValues: expectedHeaders });
-                 console.log(`${logPrefix} Sheet created.`);
-             } catch (creationError) { throw new Error(`Failed to create sheet: ${creationError.message}`); }
+                 sheet = await document.addSheet({ title: SHEET_NAME_FRANCHISE_CONFIG, headerValues: expectedHeaders });
+                 console.log(`${logPrefix} Sheet created successfully.`);
+             } catch (creationError) {
+                  console.error(`${logPrefix} FAILED to create sheet:`, creationError);
+                  throw new Error(`Failed to create necessary sheet '${SHEET_NAME_FRANCHISE_CONFIG}': ${creationError.message}`);
+             }
         } else {
+            console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" found. Verifying headers...`);
             await sheet.loadHeaderRow();
             const currentHeaders = sheet.headerValues || [];
+            console.log(`${logPrefix} Existing headers: ${currentHeaders.join(', ')}`);
             let headersOk = expectedHeaders.every(header => currentHeaders.includes(header));
              if (!headersOk || currentHeaders.length < expectedHeaders.length) {
+                 console.warn(`${logPrefix} Headers mismatch or incomplete! Attempting to add missing headers...`);
                  const missingHeaders = expectedHeaders.filter(header => !currentHeaders.includes(header));
                  if (missingHeaders.length > 0) {
                      try {
-                         await sheet.setHeaderRow([...currentHeaders, ...missingHeaders]);
+                         const updatedHeaders = [...currentHeaders, ...missingHeaders];
+                         await sheet.setHeaderRow(updatedHeaders);
                          await sheet.loadHeaderRow();
-                         console.log(`${logPrefix} Added missing headers: ${missingHeaders.join(', ')}.`);
-                     } catch (headerError) { console.error(`${logPrefix} FAILED to add missing headers:`, headerError); }
+                         console.log(`${logPrefix} Added missing headers. New headers: ${sheet.headerValues.join(', ')}`);
+                     } catch (headerError) {
+                          console.error(`${logPrefix} FAILED to add missing headers:`, headerError);
+                          console.warn(`${logPrefix} Proceeding with potentially incomplete headers.`);
+                     }
                  }
-             } else { console.log(`${logPrefix} Headers OK.`); }
+             } else {
+                 console.log(`${logPrefix} Headers OK.`);
+             }
         }
 
-        if (req.method === 'GET') {
+        if (request.method === 'GET') {
             await sheet.loadHeaderRow();
             const rows = await sheet.getRows();
-            const configs = rows.map(row => {
-                const config = {
+            const configurations = rows.map(row => { // Changed configs to configurations
+                const configData = { // Changed config to configData
                     franchiseName: row.get('FranchiseName'),
                     royaltyRate: parseNumber(row.get('RoyaltyRate'), defaultRatesAndFees.royaltyRate),
                     marketingRate: parseNumber(row.get('MarketingRate'), defaultRatesAndFees.marketingRate),
@@ -109,40 +127,39 @@ export default async function handler(req, res) {
                     callCenterFeeValue: parseNumber(row.get('CallCenterFeeValue'), defaultRatesAndFees.callCenterFeeValue),
                     callCenterExtraFeeValue: parseNumber(row.get('CallCenterExtraFeeValue'), defaultRatesAndFees.callCenterExtraFeeValue),
                     extraVehicles: parseIntStrict(row.get('ExtraVehicles'), defaultRatesAndFees.extraVehicles),
-                    hasLoan: parseBoolean(row.get('HasLoan')), // Lê HasLoan
-                    loanInstallment: parseIntStrict(row.get('LoanInstallment'), defaultRatesAndFees.loanInstallment), // Lê LoanInstallment
-                    loanValue: parseNumber(row.get('LoanValue'), defaultRatesAndFees.loanValue) // Lê LoanValue
+                    hasLoan: parseBoolean(row.get('HasLoan')),
+                    loanInstallment: parseIntStrict(row.get('LoanInstallment'), defaultRatesAndFees.loanInstallment),
+                    loanValue: parseNumber(row.get('LoanValue'), defaultRatesAndFees.loanValue)
                 };
-                Object.values(feeItemToColumnMap).forEach(colName => { config[colName] = parseBoolean(row.get(colName)); });
+                Object.values(feeItemToColumnMap).forEach(colName => { configData[colName] = parseBoolean(row.get(colName)); });
 
                 let rules = getDefaultServiceRules();
                 const rulesJsonString = row.get('ServiceValueRules');
-                if (rulesJsonString) { try { const parsed = JSON.parse(rulesJsonString); if (Array.isArray(parsed)) rules = parsed; } catch (e)
-                config.serviceValueRules = rules;
+                if (rulesJsonString) { try { const parsed = JSON.parse(rulesJsonString); if (Array.isArray(parsed)) rules = parsed; } catch (e) { console.warn(`Invalid Service Rules JSON for ${configData.franchiseName}`); } }
+                configData.serviceValueRules = rules;
 
-                let customFees = []; // Padrão é array vazio
-                const customFeesJsonString = row.get('CustomFeesConfig'); // Lê a coluna plural
-                if (customFeesJsonString) { try { const parsed = JSON.parse(customFeesJsonString); if (Array.isArray(parsed)) customFees = parsed; } catch (e) { console.warn(`Invalid Custom Fees JSON for ${config.franchiseName}`); } }
-                config.customFeesConfig = customFees; // Guarda o array
+                let customFees = [];
+                const customFeesJsonString = row.get('CustomFeesConfig');
+                if (customFeesJsonString) { try { const parsed = JSON.parse(customFeesJsonString); if (Array.isArray(parsed)) customFees = parsed; } catch (e) { console.warn(`Invalid Custom Fees JSON for ${configData.franchiseName}`); } }
+                configData.customFeesConfig = customFees;
 
-                return config.franchiseName ? config : null;
+                return configData.franchiseName ? configData : null;
             }).filter(Boolean);
-            return res.status(200).json(configs);
+            console.log(`${logPrefix} Sending ${configurations.length} configurations.`);
+            return response.status(200).json(configurations);
         }
 
-        if (req.method === 'POST') {
+        if (request.method === 'POST') {
             const { franchiseName, includedFees, serviceValueRules, royaltyRate, marketingRate,
                     softwareFeeValue, callCenterFeeValue, callCenterExtraFeeValue, extraVehicles,
-                    hasLoan, loanInstallment, loanValue, // Novos campos loan
-                    customFeesConfig // Recebe o array de custom fees
-                   } = req.body;
+                    hasLoan, loanInstallment, loanValue, customFeesConfig } = request.body;
 
             if (!franchiseName || !includedFees || !Array.isArray(serviceValueRules) || !Array.isArray(customFeesConfig)) {
-                 return res.status(400).json({ success: false, message: 'Bad Request: Missing fields or invalid format.' });
+                 return response.status(400).json({ success: false, message: 'Bad Request: Missing fields or invalid format.' });
             }
             await sheet.loadHeaderRow(); const rows = await sheet.getRows();
             const existing = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
-            if (existing) { return res.status(409).json({ success: false, message: `Conflict: Franchise exists.` }); }
+            if (existing) { return response.status(409).json({ success: false, message: `Conflict: Franchise exists.` }); }
 
             const newRowData = {
                 FranchiseName: franchiseName.trim(),
@@ -152,19 +169,19 @@ export default async function handler(req, res) {
                 CallCenterFeeValue: parseNumber(callCenterFeeValue, defaultRatesAndFees.callCenterFeeValue),
                 CallCenterExtraFeeValue: parseNumber(callCenterExtraFeeValue, defaultRatesAndFees.callCenterExtraFeeValue),
                 ExtraVehicles: parseIntStrict(extraVehicles, defaultRatesAndFees.extraVehicles),
-                HasLoan: formatBoolean(hasLoan), // Salva HasLoan
-                LoanInstallment: parseIntStrict(loanInstallment, defaultRatesAndFees.loanInstallment), // Salva LoanInstallment
-                LoanValue: parseNumber(loanValue, defaultRatesAndFees.loanValue) // Salva LoanValue
+                HasLoan: formatBoolean(hasLoan),
+                LoanInstallment: parseIntStrict(loanInstallment, defaultRatesAndFees.loanInstallment),
+                LoanValue: parseNumber(loanValue, defaultRatesAndFees.loanValue)
             };
             Object.keys(feeItemToColumnMap).forEach(item => { newRowData[feeItemToColumnMap[item]] = formatBoolean(includedFees[item]); });
             try {
                 newRowData['ServiceValueRules'] = JSON.stringify(serviceValueRules);
-                newRowData['CustomFeesConfig'] = JSON.stringify(customFeesConfig); // Salva o array JSON
-            } catch (e) { return res.status(500).json({ success: false, message: 'Internal Error: Could not process config data.' }); }
+                newRowData['CustomFeesConfig'] = JSON.stringify(customFeesConfig);
+            } catch (e) { return response.status(500).json({ success: false, message: 'Internal Error: Could not process config data.' }); }
 
             const addedRowGSheet = await sheet.addRow(newRowData);
             await sheet.loadHeaderRow();
-            const addedConfig = {
+            const addedConfigData = { // Changed addedConfig to addedConfigData
                  franchiseName: addedRowGSheet.get('FranchiseName'),
                  royaltyRate: parseNumber(addedRowGSheet.get('RoyaltyRate')),
                  marketingRate: parseNumber(addedRowGSheet.get('MarketingRate')),
@@ -178,28 +195,26 @@ export default async function handler(req, res) {
                  serviceValueRules: serviceValueRules,
                  customFeesConfig: customFeesConfig
             };
-            Object.values(feeItemToColumnMap).forEach(col => { addedConfig[col] = parseBoolean(addedRowGSheet.get(col)); });
-
-            return res.status(201).json({ success: true, message: 'Franchise added.', config: addedConfig });
+            Object.values(feeItemToColumnMap).forEach(col => { addedConfigData[col] = parseBoolean(addedRowGSheet.get(col)); });
+            console.log(`${logPrefix} Franchise added successfully.`);
+            return response.status(201).json({ success: true, message: 'Franchise added.', config: addedConfigData });
         }
 
-        if (req.method === 'PUT') {
+        if (request.method === 'PUT') {
             const { originalFranchiseName, newFranchiseName, includedFees, serviceValueRules,
                     royaltyRate, marketingRate, softwareFeeValue, callCenterFeeValue,
                     callCenterExtraFeeValue, extraVehicles,
-                    hasLoan, loanInstallment, loanValue, // Novos campos loan
-                    customFeesConfig // Recebe o array
-                  } = req.body;
+                    hasLoan, loanInstallment, loanValue, customFeesConfig } = request.body;
              if (!originalFranchiseName || !newFranchiseName || !includedFees || !Array.isArray(serviceValueRules) || !Array.isArray(customFeesConfig)) {
-                 return res.status(400).json({ success: false, message: 'Bad Request: Missing fields for update.' });
+                 return response.status(400).json({ success: false, message: 'Bad Request: Missing fields for update.' });
              }
             await sheet.loadHeaderRow(); const rows = await sheet.getRows();
             const rowToUpdate = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === originalFranchiseName.trim().toLowerCase());
-            if (!rowToUpdate) { return res.status(404).json({ success: false, message: `Not Found: Franchise "${originalFranchiseName}".` }); }
+            if (!rowToUpdate) { return response.status(404).json({ success: false, message: `Not Found: Franchise "${originalFranchiseName}".` }); }
             const normalizedNewName = newFranchiseName.trim().toLowerCase();
             if (originalFranchiseName.trim().toLowerCase() !== normalizedNewName) {
                  const conflict = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === normalizedNewName && row.rowNumber !== rowToUpdate.rowNumber);
-                 if (conflict) { return res.status(409).json({ success: false, message: `Conflict: Name "${newFranchiseName}" exists.` }); }
+                 if (conflict) { return response.status(409).json({ success: false, message: `Conflict: Name "${newFranchiseName}" exists.` }); }
             }
 
             rowToUpdate.set('FranchiseName', newFranchiseName.trim());
@@ -209,18 +224,18 @@ export default async function handler(req, res) {
             rowToUpdate.set('CallCenterFeeValue', parseNumber(callCenterFeeValue, defaultRatesAndFees.callCenterFeeValue));
             rowToUpdate.set('CallCenterExtraFeeValue', parseNumber(callCenterExtraFeeValue, defaultRatesAndFees.callCenterExtraFeeValue));
             rowToUpdate.set('ExtraVehicles', parseIntStrict(extraVehicles, defaultRatesAndFees.extraVehicles));
-            rowToUpdate.set('HasLoan', formatBoolean(hasLoan)); // Salva HasLoan
-            rowToUpdate.set('LoanInstallment', parseIntStrict(loanInstallment, defaultRatesAndFees.loanInstallment)); // Salva LoanInstallment
-            rowToUpdate.set('LoanValue', parseNumber(loanValue, defaultRatesAndFees.loanValue)); // Salva LoanValue
+            rowToUpdate.set('HasLoan', formatBoolean(hasLoan));
+            rowToUpdate.set('LoanInstallment', parseIntStrict(loanInstallment, defaultRatesAndFees.loanInstallment));
+            rowToUpdate.set('LoanValue', parseNumber(loanValue, defaultRatesAndFees.loanValue));
             Object.keys(feeItemToColumnMap).forEach(item => { rowToUpdate.set(feeItemToColumnMap[item], formatBoolean(includedFees[item])); });
             try {
                 rowToUpdate.set('ServiceValueRules', JSON.stringify(serviceValueRules));
-                rowToUpdate.set('CustomFeesConfig', JSON.stringify(customFeesConfig)); // Salva o array
-             } catch (e) { return res.status(500).json({ success: false, message: 'Internal Error: Could not process config data for update.' }); }
+                rowToUpdate.set('CustomFeesConfig', JSON.stringify(customFeesConfig));
+             } catch (e) { return response.status(500).json({ success: false, message: 'Internal Error: Could not process config data for update.' }); }
 
             await rowToUpdate.save();
             await sheet.loadHeaderRow();
-            const updatedConfig = {
+            const updatedConfigData = { // Changed updatedConfig to updatedConfigData
                  franchiseName: rowToUpdate.get('FranchiseName'),
                  royaltyRate: parseNumber(rowToUpdate.get('RoyaltyRate')),
                  marketingRate: parseNumber(rowToUpdate.get('MarketingRate')),
@@ -234,28 +249,43 @@ export default async function handler(req, res) {
                  serviceValueRules: serviceValueRules,
                  customFeesConfig: customFeesConfig
             };
-            Object.values(feeItemToColumnMap).forEach(col => { updatedConfig[col] = parseBoolean(rowToUpdate.get(col)); });
-
-            return res.status(200).json({ success: true, message: 'Franchise updated.', config: updatedConfig });
+            Object.values(feeItemToColumnMap).forEach(col => { updatedConfigData[col] = parseBoolean(rowToUpdate.get(col)); });
+            console.log(`${logPrefix} Franchise updated successfully.`);
+            return response.status(200).json({ success: true, message: 'Franchise updated.', config: updatedConfigData });
         }
 
-        if (req.method === 'DELETE') {
-            const { franchiseName } = req.body;
-            if (!franchiseName) { return res.status(400).json({ success: false, message: 'Bad Request: Name required.' }); }
+        if (request.method === 'DELETE') {
+            const { franchiseName } = request.body;
+            if (!franchiseName) { return response.status(400).json({ success: false, message: 'Bad Request: Name required.' }); }
             await sheet.loadHeaderRow(); const rows = await sheet.getRows();
             const rowToDelete = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
-            if (!rowToDelete) { return res.status(404).json({ success: false, message: `Not Found: Franchise "${franchiseName}".` }); }
+            if (!rowToDelete) { return response.status(404).json({ success: false, message: `Not Found: Franchise "${franchiseName}".` }); }
             await rowToDelete.delete();
-            return res.status(200).json({ success: true, message: `Franchise deleted.` });
+            console.log(`${logPrefix} Franchise deleted successfully.`);
+            return response.status(200).json({ success: true, message: `Franchise deleted.` });
         }
 
-        res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
-        return res.status(405).end(`Method ${req.method} Not Allowed`);
+        console.log(`${logPrefix} Method ${request.method} not allowed.`);
+        response.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
+        return response.status(405).end(`Method ${request.method} Not Allowed`);
 
     } catch (error) {
         console.error(`${logPrefix} CRITICAL ERROR:`, error);
-        let clientErrorMessage = 'An internal server error occurred.';
-        if (error.message)
-        return res.status(500).json({ success: false, message: clientErrorMessage });
+        let clientErrorMessage = 'An internal server error occurred while managing franchise configurations.';
+        // Corrected error message logic
+        if (error.message) {
+            if (error.message.includes('permission denied') || error.response?.status === 403) {
+                clientErrorMessage = 'Permission Denied: Check Service Account permissions on the Google Sheet (requires Editor access) and ensure Google Sheets API is enabled.';
+            } else if (error.message.includes('Failed to load spreadsheet information')) {
+                clientErrorMessage = error.message;
+            } else if (error.message.includes('Requested entity was not found') || error.response?.status === 404) {
+                 clientErrorMessage = `Google Sheet or Tab "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Verify SHEET_ID and tab name.`;
+            } else if (error.message.includes('sheet headers') || error.message.includes('sheet creation')) {
+                 clientErrorMessage = `Error processing sheet structure: ${error.message}`;
+            } else {
+                  clientErrorMessage = error.message; // Use the actual error message if not recognized
+            }
+        }
+        return response.status(500).json({ success: false, message: clientErrorMessage });
     }
 }
