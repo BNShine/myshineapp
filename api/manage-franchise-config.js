@@ -49,8 +49,8 @@ const defaultRatesAndFees = {
     extraVehicles: 0,
     customFeesConfig: [],
     hasLoan: false,
-    loanCurrentInstallment: 0, // Renomeado de loanInstallment
-    loanTotalInstallments: 0, // Novo
+    loanCurrentInstallment: 0,
+    loanTotalInstallments: 0,
     loanValue: 0
 };
 
@@ -62,42 +62,58 @@ export default async function handler(request, response) {
 
     try {
         await document.loadInfo();
-        if (!document.title) { throw new Error('Failed to load spreadsheet information.'); }
-        console.log(`${logPrefix} Spreadsheet loaded: "${document.title}".`);
+        if (!document.title) {
+             throw new Error('Failed to load spreadsheet information. Verify Service Account credentials and Sheet permissions.');
+        }
+        const sheetTitles = document.sheetTitles || [];
+        console.log(`${logPrefix} Spreadsheet loaded: "${document.title}". Available sheets: ${sheetTitles.join(', ')}`);
 
         let sheet = document.sheetsByTitle[SHEET_NAME_FRANCHISE_CONFIG];
         const expectedHeaders = [
             'FranchiseName', ...Object.values(feeItemToColumnMap),
             'RoyaltyRate', 'MarketingRate', 'SoftwareFeeValue', 'CallCenterFeeValue',
             'CallCenterExtraFeeValue', 'ExtraVehicles',
-            'HasLoan',
-            'LoanCurrentInstallment', // Renomeado
-            'LoanTotalInstallments', // Novo
-            'LoanValue',
+            'HasLoan', 'LoanCurrentInstallment', 'LoanTotalInstallments', 'LoanValue',
             'CustomFeesConfig',
             'ServiceValueRules'
         ];
 
         if (!sheet) {
-            if (request.method === 'GET') { return response.status(200).json([]); }
+            if (request.method === 'GET') {
+                console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Returning [] for GET.`);
+                return response.status(200).json([]);
+            }
+             console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Attempting to create...`);
              try {
                  sheet = await document.addSheet({ title: SHEET_NAME_FRANCHISE_CONFIG, headerValues: expectedHeaders });
-                 console.log(`${logPrefix} Sheet created.`);
-             } catch (creationError) { throw new Error(`Failed to create sheet: ${creationError.message}`); }
+                 console.log(`${logPrefix} Sheet created successfully.`);
+             } catch (creationError) {
+                  console.error(`${logPrefix} FAILED to create sheet:`, creationError);
+                  throw new Error(`Failed to create necessary sheet '${SHEET_NAME_FRANCHISE_CONFIG}': ${creationError.message}`);
+             }
         } else {
+            console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" found. Verifying headers...`);
             await sheet.loadHeaderRow();
             const currentHeaders = sheet.headerValues || [];
+            console.log(`${logPrefix} Existing headers: ${currentHeaders.join(', ')}`);
             let headersOk = expectedHeaders.every(header => currentHeaders.includes(header));
              if (!headersOk || currentHeaders.length < expectedHeaders.length) {
+                 console.warn(`${logPrefix} Headers mismatch or incomplete! Attempting to add missing headers...`);
                  const missingHeaders = expectedHeaders.filter(header => !currentHeaders.includes(header));
                  if (missingHeaders.length > 0) {
                      try {
-                         await sheet.setHeaderRow([...currentHeaders, ...missingHeaders]);
+                         const updatedHeaders = [...currentHeaders, ...missingHeaders];
+                         await sheet.setHeaderRow(updatedHeaders);
                          await sheet.loadHeaderRow();
-                         console.log(`${logPrefix} Added missing headers: ${missingHeaders.join(', ')}.`);
-                     } catch (headerError) { console.error(`${logPrefix} FAILED to add missing headers:`, headerError); }
+                         console.log(`${logPrefix} Added missing headers. New headers: ${sheet.headerValues.join(', ')}`);
+                     } catch (headerError) {
+                          console.error(`${logPrefix} FAILED to add missing headers:`, headerError);
+                          console.warn(`${logPrefix} Proceeding with potentially incomplete headers.`);
+                     }
                  }
-             } else { console.log(`${logPrefix} Headers OK.`); }
+             } else {
+                 console.log(`${logPrefix} Headers OK.`);
+             }
         }
 
         if (request.method === 'GET') {
@@ -113,36 +129,36 @@ export default async function handler(request, response) {
                     callCenterExtraFeeValue: parseNumber(row.get('CallCenterExtraFeeValue'), defaultRatesAndFees.callCenterExtraFeeValue),
                     extraVehicles: parseIntStrict(row.get('ExtraVehicles'), defaultRatesAndFees.extraVehicles),
                     hasLoan: parseBoolean(row.get('HasLoan')),
-                    loanCurrentInstallment: parseIntStrict(row.get('LoanCurrentInstallment'), defaultRatesAndFees.loanCurrentInstallment), // Renomeado
-                    loanTotalInstallments: parseIntStrict(row.get('LoanTotalInstallments'), defaultRatesAndFees.loanTotalInstallments), // Novo
+                    loanCurrentInstallment: parseIntStrict(row.get('LoanCurrentInstallment'), defaultRatesAndFees.loanCurrentInstallment),
+                    loanTotalInstallments: parseIntStrict(row.get('LoanTotalInstallments'), defaultRatesAndFees.loanTotalInstallments),
                     loanValue: parseNumber(row.get('LoanValue'), defaultRatesAndFees.loanValue)
                 };
                 Object.values(feeItemToColumnMap).forEach(colName => { configData[colName] = parseBoolean(row.get(colName)); });
 
                 let rules = getDefaultServiceRules();
                 const rulesJsonString = row.get('ServiceValueRules');
-                if (rulesJsonString) { try { const parsed = JSON.parse(rulesJsonString); if (Array.isArray(parsed)) rules = parsed; } catch (e) { /* Usa padrão */ } }
+                if (rulesJsonString) { try { const parsed = JSON.parse(rulesJsonString); if (Array.isArray(parsed)) rules = parsed; } catch (e) { console.warn(`Invalid Service Rules JSON for ${configData.franchiseName}`); } }
                 configData.serviceValueRules = rules;
 
                 let customFees = [];
                 const customFeesJsonString = row.get('CustomFeesConfig');
-                if (customFeesJsonString) { try { const parsed = JSON.parse(customFeesJsonString); if (Array.isArray(parsed)) customFees = parsed; } catch (e) { /* Usa padrão */ } }
+                if (customFeesJsonString) { try { const parsed = JSON.parse(customFeesJsonString); if (Array.isArray(parsed)) customFees = parsed; } catch (e) { console.warn(`Invalid Custom Fees JSON for ${configData.franchiseName}`); } }
                 configData.customFeesConfig = customFees;
 
                 return configData.franchiseName ? configData : null;
             }).filter(Boolean);
+            console.log(`${logPrefix} Sending ${configurations.length} configurations.`);
             return response.status(200).json(configurations);
         }
 
         if (request.method === 'POST') {
             const { franchiseName, includedFees, serviceValueRules, royaltyRate, marketingRate,
                     softwareFeeValue, callCenterFeeValue, callCenterExtraFeeValue, extraVehicles,
-                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue, // Campos loan atualizados
-                    customFeesConfig
-                   } = request.body;
+                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue,
+                    customFeesConfig } = request.body;
 
             if (!franchiseName || !includedFees || !Array.isArray(serviceValueRules) || !Array.isArray(customFeesConfig)) {
-                 return response.status(400).json({ success: false, message: 'Bad Request: Missing fields.' });
+                 return response.status(400).json({ success: false, message: 'Bad Request: Missing fields or invalid format.' });
             }
             await sheet.loadHeaderRow(); const rows = await sheet.getRows();
             const existing = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
@@ -157,8 +173,8 @@ export default async function handler(request, response) {
                 CallCenterExtraFeeValue: parseNumber(callCenterExtraFeeValue, defaultRatesAndFees.callCenterExtraFeeValue),
                 ExtraVehicles: parseIntStrict(extraVehicles, defaultRatesAndFees.extraVehicles),
                 HasLoan: formatBoolean(hasLoan),
-                LoanCurrentInstallment: parseIntStrict(loanCurrentInstallment, defaultRatesAndFees.loanCurrentInstallment), // Renomeado
-                LoanTotalInstallments: parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments), // Novo
+                LoanCurrentInstallment: parseIntStrict(loanCurrentInstallment, defaultRatesAndFees.loanCurrentInstallment),
+                LoanTotalInstallments: parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments),
                 LoanValue: parseNumber(loanValue, defaultRatesAndFees.loanValue)
             };
             Object.keys(feeItemToColumnMap).forEach(item => { newRowData[feeItemToColumnMap[item]] = formatBoolean(includedFees[item]); });
@@ -178,14 +194,14 @@ export default async function handler(request, response) {
                  callCenterExtraFeeValue: parseNumber(addedRowGSheet.get('CallCenterExtraFeeValue')),
                  extraVehicles: parseIntStrict(addedRowGSheet.get('ExtraVehicles')),
                  hasLoan: parseBoolean(addedRowGSheet.get('HasLoan')),
-                 loanCurrentInstallment: parseIntStrict(addedRowGSheet.get('LoanCurrentInstallment')), // Renomeado
-                 loanTotalInstallments: parseIntStrict(addedRowGSheet.get('LoanTotalInstallments')), // Novo
+                 loanCurrentInstallment: parseIntStrict(addedRowGSheet.get('LoanCurrentInstallment')),
+                 loanTotalInstallments: parseIntStrict(addedRowGSheet.get('LoanTotalInstallments')),
                  loanValue: parseNumber(addedRowGSheet.get('LoanValue')),
                  serviceValueRules: serviceValueRules,
                  customFeesConfig: customFeesConfig
             };
             Object.values(feeItemToColumnMap).forEach(col => { addedConfigData[col] = parseBoolean(addedRowGSheet.get(col)); });
-
+            console.log(`${logPrefix} Franchise added successfully.`);
             return response.status(201).json({ success: true, message: 'Franchise added.', config: addedConfigData });
         }
 
@@ -193,9 +209,8 @@ export default async function handler(request, response) {
             const { originalFranchiseName, newFranchiseName, includedFees, serviceValueRules,
                     royaltyRate, marketingRate, softwareFeeValue, callCenterFeeValue,
                     callCenterExtraFeeValue, extraVehicles,
-                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue, // Campos loan atualizados
-                    customFeesConfig
-                  } = request.body;
+                    hasLoan, loanCurrentInstallment, loanTotalInstallments, loanValue,
+                    customFeesConfig } = request.body;
              if (!originalFranchiseName || !newFranchiseName || !includedFees || !Array.isArray(serviceValueRules) || !Array.isArray(customFeesConfig)) {
                  return response.status(400).json({ success: false, message: 'Bad Request: Missing fields for update.' });
              }
@@ -216,8 +231,8 @@ export default async function handler(request, response) {
             rowToUpdate.set('CallCenterExtraFeeValue', parseNumber(callCenterExtraFeeValue, defaultRatesAndFees.callCenterExtraFeeValue));
             rowToUpdate.set('ExtraVehicles', parseIntStrict(extraVehicles, defaultRatesAndFees.extraVehicles));
             rowToUpdate.set('HasLoan', formatBoolean(hasLoan));
-            rowToUpdate.set('LoanCurrentInstallment', parseIntStrict(loanCurrentInstallment, defaultRatesAndFees.loanCurrentInstallment)); // Renomeado
-            rowToUpdate.set('LoanTotalInstallments', parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments)); // Novo
+            rowToUpdate.set('LoanCurrentInstallment', parseIntStrict(loanCurrentInstallment, defaultRatesAndFees.loanCurrentInstallment));
+            rowToUpdate.set('LoanTotalInstallments', parseIntStrict(loanTotalInstallments, defaultRatesAndFees.loanTotalInstallments));
             rowToUpdate.set('LoanValue', parseNumber(loanValue, defaultRatesAndFees.loanValue));
             Object.keys(feeItemToColumnMap).forEach(item => { rowToUpdate.set(feeItemToColumnMap[item], formatBoolean(includedFees[item])); });
             try {
@@ -236,14 +251,14 @@ export default async function handler(request, response) {
                  callCenterExtraFeeValue: parseNumber(rowToUpdate.get('CallCenterExtraFeeValue')),
                  extraVehicles: parseIntStrict(rowToUpdate.get('ExtraVehicles')),
                  hasLoan: parseBoolean(rowToUpdate.get('HasLoan')),
-                 loanCurrentInstallment: parseIntStrict(rowToUpdate.get('LoanCurrentInstallment')), // Renomeado
-                 loanTotalInstallments: parseIntStrict(rowToUpdate.get('LoanTotalInstallments')), // Novo
+                 loanCurrentInstallment: parseIntStrict(rowToUpdate.get('LoanCurrentInstallment')),
+                 loanTotalInstallments: parseIntStrict(rowToUpdate.get('LoanTotalInstallments')),
                  loanValue: parseNumber(rowToUpdate.get('LoanValue')),
                  serviceValueRules: serviceValueRules,
                  customFeesConfig: customFeesConfig
             };
             Object.values(feeItemToColumnMap).forEach(col => { updatedConfigData[col] = parseBoolean(rowToUpdate.get(col)); });
-
+            console.log(`${logPrefix} Franchise updated successfully.`);
             return response.status(200).json({ success: true, message: 'Franchise updated.', config: updatedConfigData });
         }
 
@@ -254,9 +269,11 @@ export default async function handler(request, response) {
             const rowToDelete = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
             if (!rowToDelete) { return response.status(404).json({ success: false, message: `Not Found: Franchise "${franchiseName}".` }); }
             await rowToDelete.delete();
+            console.log(`${logPrefix} Franchise deleted successfully.`);
             return response.status(200).json({ success: true, message: `Franchise deleted.` });
         }
 
+        console.log(`${logPrefix} Method ${request.method} not allowed.`);
         response.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
         return response.status(405).end(`Method ${request.method} Not Allowed`);
 
@@ -264,10 +281,17 @@ export default async function handler(request, response) {
         console.error(`${logPrefix} CRITICAL ERROR:`, error);
         let clientErrorMessage = 'An internal server error occurred.';
         if (error.message) {
-            if (error.message.includes('permission denied')) { clientErrorMessage = 'Permission Denied accessing Google Sheet.'; }
-            else if (error.message.includes('Failed to load')) { clientErrorMessage = error.message; }
-            else if (error.message.includes('Not Found')) { clientErrorMessage = `Spreadsheet/Tab Not Found.`; }
-            else { clientErrorMessage = error.message; }
+            if (error.message.includes('permission denied') || error.response?.status === 403) {
+                clientErrorMessage = 'Permission Denied: Check Service Account permissions on the Google Sheet (requires Editor access) and ensure Google Sheets API is enabled.';
+            } else if (error.message.includes('Failed to load spreadsheet information')) {
+                clientErrorMessage = error.message;
+            } else if (error.message.includes('Requested entity was not found') || error.response?.status === 404) {
+                 clientErrorMessage = `Google Sheet or Tab "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Verify SHEET_ID and tab name.`;
+            } else if (error.message.includes('sheet headers') || error.message.includes('sheet creation')) {
+                 clientErrorMessage = `Error processing sheet structure: ${error.message}`;
+            } else {
+                  clientErrorMessage = error.message;
+            }
         }
         return response.status(500).json({ success: false, message: clientErrorMessage });
     }
