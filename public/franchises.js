@@ -273,33 +273,20 @@ document.addEventListener('DOMContentLoaded', () => {
              const result = await response.json();
              if (!result.success) throw new Error(result.message);
              showToast(result.message, 'success');
-
-             // Atualiza a configuração local imediatamente para refletir na UI
              const index = franchisesConfiguration.findIndex(f => f.franchiseName === configData.originalFranchiseName);
              if (index > -1) {
-                // Junta a config antiga com a nova, para o caso de a API não retornar tudo
                 franchisesConfiguration[index] = { ...franchisesConfiguration[index], ...configData, franchiseName: configData.newFranchiseName };
-                // Se a franquia editada for a selecionada atualmente, atualiza o estado de cálculo
                 if(currentCalculationState.selectedFranchiseName === configData.originalFranchiseName || currentCalculationState.selectedFranchiseName === configData.newFranchiseName) {
                     currentCalculationState.selectedFranchiseName = configData.newFranchiseName;
                     currentCalculationState.config = franchisesConfiguration[index];
-                    // Regenera as linhas da tabela com a nova config
                     currentCalculationState.calculationRows = generateCalculationRows();
                     updateCalculationTableDOM();
                 }
              }
-
-             // Fecha qualquer modal aberto
              closeEditModal();
              closeEditLoanModal();
-
-             // Re-renderiza a lista e o select
              renderRegisteredFranchises();
              populateFranchiseSelect();
-
-             // Opcional: Recarregar tudo da API para garantir consistência total
-             // await fetchFranchiseConfigs();
-
          } catch (error) {
              console.error("Error updating franchise:", error);
              showToast(`Error updating franchise: ${error.message}`, 'error');
@@ -321,7 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
              if (!result.success) throw new Error(result.message);
              showToast(result.message, 'success');
              await fetchFranchiseConfigs();
-             // Se a franquia deletada era a selecionada, reseta a secção de cálculo
              if(currentCalculationState.selectedFranchiseName === name) {
                  franchiseSelectElement.value = "";
                  resetCalculationSection();
@@ -525,6 +511,13 @@ document.addEventListener('DOMContentLoaded', () => {
               calculationTbodyElement.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select franchise and upload file.</td></tr>`;
               calculateAndDisplayTotals(); return;
          }
+        const headerRow = calculationTbodyElement.closest('table').querySelector('thead tr');
+         if (headerRow) {
+             const headers = headerRow.querySelectorAll('th');
+             if (headers.length >= 7) {
+                 headers[headers.length - 2].textContent = "Disable";
+             }
+         }
          calculationRows.forEach((rowData, rowIndex) => {
             const tableRow = document.createElement('tr');
             tableRow.className = 'border-b border-border calculation-row';
@@ -561,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${quantityValue === 0 && !isFixedRow ? 'red-text' : ''}" value="${isRateFee ? quantityValue.toFixed(1) : quantityValue}" ${!isEditableQuantity ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${!isEditableUnitPrice ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="text" class="w-full text-right amount" value="${formatCurrency(amount)}" disabled title="${formatCurrency(amount)}"></td>
-                <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''}></td>
+                <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''} title="Check to disable this fee from total calculation"></td>
                 <td class="p-2 text-center"> ${!isFixedRow ? '<button class="delete-calculation-row-btn text-red-600 hover:text-red-800 p-1" title="Delete row">🗑️</button>' : ''} </td>
             `;
             calculationTbodyElement.appendChild(tableRow);
@@ -592,6 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const unitPriceInputElement = tableRowElement.querySelector('.unit-price');
             const amountInputElement = tableRowElement.querySelector('.amount');
             const descriptionInputElement = tableRowElement.querySelector('.description');
+            const disableCheckboxElement = tableRowElement.querySelector('.verified');
             const quantity = parseFloat(quantityInputElement.value) || 0;
             let unitPrice = parseFloat(unitPriceInputElement.value) || 0;
             let currentAmount = 0;
@@ -618,7 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
             amountInputElement.title = formatCurrency(currentAmount);
-            totalAmountSum += currentAmount;
+             if (!disableCheckboxElement.checked) {
+                totalAmountSum += currentAmount;
+             }
         });
         calculationTotalDisplayElement.textContent = formatCurrency(totalAmountSum);
         metricTotalFeesElement.textContent = formatCurrency(totalAmountSum);
@@ -827,19 +823,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const newCurrent = parseIntInput(modalLoanCurrentInstallmentInput.value, 0);
         const newTotal = parseIntInput(modalLoanTotalInstallmentsInput.value, 0);
         const newValue = parseNumberInput(modalLoanValueInput.value, 0);
-
-        // Cria uma cópia completa da configuração para enviar à API
         const updatedConfigData = {
-             ...configToUpdate, // Inclui todos os campos existentes
-             originalFranchiseName: franchiseNameToUpdate, // Necessário para o PUT
-             newFranchiseName: franchiseNameToUpdate, // Nome não muda aqui
-             hasLoan: true, // Mantém o loan ativo
+             ...configToUpdate,
+             originalFranchiseName: franchiseNameToUpdate,
+             newFranchiseName: franchiseNameToUpdate,
+             hasLoan: true,
              loanCurrentInstallment: newCurrent,
              loanTotalInstallments: newTotal,
              loanValue: newValue
         };
-
-        // Chama a função de atualização geral da API
         updateFranchiseConfig(updatedConfigData);
     }
 
@@ -853,22 +845,17 @@ document.addEventListener('DOMContentLoaded', () => {
          if (!confirm(`Are you sure you want to remove the loan configuration for ${franchiseNameToUpdate}?`)) {
              return;
          }
-
-         // Cria uma cópia completa da configuração para enviar à API
          const updatedConfigData = {
-              ...configToUpdate, // Inclui todos os campos existentes
-              originalFranchiseName: franchiseNameToUpdate, // Necessário para o PUT
-              newFranchiseName: franchiseNameToUpdate, // Nome não muda aqui
-              hasLoan: false, // Desativa o loan
-              loanCurrentInstallment: 0, // Reseta valores
+              ...configToUpdate,
+              originalFranchiseName: franchiseNameToUpdate,
+              newFranchiseName: franchiseNameToUpdate,
+              hasLoan: false,
+              loanCurrentInstallment: 0,
               loanTotalInstallments: 0,
               loanValue: 0
          };
-
-         // Chama a função de atualização geral da API
          updateFranchiseConfig(updatedConfigData);
      }
-
 
     addFranchiseFormElement.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -1016,16 +1003,13 @@ document.addEventListener('DOMContentLoaded', () => {
              if (!isChecked) {
                  editMinRoyaltyValueInputElement.value = '0.00';
              } else {
-                 // Preenche com o valor guardado ou o padrão se estiver a habilitar
                  const config = franchisesConfiguration.find(f => f.franchiseName === editOriginalNameInputElement.value);
                  let valueToSet = defaultRatesAndFees.minRoyaltyFeeValue;
                  if (config && config.minRoyaltyFeeValue > 0) {
                      valueToSet = config.minRoyaltyFeeValue;
                  } else if (config && config.hasMinRoyaltyFee && config.minRoyaltyFeeValue === 0) {
-                     // Se estava habilitado mas com 0, usa o padrão ao re-habilitar
                      valueToSet = defaultRatesAndFees.minRoyaltyFeeValue;
                  } else if (parseNumberInput(editMinRoyaltyValueInputElement.value, 0) > 0) {
-                     // Se já tinha um valor no campo (antes de desabilitar/reabilitar), mantém
                      valueToSet = parseNumberInput(editMinRoyaltyValueInputElement.value, defaultRatesAndFees.minRoyaltyFeeValue);
                  }
                  editMinRoyaltyValueInputElement.value = valueToSet.toFixed(2);
