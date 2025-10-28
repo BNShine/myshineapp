@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!containerElement) return;
         containerElement.innerHTML = '';
         if (fees.length === 0) {
-             appendCustomFeeInputRow(containerElement); // Adiciona uma linha em branco se não houver nenhuma
+             appendCustomFeeInputRow(containerElement);
         } else {
             fees.forEach(fee => {
                 appendCustomFeeInputRow(containerElement, fee);
@@ -786,20 +786,6 @@ document.addEventListener('DOMContentLoaded', () => {
         addCalculationRowButtonElement.addEventListener('click', addCalculationRowUI);
     }
 
-    // Delegação de eventos unificada para cliques em botões delete
-    document.body.addEventListener('click', (event) => {
-        const deleteRuleButton = event.target.closest('.delete-rule-btn');
-        const deleteFeeButton = event.target.closest('.delete-fee-btn');
-        const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
-
-        if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
-        else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
-        else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) {
-            const tableRowElement = deleteRowButton.closest('.calculation-row');
-            if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
-        }
-    });
-
     if (calculationTbodyElement) {
         calculationTbodyElement.addEventListener('change', (event) => {
             const targetElement = event.target;
@@ -815,6 +801,18 @@ document.addEventListener('DOMContentLoaded', () => {
             calculateAndDisplayTotals();
         });
     }
+
+    document.body.addEventListener('click', (event) => {
+        const deleteRuleButton = event.target.closest('.delete-rule-btn');
+        const deleteFeeButton = event.target.closest('.delete-fee-btn');
+        const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
+        if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
+        else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
+        else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) {
+            const tableRowElement = deleteRowButton.closest('.calculation-row');
+            if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
+        }
+    });
 
     if(editModalSaveButtonElement) editModalSaveButtonElement.addEventListener('click', handleSaveEdit);
     if(editModalCancelButtonElement) editModalCancelButtonElement.addEventListener('click', closeEditModal);
