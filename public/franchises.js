@@ -23,10 +23,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const newSoftwareFeeInputElement = document.getElementById('new-software-fee');
     const newCallCenterFeeInputElement = document.getElementById('new-callcenter-fee');
     const newCallCenterExtraInputElement = document.getElementById('new-callcenter-extra');
-    const newCustomFeeNameInputElement = document.getElementById('new-custom-fee-name');
-    const newCustomFeeTypeElement = document.getElementById('new-custom-fee-type');
-    const newCustomFeeValueInputElement = document.getElementById('new-custom-fee-value');
-    const newCustomFeeEnabledCheckbox = document.getElementById('new-custom-fee-enabled');
+    const newCustomFeesContainer = document.getElementById('new-custom-fees-container');
+    const addNewCustomFeeButton = document.getElementById('add-new-custom-fee-button');
+    const newHasLoanCheckbox = document.getElementById('new-has-loan');
+    const newLoanDetailsWrapper = document.getElementById('new-loan-details-wrapper');
+    const newLoanInstallmentInputElement = document.getElementById('new-loan-installment');
+    const newLoanValueInputElement = document.getElementById('new-loan-value');
     const newServiceRulesContainer = document.getElementById('new-service-rules-container');
     const addNewServiceRuleButton = document.getElementById('add-new-service-rule-button');
     const registeredFranchisesListElement = document.getElementById('registered-franchises-list');
@@ -46,10 +48,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const editSoftwareFeeInputElement = document.getElementById('edit-software-fee');
     const editCallCenterFeeInputElement = document.getElementById('edit-callcenter-fee');
     const editCallCenterExtraInputElement = document.getElementById('edit-callcenter-extra');
-    const editCustomFeeNameInputElement = document.getElementById('edit-custom-fee-name');
-    const editCustomFeeTypeElement = document.getElementById('edit-custom-fee-type');
-    const editCustomFeeValueInputElement = document.getElementById('edit-custom-fee-value');
-    const editCustomFeeEnabledCheckbox = document.getElementById('edit-custom-fee-enabled');
+    const editCustomFeesContainer = document.getElementById('edit-custom-fees-container');
+    const addEditCustomFeeButton = document.getElementById('add-edit-custom-fee-button');
+    const editHasLoanCheckbox = document.getElementById('edit-has-loan');
+    const editLoanDetailsWrapper = document.getElementById('edit-loan-details-wrapper');
+    const editLoanInstallmentInputElement = document.getElementById('edit-loan-installment');
+    const editLoanValueInputElement = document.getElementById('edit-loan-value');
     const editServiceRulesContainer = document.getElementById('edit-service-rules-container');
     const addEditServiceRuleButton = document.getElementById('add-edit-service-rule-button');
     const editModalSaveButtonElement = document.getElementById('edit-modal-save-btn');
@@ -77,7 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
         callCenterFeeValue: 1200.00,
         callCenterExtraFeeValue: 600.00,
         extraVehicles: 0,
-        customFeeConfig: { name: "", type: "percentage", value: 0, enabled: false }
+        customFeesConfig: [],
+        hasLoan: false,
+        loanInstallment: 0,
+        loanValue: 0
     };
 
     let franchisesConfiguration = [];
@@ -108,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const num = parseInt(value, 10);
         return isNaN(num) ? defaultValue : num;
     }
-
 
     function showToast(message, type = 'info', duration = 4000) {
         if (!toastContainerElement) return;
@@ -151,13 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const rules = currentCalculationState?.config?.serviceValueRules || [];
         for (const rule of rules) {
             if (rule.enabled && rule.keyword && description.includes(rule.keyword)) {
-                if (rule.threshold === 0) {
-                     return rule.adjusted;
-                } else if (currentServiceValue < rule.threshold) {
-                    return rule.adjusted;
-                } else {
-                    return currentServiceValue;
-                }
+                if (rule.threshold === 0) { return rule.adjusted; }
+                else if (currentServiceValue < rule.threshold) { return rule.adjusted; }
+                else { return currentServiceValue; }
             }
         }
         return currentServiceValue;
@@ -189,9 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
                  } else {
                       franchisesConfiguration.forEach(config => {
                           config.serviceValueRules = config.serviceValueRules && Array.isArray(config.serviceValueRules) ? config.serviceValueRules : JSON.parse(JSON.stringify(defaultServiceValueRules));
-                          config.customFeeConfig = config.customFeeConfig && typeof config.customFeeConfig === 'object' ? config.customFeeConfig : { ...defaultRatesAndFees.customFeeConfig };
-                          // Garante que extraVehicles existe
+                          config.customFeesConfig = config.customFeesConfig && Array.isArray(config.customFeesConfig) ? config.customFeesConfig : [];
                           config.extraVehicles = config.extraVehicles !== undefined ? config.extraVehicles : defaultRatesAndFees.extraVehicles;
+                          config.hasLoan = config.hasLoan !== undefined ? config.hasLoan : defaultRatesAndFees.hasLoan;
+                          config.loanInstallment = config.loanInstallment !== undefined ? config.loanInstallment : defaultRatesAndFees.loanInstallment;
+                          config.loanValue = config.loanValue !== undefined ? config.loanValue : defaultRatesAndFees.loanValue;
                       });
                  }
             } catch (parseError) {
@@ -221,9 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
             await fetchFranchiseConfigs();
             addFranchiseFormElement.reset();
             populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
+            populateCustomFeeInputs(newCustomFeesContainer, []); // Limpa custom fees
             resetNewFeeInputs();
             newFeeCheckboxElements.forEach(checkboxElement => checkboxElement.checked = (checkboxElement.dataset.feeItem !== 'Call Center Fee Extra'));
-            if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden'); // Esconde campo extra vehicles
+            if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden');
+            if(newLoanDetailsWrapper) newLoanDetailsWrapper.classList.add('hidden');
         } catch (error) {
             console.error("Error adding franchise:", error);
             showToast(`Error adding franchise: ${error.message}`, 'error');
@@ -311,24 +317,79 @@ document.addEventListener('DOMContentLoaded', () => {
             const adjustedInput = ruleDiv.querySelector('.rule-adjusted');
             let ruleId = ruleDiv.dataset.ruleId;
             const keyword = keywordInput ? keywordInput.value.trim() : '';
-
             if (enabledInput && keyword && thresholdInput && adjustedInput) {
                 if(ruleId.startsWith('new_')) {
                     ruleId = keyword.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20) || `custom_${Date.now()}`;
                 }
                 rules.push({
-                    id: ruleId,
-                    keyword: keyword,
+                    id: ruleId, keyword: keyword,
                     threshold: parseInt(thresholdInput.value, 10) || 0,
                     adjusted: parseInt(adjustedInput.value, 10) || 0,
                     enabled: enabledInput.checked
                 });
-            } else if (keyword){
-                 console.warn("Could not find all inputs for a service rule row:", ruleDiv);
-            }
+            } else if (keyword){ console.warn("Could not find all inputs for a service rule row:", ruleDiv); }
         });
         return rules;
     }
+
+    function populateCustomFeeInputs(containerElement, fees) {
+        containerElement.innerHTML = '';
+        fees.forEach(fee => {
+            appendCustomFeeInputRow(containerElement, fee);
+        });
+    }
+
+    function appendCustomFeeInputRow(containerElement, fee = { id: `new_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, name: '', type: 'percentage', value: 0, enabled: true }) {
+         const feeDiv = document.createElement('div');
+         feeDiv.className = 'custom-fee-row';
+         feeDiv.dataset.feeId = fee.id;
+         feeDiv.innerHTML = `
+             <input type="checkbox" id="custom-fee-enabled-${fee.id}-${containerElement.id}" class="custom-fee-enabled fee-checkbox" ${fee.enabled ? 'checked' : ''}>
+             <input type="text" placeholder="Fee Name" id="custom-fee-name-${fee.id}-${containerElement.id}" class="custom-fee-name input-base" value="${fee.name}">
+             <select id="custom-fee-type-${fee.id}-${containerElement.id}" class="custom-fee-type input-base">
+                 <option value="percentage" ${fee.type === 'percentage' ? 'selected' : ''}>Percent (%)</option>
+                 <option value="fixed" ${fee.type === 'fixed' ? 'selected' : ''}>Fixed ($)</option>
+             </select>
+             <input type="number" step="0.01" id="custom-fee-value-${fee.id}-${containerElement.id}" class="custom-fee-value input-base" value="${fee.value}">
+             <button type="button" class="delete-fee-btn" title="Delete Custom Fee">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+             </button>
+         `;
+         feeDiv.querySelector('.delete-fee-btn').addEventListener('click', (event) => {
+             event.target.closest('.custom-fee-row').remove();
+         });
+         containerElement.appendChild(feeDiv);
+     }
+
+    function getCustomFeesFromInputs(containerElement) {
+        const fees = [];
+        const feeDivs = containerElement.querySelectorAll('.custom-fee-row');
+        feeDivs.forEach(feeDiv => {
+            const enabledInput = feeDiv.querySelector('.custom-fee-enabled');
+            const nameInput = feeDiv.querySelector('.custom-fee-name');
+            const typeSelect = feeDiv.querySelector('.custom-fee-type');
+            const valueInput = feeDiv.querySelector('.custom-fee-value');
+            let feeId = feeDiv.dataset.feeId;
+            const name = nameInput ? nameInput.value.trim() : '';
+
+            if (enabledInput && name && typeSelect && valueInput) {
+                 if(feeId.startsWith('new_')) {
+                     feeId = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20) || `custom_${Date.now()}`;
+                 }
+                fees.push({
+                    id: feeId,
+                    name: name,
+                    type: typeSelect.value,
+                    value: parseNumberInput(valueInput.value, 0),
+                    enabled: enabledInput.checked
+                });
+            } else if (name) {
+                 console.warn("Could not find all inputs for a custom fee row:", feeDiv);
+            }
+        });
+        return fees;
+    }
+
 
     function populateFranchiseSelect() {
          const currentSelection = franchiseSelectElement.value;
@@ -351,46 +412,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderRegisteredFranchises() {
         registeredFranchisesListElement.innerHTML = '';
         if (franchisesConfiguration.length === 0) {
-            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-muted-foreground italic">No franchises registered yet.</p>`;
-            return;
+            registeredFranchisesListElement.innerHTML = `<p class="p-4 text-muted-foreground italic">No franchises registered yet.</p>`; return;
         }
         franchisesConfiguration.sort((a, b) => a.franchiseName.localeCompare(b.franchiseName)).forEach(config => {
-            const includedItems = Object.entries(config)
-                .filter(([key, value]) => key.startsWith('Include') && value === true)
-                .map(([key]) => apiFieldToFeeItemMap[key] || key.replace('Include', ''))
-                .join(', ');
+            const includedItems = Object.entries(config) .filter(([key, value]) => key.startsWith('Include') && value === true) .map(([key]) => apiFieldToFeeItemMap[key] || key.replace('Include', '')) .join(', ');
+            const customFeesSummary = (config.customFeesConfig || []).filter(f => f.enabled).map(f => f.name).join(', ');
+            const loanSummary = config.hasLoan ? ` | Loan Payment` : '';
+
             const listItem = document.createElement('div');
             listItem.className = 'franchise-list-item';
             listItem.innerHTML = `
                 <div>
                     <p class="font-semibold">${config.franchiseName}</p>
-                    <p class="text-xs text-muted-foreground">Fees: R ${config.royaltyRate}% | M ${config.marketingRate}% ${config.customFeeConfig?.enabled ? `| ${config.customFeeConfig.name} ` + (config.customFeeConfig.type === 'percentage' ? `${config.customFeeConfig.value}%` : `${formatCurrency(config.customFeeConfig.value)}`) : ''}</p>
-                    <p class="text-xs text-muted-foreground">Included: ${includedItems || 'None'}</p>
+                    <p class="text-xs text-muted-foreground">Fees: R ${config.royaltyRate}% | M ${config.marketingRate}% ${customFeesSummary ? `| ${customFeesSummary}` : ''}${loanSummary}</p>
+                    <p class="text-xs text-muted-foreground">Included Base: ${includedItems || 'None'}</p>
                 </div>
-                <div class="space-x-2">
-                    <button class="edit-franchise-btn text-blue-600 hover:text-blue-800 p-1" data-name="${config.franchiseName}" title="Edit">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                    </button>
-                    <button class="delete-registered-franchise-btn text-red-600 hover:text-red-800 p-1" data-name="${config.franchiseName}" title="Delete">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                    </button>
-                </div>
+                <div class="space-x-2"> <button class="edit-franchise-btn text-blue-600 hover:text-blue-800 p-1" data-name="${config.franchiseName}" title="Edit"> <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> </button> <button class="delete-registered-franchise-btn text-red-600 hover:text-red-800 p-1" data-name="${config.franchiseName}" title="Delete"> <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg> </button> </div>
             `;
             registeredFranchisesListElement.appendChild(listItem);
         });
-        registeredFranchisesListElement.querySelectorAll('.edit-franchise-btn').forEach(button => {
-            button.addEventListener('click', (event) => openEditModal(event.currentTarget.dataset.name));
-        });
-        registeredFranchisesListElement.querySelectorAll('.delete-registered-franchise-btn').forEach(button => {
-            button.addEventListener('click', (event) => deleteFranchiseConfig(event.currentTarget.dataset.name));
-        });
+        registeredFranchisesListElement.querySelectorAll('.edit-franchise-btn').forEach(button => { button.addEventListener('click', (event) => openEditModal(event.currentTarget.dataset.name)); });
+        registeredFranchisesListElement.querySelectorAll('.delete-registered-franchise-btn').forEach(button => { button.addEventListener('click', (event) => deleteFranchiseConfig(event.currentTarget.dataset.name)); });
     }
 
     function populateMonthSelect() {
         const currentMonthIndex = new Date().getMonth();
-        reportMonthSelectElement.innerHTML = MONTHS.map((month, index) =>
-            `<option value="${month}" ${index === currentMonthIndex ? 'selected' : ''}>${month}</option>`
-        ).join('');
+        reportMonthSelectElement.innerHTML = MONTHS.map((month, index) => `<option value="${month}" ${index === currentMonthIndex ? 'selected' : ''}>${month}</option>`).join('');
         if (currentCalculationState) currentCalculationState.month = reportMonthSelectElement.value;
     }
 
@@ -408,19 +455,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     case "Marketing Fee": unitPrice = currentCalculationState.totalValue; quantity = config.marketingRate; isRate = true; break;
                     case "Software Fee": unitPrice = config.softwareFeeValue; break;
                     case "Call Center Fee": unitPrice = config.callCenterFeeValue; break;
-                    case "Call Center Fee Extra":
-                        unitPrice = config.callCenterExtraFeeValue;
-                        quantity = config.extraVehicles; // Usa o número de veículos extra como quantidade
-                        break;
+                    case "Call Center Fee Extra": unitPrice = config.callCenterExtraFeeValue; quantity = config.extraVehicles; break;
                  }
                  rowsToShow.push({ Item: itemName, Description: "", Qty: quantity, Unit_price: unitPrice, Amount: 0, verified: false, fixed: true, isRate: isRate });
              }
          });
-         if (config.customFeeConfig?.enabled && config.customFeeConfig.name) {
-             let customUnitPrice = 0; let customQuantity = 1; let isCustomRate = config.customFeeConfig.type === 'percentage';
-             if (isCustomRate) { customUnitPrice = currentCalculationState.totalValue; customQuantity = config.customFeeConfig.value; }
-             else { customUnitPrice = config.customFeeConfig.value; customQuantity = 1; }
-             rowsToShow.push({ Item: config.customFeeConfig.name, Description: "Custom Fee", Qty: customQuantity, Unit_price: customUnitPrice, Amount: 0, verified: false, fixed: true, isRate: isCustomRate });
+         (config.customFeesConfig || []).forEach(customFee => {
+             if (customFee.enabled && customFee.name) {
+                 let customUnitPrice = 0; let customQuantity = 1; let isCustomRate = customFee.type === 'percentage';
+                 if (isCustomRate) { customUnitPrice = currentCalculationState.totalValue; customQuantity = customFee.value; }
+                 else { customUnitPrice = customFee.value; customQuantity = 1; }
+                 rowsToShow.push({ Item: customFee.name, Description: "Custom Fee", Qty: customQuantity, Unit_price: customUnitPrice, Amount: 0, verified: false, fixed: true, isRate: isCustomRate });
+             }
+         });
+         if (config.hasLoan && config.loanValue > 0) {
+             rowsToShow.push({ Item: "Loan Payment", Description: `Installment ${config.loanInstallment}`, Qty: 1, Unit_price: config.loanValue, Amount: 0, verified: false, fixed: true, isRate: false });
          }
          return rowsToShow;
      }
@@ -429,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
          calculationTbodyElement.innerHTML = '';
          const calculationRows = currentCalculationState.calculationRows;
          if (!currentCalculationState.selectedFranchiseName || calculationRows.length === 0) {
-              calculationTbodyElement.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select a franchise and upload a file to calculate fees.</td></tr>`;
+              calculationTbodyElement.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select franchise and upload file.</td></tr>`;
               calculateAndDisplayTotals(); return;
          }
          calculationRows.forEach((rowData, rowIndex) => {
@@ -438,24 +487,19 @@ document.addEventListener('DOMContentLoaded', () => {
             tableRow.dataset.index = rowIndex;
             const isFixedRow = rowData.fixed || false;
             const isRateFee = rowData.isRate || false;
-            // Quantidade NUNCA é editável para linhas configuradas (fixed=true)
-            const isEditableQuantity = !isFixedRow;
-            // Preço Unitário NUNCA é editável para linhas configuradas (fixed=true)
-            const isEditableUnitPrice = !isFixedRow;
-
+            const isEditableQuantity = !isFixedRow; // Somente linhas customizadas
+            const isEditableUnitPrice = !isFixedRow; // Somente linhas customizadas
             let quantityValue = rowData.Qty;
             let unitPriceValue = rowData.Unit_price;
             let amount = 0;
-
             if (isRateFee) { amount = (parseFloat(quantityValue) / 100) * parseFloat(unitPriceValue); }
             else { amount = parseFloat(quantityValue) * parseFloat(unitPriceValue); }
             quantityValue = isNaN(quantityValue) ? 0 : quantityValue;
             unitPriceValue = isNaN(unitPriceValue) ? 0 : unitPriceValue;
             amount = isNaN(amount) ? 0 : amount;
-
             tableRow.innerHTML = `
                 <td class="p-2"><input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixedRow ? 'disabled' : ''}></td>
-                <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}" ${!isFixedRow ? 'placeholder="Optional description"' : 'disabled'}></td>
+                <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}" ${!isFixedRow ? '' : 'disabled'}></td>
                 <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${quantityValue === 0 && !isFixedRow ? 'red-text' : ''}" value="${isRateFee ? quantityValue.toFixed(1) : quantityValue}" ${!isEditableQuantity ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${!isEditableUnitPrice ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="text" class="w-full text-right amount" value="${formatCurrency(amount)}" disabled title="${formatCurrency(amount)}"></td>
@@ -468,18 +512,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function addCalculationRowUI() {
-         if (!currentCalculationState.selectedFranchiseName) {
-             showToast("Select a franchise before adding custom rows.", "warning"); return;
-         }
+         if (!currentCalculationState.selectedFranchiseName) { showToast("Select a franchise first.", "warning"); return; }
          currentCalculationState.calculationRows.push({ Item: "", Description: "", Qty: 1, Unit_price: 0, Amount: 0, verified: false, fixed: false, isRate: false });
          updateCalculationTableDOM();
     }
 
     function deleteCalculationRowUI(rowIndex) {
          if (!currentCalculationState.selectedFranchiseName || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) return;
-         if(currentCalculationState.calculationRows[rowIndex].fixed) {
-             console.warn("Cannot delete configured fee rows."); showToast("Configured fee rows cannot be deleted.", "warning"); return;
-         }
+         if(currentCalculationState.calculationRows[rowIndex].fixed) { showToast("Configured fee rows cannot be deleted.", "warning"); return; }
          currentCalculationState.calculationRows.splice(rowIndex, 1);
          updateCalculationTableDOM();
      }
@@ -488,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalAmountSum = 0;
         calculationTbodyElement.querySelectorAll('.calculation-row').forEach(tableRowElement => {
             const rowIndex = parseInt(tableRowElement.dataset.index);
-             if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) { console.warn("Skipping row with invalid index during total calculation:", rowIndex); return; }
+             if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) { return; }
             const rowData = currentCalculationState.calculationRows[rowIndex];
             const quantityInputElement = tableRowElement.querySelector('.qty');
             const unitPriceInputElement = tableRowElement.querySelector('.unit-price');
@@ -504,9 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  if(!rowData.fixed) { rowData.Unit_price = unitPrice; }
                 currentAmount = quantity * unitPrice;
             }
-             if(!rowData.fixed) { // Atualiza Qty apenas para linhas custom
-                 rowData.Qty = quantity;
-             }
+             if(!rowData.fixed) { rowData.Qty = quantity; } // Salva Qty apenas para linhas custom
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
             amountInputElement.title = formatCurrency(currentAmount);
@@ -531,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
             calculationRows: [], fileData: [], metrics: { pets: 0, services: 0 }
         };
         updateMetrics();
-        if (calculationTbodyElement) calculationTbodyElement.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select a franchise and upload a file to calculate fees.</td></tr>`;
+        if (calculationTbodyElement) calculationTbodyElement.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select a franchise and upload a file.</td></tr>`;
         if (calculationTotalDisplayElement) calculationTotalDisplayElement.textContent = formatCurrency(0);
         toggleCalculationFields(false);
     }
@@ -543,27 +581,20 @@ document.addEventListener('DOMContentLoaded', () => {
          if(newCallCenterFeeInputElement) newCallCenterFeeInputElement.value = defaultRatesAndFees.callCenterFeeValue.toFixed(2);
          if(newCallCenterExtraInputElement) newCallCenterExtraInputElement.value = defaultRatesAndFees.callCenterExtraFeeValue.toFixed(2);
          if(newExtraVehiclesInputElement) newExtraVehiclesInputElement.value = defaultRatesAndFees.extraVehicles;
-         if(newCustomFeeNameInputElement) newCustomFeeNameInputElement.value = defaultRatesAndFees.customFeeConfig.name;
-         if(newCustomFeeTypeElement) newCustomFeeTypeElement.value = defaultRatesAndFees.customFeeConfig.type;
-         if(newCustomFeeValueInputElement) newCustomFeeValueInputElement.value = defaultRatesAndFees.customFeeConfig.value;
-         if(newCustomFeeEnabledCheckbox) newCustomFeeEnabledCheckbox.checked = defaultRatesAndFees.customFeeConfig.enabled;
+         if(newHasLoanCheckbox) newHasLoanCheckbox.checked = defaultRatesAndFees.hasLoan;
+         if(newLoanInstallmentInputElement) newLoanInstallmentInputElement.value = defaultRatesAndFees.loanInstallment;
+         if(newLoanValueInputElement) newLoanValueInputElement.value = defaultRatesAndFees.loanValue.toFixed(2);
          if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden');
+         if(newLoanDetailsWrapper) newLoanDetailsWrapper.classList.add('hidden');
+         populateCustomFeeInputs(newCustomFeesContainer, []); // Limpa custom fees
      }
 
     function toggleCalculationFields(enabled) {
-         if (fileInputElement) {
-             fileInputElement.disabled = !enabled;
-         } else {
-             console.error("fileInputElement not found!");
-         }
-         if (addCalculationRowButtonElement) {
-             addCalculationRowButtonElement.disabled = !enabled;
-         } else {
-             console.error("addCalculationRowButtonElement not found!");
-         }
-         if (!enabled && franchiseSelectElement && franchiseSelectElement.value !== "") {
-              resetCalculationSection();
-         }
+         if (fileInputElement) { fileInputElement.disabled = !enabled; }
+         else { console.error("fileInputElement not found!"); }
+         if (addCalculationRowButtonElement) { addCalculationRowButtonElement.disabled = !enabled; }
+         else { console.error("addCalculationRowButtonElement not found!"); }
+         if (!enabled && franchiseSelectElement && franchiseSelectElement.value !== "") { resetCalculationSection(); }
      }
 
     function getDefaultCalculationRowTemplates() {
@@ -577,77 +608,48 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
     async function handleFileUpload(event) {
-         console.log("[handleFileUpload] Change event detected on file input.");
+         console.log("[handleFileUpload] Change event detected.");
          if (!currentCalculationState.selectedFranchiseName) {
-             console.warn("[handleFileUpload] No franchise selected.");
-             showToast("Please select a franchise before uploading a file.", "warning");
-             if(fileInputElement) fileInputElement.value = '';
-             return;
+             console.warn("[handleFileUpload] No franchise selected."); showToast("Please select a franchise first.", "warning"); if(fileInputElement) fileInputElement.value = ''; return;
          }
          const files = event.target.files;
          console.log(`[handleFileUpload] Files selected: ${files ? files.length : 'null'}`);
-         if (!files || files.length === 0) {
-              console.log("[handleFileUpload] No files selected or FileList empty.");
-              return;
-         }
-         if(loadingSpinnerElement) {
-             console.log("[handleFileUpload] Showing file processing spinner.");
-             loadingSpinnerElement.classList.remove('hidden');
-         } else {
-             console.error("[handleFileUpload] loadingSpinnerElement not found!");
-         }
+         if (!files || files.length === 0) { console.log("[handleFileUpload] No files selected."); return; }
+         if(loadingSpinnerElement) { loadingSpinnerElement.classList.remove('hidden'); }
+         else { console.error("[handleFileUpload] loadingSpinnerElement not found!"); }
 
          let combinedJsonData = [];
          try {
-             // Usar Promise.all para processar ficheiros em paralelo (ligeiramente mais eficiente)
              await Promise.all(Array.from(files).map(async (file) => {
                  console.log(`[handleFileUpload] Processing file: ${file.name}`);
                  try {
-                     const data = await file.arrayBuffer();
-                     const workbook = XLSX.read(data);
-                     const firstSheetName = workbook.SheetNames[0];
-                     if(!firstSheetName) { throw new Error("Spreadsheet has no sheets."); }
-                     const worksheet = workbook.Sheets[firstSheetName];
-                     if(!worksheet) { throw new Error(`Sheet "${firstSheetName}" not found or invalid.`); }
+                     const data = await file.arrayBuffer(); const workbook = XLSX.read(data);
+                     const firstSheetName = workbook.SheetNames[0]; if(!firstSheetName) { throw new Error("No sheets in file."); }
+                     const worksheet = workbook.Sheets[firstSheetName]; if(!worksheet) { throw new Error(`Sheet invalid.`); }
                      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: null });
                      combinedJsonData.push(...jsonData);
-                     console.log(`[handleFileUpload] Successfully read ${jsonData.length} rows from ${file.name}`);
-                 } catch (error) {
-                     console.error(`[handleFileUpload] Error processing file ${file.name}:`, error);
-                     showToast(`Error reading file ${file.name}: ${error.message}`, 'error');
-                 }
+                     console.log(`[handleFileUpload] Read ${jsonData.length} rows from ${file.name}`);
+                 } catch (error) { console.error(`[handleFileUpload] Error processing ${file.name}:`, error); showToast(`Error reading ${file.name}: ${error.message}`, 'error'); }
              }));
          } finally {
-             if(loadingSpinnerElement) {
-                 console.log("[handleFileUpload] Hiding file processing spinner.");
-                 loadingSpinnerElement.classList.add('hidden');
-             }
+             if(loadingSpinnerElement) { loadingSpinnerElement.classList.add('hidden'); }
              currentCalculationState.fileData = combinedJsonData;
-             console.log(`[handleFileUpload] Finished reading files. Total rows: ${combinedJsonData.length}. Processing data...`);
+             console.log(`[handleFileUpload] Read complete. Total rows: ${combinedJsonData.length}. Processing...`);
              processUploadedData();
-             if(fileInputElement) fileInputElement.value = ''; // Limpa para permitir re-upload do mesmo ficheiro
-             console.log("[handleFileUpload] File input value cleared.");
+             if(fileInputElement) fileInputElement.value = '';
+             console.log("[handleFileUpload] Input cleared.");
          }
      }
 
     function processUploadedData() {
-         console.log("[processUploadedData] Starting data processing...");
+         console.log("[processUploadedData] Starting...");
          const fileData = currentCalculationState.fileData;
          const config = currentCalculationState.config;
          currentCalculationState.metrics = { pets: 0, services: 0 };
          currentCalculationState.totalValue = 0;
 
-         if (!config) {
-             console.warn("[processUploadedData] No franchise config selected.");
-             showToast("Processing error: No franchise configuration loaded.", "error");
-             updateCalculationTableDOM(); return;
-         }
-         if (!fileData || fileData.length === 0) {
-             console.log("[processUploadedData] No file data to process.");
-             currentCalculationState.calculationRows = generateCalculationRows();
-             updateMetrics(); updateCalculationTableDOM();
-             showToast("No valid data found in the uploaded file(s).", 'warning'); return;
-         }
+         if (!config) { console.warn("[processUploadedData] No config."); showToast("Error: No config loaded.", "error"); updateCalculationTableDOM(); return; }
+         if (!fileData || fileData.length === 0) { console.log("[processUploadedData] No file data."); currentCalculationState.calculationRows = generateCalculationRows(); updateMetrics(); updateCalculationTableDOM(); showToast("No valid data found.", 'warning'); return; }
 
          console.log(`[processUploadedData] Processing ${fileData.length} rows...`);
          let petsServicedCount = 0; let servicesPerformedCount = 0; let totalAdjustedRevenue = 0;
@@ -684,13 +686,13 @@ document.addEventListener('DOMContentLoaded', () => {
         editCallCenterFeeInputElement.value = configToEdit.callCenterFeeValue.toFixed(2);
         editCallCenterExtraInputElement.value = configToEdit.callCenterExtraFeeValue.toFixed(2);
         editExtraVehiclesInputElement.value = configToEdit.extraVehicles || 0;
-        const customFee = configToEdit.customFeeConfig || defaultRatesAndFees.customFeeConfig;
-        editCustomFeeNameInputElement.value = customFee.name;
-        editCustomFeeTypeElement.value = customFee.type;
-        editCustomFeeValueInputElement.value = customFee.value;
-        editCustomFeeEnabledCheckbox.checked = customFee.enabled;
-        // Mostra/Esconde campo Extra Vehicles baseado no checkbox
+        const customFees = configToEdit.customFeesConfig || [];
+        populateCustomFeeInputs(editCustomFeesContainer, customFees);
+        editHasLoanCheckbox.checked = configToEdit.hasLoan || false;
+        editLoanInstallmentInputElement.value = configToEdit.loanInstallment || 0;
+        editLoanValueInputElement.value = (configToEdit.loanValue || 0).toFixed(2);
         if(editExtraVehiclesWrapper) editExtraVehiclesWrapper.classList.toggle('hidden', !editIncludeCallCenterExtraCheckbox.checked);
+        if(editLoanDetailsWrapper) editLoanDetailsWrapper.classList.toggle('hidden', !editHasLoanCheckbox.checked);
         populateServiceRuleInputs(editServiceRulesContainer, configToEdit.serviceValueRules || defaultServiceValueRules);
         editModalElement.classList.remove('hidden');
     }
@@ -699,7 +701,9 @@ document.addEventListener('DOMContentLoaded', () => {
         editModalElement.classList.add('hidden');
         editFormElement.reset();
         populateServiceRuleInputs(editServiceRulesContainer, []);
+        populateCustomFeeInputs(editCustomFeesContainer, []);
         if(editExtraVehiclesWrapper) editExtraVehiclesWrapper.classList.add('hidden');
+        if(editLoanDetailsWrapper) editLoanDetailsWrapper.classList.add('hidden');
     }
 
     function handleSaveEdit() {
@@ -708,10 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const includedFeesMap = {};
         editFeeCheckboxElements.forEach(checkbox => { includedFeesMap[checkbox.dataset.feeItem] = checkbox.checked; });
         const serviceValueRules = getServiceRulesFromInputs(editServiceRulesContainer);
-        const customFeeConfig = {
-             name: editCustomFeeNameInputElement.value.trim(), type: editCustomFeeTypeElement.value,
-             value: parseNumberInput(editCustomFeeValueInputElement.value, 0), enabled: editCustomFeeEnabledCheckbox.checked
-        };
+        const customFeesConfig = getCustomFeesFromInputs(editCustomFeesContainer);
         if (!newName) { alert("Franchise name cannot be empty."); return; }
         const configData = {
             originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFeesMap,
@@ -720,23 +721,22 @@ document.addEventListener('DOMContentLoaded', () => {
             softwareFeeValue: parseNumberInput(editSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(editCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(editCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
-            extraVehicles: parseIntInput(editExtraVehiclesInputElement.value, 0), // Envia extra vehicles
-            customFeeConfig: customFeeConfig, serviceValueRules: serviceValueRules
+            extraVehicles: parseIntInput(editExtraVehiclesInputElement.value, 0),
+            hasLoan: editHasLoanCheckbox.checked,
+            loanInstallment: parseIntInput(editLoanInstallmentInputElement.value, 0),
+            loanValue: parseNumberInput(editLoanValueInputElement.value, 0),
+            customFeesConfig: customFeesConfig, serviceValueRules: serviceValueRules
         };
         updateFranchiseConfig(configData);
     }
 
-    // --- Event Listeners ---
     addFranchiseFormElement.addEventListener('submit', (event) => {
         event.preventDefault();
         const franchiseName = newFranchiseNameInputElement.value.trim();
         const includedFeesMap = {};
         newFeeCheckboxElements.forEach(checkbox => { includedFeesMap[checkbox.dataset.feeItem] = checkbox.checked; });
         const serviceValueRules = getServiceRulesFromInputs(newServiceRulesContainer);
-        const customFeeConfig = {
-             name: newCustomFeeNameInputElement.value.trim(), type: newCustomFeeTypeElement.value,
-             value: parseNumberInput(newCustomFeeValueInputElement.value, 0), enabled: newCustomFeeEnabledCheckbox.checked
-        };
+        const customFeesConfig = getCustomFeesFromInputs(newCustomFeesContainer);
         if (!franchiseName) { alert("Please enter a franchise name."); return; }
         const configData = {
             franchiseName: franchiseName, includedFees: includedFeesMap,
@@ -745,8 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
             softwareFeeValue: parseNumberInput(newSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(newCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(newCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
-            extraVehicles: parseIntInput(newExtraVehiclesInputElement.value, 0), // Envia extra vehicles
-            customFeeConfig: customFeeConfig, serviceValueRules: serviceValueRules
+            extraVehicles: parseIntInput(newExtraVehiclesInputElement.value, 0),
+            hasLoan: newHasLoanCheckbox.checked,
+            loanInstallment: parseIntInput(newLoanInstallmentInputElement.value, 0),
+            loanValue: parseNumberInput(newLoanValueInputElement.value, 0),
+            customFeesConfig: customFeesConfig, serviceValueRules: serviceValueRules
         };
         addFranchiseConfig(configData);
     });
@@ -791,7 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rowIndex = parseInt(tableRowElement.dataset.index);
             if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) return;
             const rowData = currentCalculationState.calculationRows[rowIndex];
-            if (targetElement.classList.contains('qty') && (!rowData.fixed)) { rowData.Qty = targetElement.value; targetElement.classList.toggle('red-text', (parseFloat(targetElement.value) || 0) === 0); }
+            if (targetElement.classList.contains('qty') && !rowData.fixed) { rowData.Qty = targetElement.value; targetElement.classList.toggle('red-text', (parseFloat(targetElement.value) || 0) === 0); }
             else if (targetElement.classList.contains('description') && !rowData.fixed) { rowData.Description = targetElement.value; }
             else if (targetElement.classList.contains('unit-price') && !rowData.fixed) { rowData.Unit_price = targetElement.value; }
             else if (targetElement.classList.contains('verified')) { rowData.verified = targetElement.checked; }
@@ -800,11 +803,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         calculationTbodyElement.addEventListener('click', (event) => {
              const deleteRuleButton = event.target.closest('.delete-rule-btn');
+             const deleteFeeButton = event.target.closest('.delete-fee-btn');
              const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
 
-             if (deleteRuleButton) {
-                 deleteRuleButton.closest('.rule-grid').remove();
-             } else if (deleteRowButton) {
+             if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
+             else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
+             else if (deleteRowButton) {
                  const tableRowElement = deleteRowButton.closest('.calculation-row');
                  if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
              }
@@ -814,35 +818,46 @@ document.addEventListener('DOMContentLoaded', () => {
     if(editModalSaveButtonElement) editModalSaveButtonElement.addEventListener('click', handleSaveEdit);
     if(editModalCancelButtonElement) editModalCancelButtonElement.addEventListener('click', closeEditModal);
 
-    if(addNewServiceRuleButton) {
-        addNewServiceRuleButton.addEventListener('click', () => appendServiceRuleInputRow(newServiceRulesContainer));
-    }
-    if(addEditServiceRuleButton) {
-        addEditServiceRuleButton.addEventListener('click', () => appendServiceRuleInputRow(editServiceRulesContainer));
-    }
+    if(addNewServiceRuleButton) { addNewServiceRuleButton.addEventListener('click', () => appendServiceRuleInputRow(newServiceRulesContainer)); }
+    if(addEditServiceRuleButton) { addEditServiceRuleButton.addEventListener('click', () => appendServiceRuleInputRow(editServiceRulesContainer)); }
+    if(addNewCustomFeeButton) { addNewCustomFeeButton.addEventListener('click', () => appendCustomFeeInputRow(newCustomFeesContainer)); }
+    if(addEditCustomFeeButton) { addEditCustomFeeButton.addEventListener('click', () => appendCustomFeeInputRow(editCustomFeesContainer)); }
 
-    // Listeners para mostrar/esconder Extra Vehicles
     if (newIncludeCallCenterExtraCheckbox && newExtraVehiclesWrapper) {
         newIncludeCallCenterExtraCheckbox.addEventListener('change', (event) => {
             newExtraVehiclesWrapper.classList.toggle('hidden', !event.target.checked);
-            if (!event.target.checked && newExtraVehiclesInputElement) {
-                 newExtraVehiclesInputElement.value = 0; // Reseta se desmarcado
-            }
+            if (!event.target.checked && newExtraVehiclesInputElement) { newExtraVehiclesInputElement.value = 0; }
         });
     }
      if (editIncludeCallCenterExtraCheckbox && editExtraVehiclesWrapper) {
          editIncludeCallCenterExtraCheckbox.addEventListener('change', (event) => {
              editExtraVehiclesWrapper.classList.toggle('hidden', !event.target.checked);
-              if (!event.target.checked && editExtraVehiclesInputElement) {
-                  editExtraVehiclesInputElement.value = 0; // Reseta se desmarcado
-              }
+              if (!event.target.checked && editExtraVehiclesInputElement) { editExtraVehiclesInputElement.value = 0; }
          });
      }
-
+     if (newHasLoanCheckbox && newLoanDetailsWrapper) {
+         newHasLoanCheckbox.addEventListener('change', (event) => {
+             newLoanDetailsWrapper.classList.toggle('hidden', !event.target.checked);
+             if(!event.target.checked) {
+                 if(newLoanInstallmentInputElement) newLoanInstallmentInputElement.value = 0;
+                 if(newLoanValueInputElement) newLoanValueInputElement.value = 0;
+             }
+         });
+     }
+     if (editHasLoanCheckbox && editLoanDetailsWrapper) {
+         editHasLoanCheckbox.addEventListener('change', (event) => {
+             editLoanDetailsWrapper.classList.toggle('hidden', !event.target.checked);
+             if(!event.target.checked) {
+                 if(editLoanInstallmentInputElement) editLoanInstallmentInputElement.value = 0;
+                 if(editLoanValueInputElement) editLoanValueInputElement.value = 0;
+             }
+         });
+     }
 
     console.log("Initializing page...");
     populateMonthSelect();
     populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
+    populateCustomFeeInputs(newCustomFeesContainer, []); // Começa vazio
     fetchFranchiseConfigs();
     resetCalculationSection();
     resetNewFeeInputs();
