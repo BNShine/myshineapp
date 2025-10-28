@@ -19,12 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const newFeeCheckboxElements = document.querySelectorAll('.new-fee-checkbox');
     const registeredFranchisesListElement = document.getElementById('registered-franchises-list');
     const registerSectionElement = document.getElementById('franchise-register-section');
+    const newServiceRulesContainer = document.getElementById('new-service-rules-container');
 
     const editModalElement = document.getElementById('edit-franchise-modal');
     const editFormElement = document.getElementById('edit-franchise-form');
     const editOriginalNameInputElement = document.getElementById('edit-original-franchise-name');
     const editNameInputElement = document.getElementById('edit-franchise-name');
     const editFeeCheckboxElements = document.querySelectorAll('.edit-fee-checkbox');
+    const editServiceRulesContainer = document.getElementById('edit-service-rules-container');
     const editModalSaveButtonElement = document.getElementById('edit-modal-save-btn');
     const editModalCancelButtonElement = document.getElementById('edit-modal-cancel-btn');
 
@@ -32,6 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const BASE_FEE_ITEMS = ["Royalty Fee", "Marketing Fee", "Software Fee", "Call Center Fee", "Call Center Fee Extra"];
     const feeItemToApiFieldMap = { "Royalty Fee": "IncludeRoyalty", "Marketing Fee": "IncludeMarketing", "Software Fee": "IncludeSoftware", "Call Center Fee": "IncludeCallCenter", "Call Center Fee Extra": "IncludeCallCenterExtra" };
     const apiFieldToFeeItemMap = Object.fromEntries(Object.entries(feeItemToApiFieldMap).map(([key, value]) => [value, key]));
+
+    const defaultServiceValueRules = [
+        { id: 'dog_small', keyword: 'Dog Cleaning - Small', threshold: 170, adjusted: 180, enabled: true },
+        { id: 'dental_small', keyword: 'Dental Under 40 LBS', threshold: 170, adjusted: 180, enabled: true },
+        { id: 'dog_medium', keyword: 'Dog Cleaning - Medium', threshold: 200, adjusted: 210, enabled: true },
+        { id: 'dog_max', keyword: 'Dog Cleaning - Max', threshold: 230, adjusted: 240, enabled: true },
+        { id: 'dog_ultra', keyword: 'Dog Cleaning - Ultra', threshold: 260, adjusted: 270, enabled: true },
+        { id: 'cat_cleaning', keyword: 'Cat Cleaning', threshold: 200, adjusted: 210, enabled: true },
+        { id: 'nail_clipping', keyword: 'Nail Clipping', threshold: 0, adjusted: 10, enabled: true }
+    ];
 
     let franchisesConfiguration = [];
     let currentCalculationState = {
@@ -67,19 +79,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }, duration);
     }
 
+    function showLoadingOverlayById(elementId) {
+         const overlayElement = document.getElementById(elementId);
+         if (overlayElement) {
+             console.log(`Showing overlay for ID: ${elementId}`);
+             overlayElement.style.display = '';
+             overlayElement.classList.remove('hidden');
+         } else {
+             console.error(`showLoadingOverlayById: Overlay element with ID '${elementId}' NOT FOUND!`);
+         }
+     }
+
+     function hideLoadingOverlayById(elementId) {
+         console.log(`[Hide Overlay] Attempting to hide element with ID: ${elementId}`);
+         const overlayElement = document.getElementById(elementId);
+         if (overlayElement) {
+             console.log(`[Hide Overlay] Element found. Current classes: "${overlayElement.className}"`);
+             console.log(`[Hide Overlay] Adding 'hidden' class and setting style.display = 'none'...`);
+             overlayElement.classList.add('hidden');
+             overlayElement.style.display = 'none';
+             const currentDisplay = window.getComputedStyle(overlayElement).display;
+             console.log(`[Hide Overlay] Element display style after hiding: "${currentDisplay}"`);
+             if (currentDisplay !== 'none') {
+                 console.warn(`[Hide Overlay] WARN: Element display style is not 'none' after attempting to hide! Check CSS conflicts.`);
+             }
+         } else {
+             console.error(`hideLoadingOverlayById: Overlay element with ID '${elementId}' NOT FOUND when trying to hide!`);
+         }
+     }
+
+
     function calculateServiceValue(description, currentServiceValue) {
         description = String(description || '');
         currentServiceValue = parseCurrency(currentServiceValue);
-        if (description.includes("01- Dog Cleaning - Small - Under 30 Lbs") || description.includes("Dental Under 40 LBS")) return currentServiceValue < 170 ? 180 : currentServiceValue;
-        if (description.includes("02- Dog Cleaning - Medium - 31 to 70 Lbs")) return currentServiceValue < 200 ? 210 : currentServiceValue;
-        if (description.includes("03- Dog Cleaning - Max - 71 to 1000 Lbs") || description.includes("03- Dog Cleaning - Max - 71 to 100 Lbs")) return currentServiceValue < 230 ? 240 : currentServiceValue;
-        if (description.includes("04- Dog Cleaning - Ultra - Above 101 Lbs")) return currentServiceValue < 260 ? 270 : currentServiceValue;
-        if (description.includes("05- Cat Cleaning")) return currentServiceValue < 200 ? 210 : currentServiceValue;
-        if (description.includes("Nail Clipping")) return 10;
+        const rules = currentCalculationState?.config?.serviceValueRules || [];
+
+        for (const rule of rules) {
+            if (rule.enabled && rule.keyword && description.includes(rule.keyword)) {
+                if (rule.threshold === 0) {
+                     return rule.adjusted;
+                } else if (currentServiceValue < rule.threshold) {
+                    return rule.adjusted;
+                } else {
+                    return currentServiceValue;
+                }
+            }
+        }
         return currentServiceValue;
     }
 
     async function fetchFranchiseConfigs() {
+        const overlayId = 'register-section-loader';
+        const overlayElementDirect = document.getElementById(overlayId);
+
+        if (!overlayElementDirect) {
+             console.error(`CRITICAL: Overlay element with ID '${overlayId}' not found during initialization! Check HTML.`);
+             registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">Error: UI component missing (loader). Cannot proceed.</p>`;
+             return;
+        }
+
+        showLoadingOverlayById(overlayId);
         registeredFranchisesListElement.innerHTML = `<p class="p-4 text-muted-foreground italic">Loading configurations...</p>`;
         console.log("[fetchFranchiseConfigs] Attempting to fetch...");
 
@@ -111,8 +170,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!Array.isArray(franchisesConfiguration)) {
                     console.warn("[fetchFranchiseConfigs] API response was OK but not an array, resetting config.", franchisesConfiguration);
                     franchisesConfiguration = [];
-                }
-                console.log("[fetchFranchiseConfigs] Configs received and parsed:", franchisesConfiguration);
+                 } else {
+                      franchisesConfiguration.forEach(config => {
+                          if (!config.serviceValueRules || !Array.isArray(config.serviceValueRules)) {
+                              console.warn(`[fetchFranchiseConfigs] Config for ${config.franchiseName} missing/invalid serviceValueRules, using default.`);
+                              config.serviceValueRules = JSON.parse(JSON.stringify(defaultServiceValueRules));
+                          }
+                      });
+                 }
+                console.log("[fetchFranchiseConfigs] Configs received and processed:", franchisesConfiguration);
             } catch (parseError) {
                 console.error("[fetchFranchiseConfigs] Error parsing successful API response as JSON:", parseError);
                 throw new Error("Received invalid data format from server.");
@@ -128,33 +194,46 @@ document.addEventListener('DOMContentLoaded', () => {
             franchisesConfiguration = [];
             populateFranchiseSelect();
         } finally {
+            console.log("[fetchFranchiseConfigs] Entering finally block...");
+            hideLoadingOverlayById(overlayId);
             console.log("[fetchFranchiseConfigs] Finished fetch attempt (finally executed).");
-            // Não há overlay para esconder aqui
         }
     }
 
-    async function addFranchiseConfig(name, includedFees) {
-        addFranchiseFormElement.querySelector('button[type="submit"]').disabled = true;
+    async function addFranchiseConfig(name, includedFees, serviceValueRules) {
+        const overlayId = 'register-section-loader';
+        showLoadingOverlayById(overlayId);
         try {
-            const response = await fetch('/api/manage-franchise-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchiseName: name, includedFees: includedFees }) });
+            const response = await fetch('/api/manage-franchise-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ franchiseName: name, includedFees: includedFees, serviceValueRules: serviceValueRules })
+             });
             const result = await response.json();
             if (!result.success) throw new Error(result.message);
             showToast(result.message, 'success');
             await fetchFranchiseConfigs();
             addFranchiseFormElement.reset();
+            populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
             newFeeCheckboxElements.forEach(checkboxElement => checkboxElement.checked = (checkboxElement.dataset.feeItem !== 'Call Center Fee Extra'));
         } catch (error) {
             console.error("Error adding franchise:", error);
             showToast(`Error adding franchise: ${error.message}`, 'error');
         } finally {
-            addFranchiseFormElement.querySelector('button[type="submit"]').disabled = false;
+            hideLoadingOverlayById(overlayId);
         }
     }
 
-    async function updateFranchiseConfig(originalName, newName, includedFees) {
+    async function updateFranchiseConfig(originalName, newName, includedFees, serviceValueRules) {
+         const overlayId = 'register-section-loader';
+         showLoadingOverlayById(overlayId);
          editModalSaveButtonElement.disabled = true;
          try {
-             const response = await fetch('/api/manage-franchise-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFees }) });
+             const response = await fetch('/api/manage-franchise-config', {
+                 method: 'PUT',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFees, serviceValueRules: serviceValueRules })
+              });
              const result = await response.json();
              if (!result.success) throw new Error(result.message);
              showToast(result.message, 'success');
@@ -164,13 +243,15 @@ document.addEventListener('DOMContentLoaded', () => {
              console.error("Error updating franchise:", error);
              showToast(`Error updating franchise: ${error.message}`, 'error');
          } finally {
+             hideLoadingOverlayById(overlayId);
              editModalSaveButtonElement.disabled = false;
          }
      }
 
     async function deleteFranchiseConfig(name) {
          if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
-         // Poderia adicionar um estado de loading ao botão clicado, se desejado
+         const overlayId = 'register-section-loader';
+         showLoadingOverlayById(overlayId);
          try {
              const response = await fetch('/api/manage-franchise-config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ franchiseName: name }) });
              const result = await response.json();
@@ -181,9 +262,57 @@ document.addEventListener('DOMContentLoaded', () => {
              console.error("Error deleting franchise:", error);
              showToast(`Error deleting franchise: ${error.message}`, 'error');
          } finally {
-            // Remover estado de loading do botão, se adicionado
+             hideLoadingOverlayById(overlayId);
          }
      }
+
+    function populateServiceRuleInputs(containerElement, rules) {
+        containerElement.innerHTML = '';
+        rules.forEach(rule => {
+            const ruleDiv = document.createElement('div');
+            ruleDiv.className = 'rule-grid border-b pb-2';
+            ruleDiv.innerHTML = `
+                <input type="checkbox" id="rule-enabled-${rule.id}-${containerElement.id}" data-rule-id="${rule.id}" class="rule-enabled" ${rule.enabled ? 'checked' : ''} title="Enable/Disable Rule">
+                <span class="rule-keyword">${rule.keyword}</span>
+                <span class="text-xs text-muted-foreground">(Matches if description contains text)</span>
+
+                <label for="rule-threshold-${rule.id}-${containerElement.id}" class="text-muted-foreground">Threshold:</label>
+                <input type="number" step="1" min="0" id="rule-threshold-${rule.id}-${containerElement.id}" data-rule-id="${rule.id}" class="rule-threshold input-base h-7" value="${rule.threshold}">
+                <span class="text-xs text-muted-foreground">(Value below which adjustment occurs. 0 for fixed value)</span>
+
+                <label for="rule-adjusted-${rule.id}-${containerElement.id}" class="text-muted-foreground">Adjusted:</label>
+                <input type="number" step="1" min="0" id="rule-adjusted-${rule.id}-${containerElement.id}" data-rule-id="${rule.id}" class="rule-adjusted input-base h-7" value="${rule.adjusted}">
+                <span class="text-xs text-muted-foreground">(New value if threshold met, or fixed value if threshold is 0)</span>
+            `;
+            containerElement.appendChild(ruleDiv);
+        });
+    }
+
+    function getServiceRulesFromInputs(containerElement) {
+        const rules = [];
+        const ruleDivs = containerElement.querySelectorAll('.rule-grid');
+        ruleDivs.forEach(ruleDiv => {
+            const enabledInput = ruleDiv.querySelector('.rule-enabled');
+            const keywordSpan = ruleDiv.querySelector('.rule-keyword');
+            const thresholdInput = ruleDiv.querySelector('.rule-threshold');
+            const adjustedInput = ruleDiv.querySelector('.rule-adjusted');
+
+            if (enabledInput && keywordSpan && thresholdInput && adjustedInput) {
+                const ruleId = enabledInput.dataset.ruleId;
+                rules.push({
+                    id: ruleId,
+                    keyword: keywordSpan.textContent,
+                    threshold: parseInt(thresholdInput.value, 10) || 0,
+                    adjusted: parseInt(adjustedInput.value, 10) || 0,
+                    enabled: enabledInput.checked
+                });
+            } else {
+                 console.warn("Could not find all inputs for a service rule in container:", containerElement);
+            }
+        });
+        return rules;
+    }
+
 
     function populateFranchiseSelect() {
          const currentSelection = franchiseSelectElement.value;
@@ -484,12 +613,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const apiField = feeItemToApiFieldMap[feeItem];
             checkbox.checked = configToEdit[apiField] || false;
         });
+        populateServiceRuleInputs(editServiceRulesContainer, configToEdit.serviceValueRules || defaultServiceValueRules);
         editModalElement.classList.remove('hidden');
     }
 
     function closeEditModal() {
         editModalElement.classList.add('hidden');
         editFormElement.reset();
+        populateServiceRuleInputs(editServiceRulesContainer, []);
     }
 
     function handleSaveEdit() {
@@ -499,8 +630,9 @@ document.addEventListener('DOMContentLoaded', () => {
         editFeeCheckboxElements.forEach(checkbox => {
             includedFeesMap[checkbox.dataset.feeItem] = checkbox.checked;
         });
+        const serviceValueRules = getServiceRulesFromInputs(editServiceRulesContainer);
         if (!newName) { alert("Franchise name cannot be empty."); return; }
-        updateFranchiseConfig(originalName, newName, includedFeesMap);
+        updateFranchiseConfig(originalName, newName, includedFeesMap, serviceValueRules);
     }
 
     addFranchiseFormElement.addEventListener('submit', (event) => {
@@ -508,8 +640,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const franchiseName = newFranchiseNameInputElement.value.trim();
         const includedFeesMap = {};
         newFeeCheckboxElements.forEach(checkbox => { includedFeesMap[checkbox.dataset.feeItem] = checkbox.checked; });
-        if (franchiseName) { addFranchiseConfig(franchiseName, includedFeesMap); }
-        else { alert("Please enter a franchise name."); }
+        const serviceValueRules = getServiceRulesFromInputs(newServiceRulesContainer);
+        if (franchiseName) {
+            addFranchiseConfig(franchiseName, includedFeesMap, serviceValueRules);
+        } else {
+            alert("Please enter a franchise name.");
+        }
     });
 
     franchiseSelectElement.addEventListener('change', (event) => {
@@ -563,6 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     console.log("Initializing page...");
     populateMonthSelect();
+    populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
     fetchFranchiseConfigs();
     resetCalculationSection();
     console.log("Page initialization scripts running.");
