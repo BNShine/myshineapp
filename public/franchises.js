@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const metricTotalValueElement = document.querySelector('#royalty-calculation-section .metric-total-value');
     const metricTotalFeesElement = document.querySelector('#royalty-calculation-section .metric-total-fees');
     const toastContainerElement = document.getElementById('toast-container');
+    const mainContentElement = document.querySelector('.main-content');
 
     const addFranchiseFormElement = document.getElementById('add-franchise-form');
     const newFranchiseNameInputElement = document.getElementById('new-franchise-name');
@@ -67,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, duration);
     }
 
-    function showLoadingOverlayById(elementId) {
+     function showLoadingOverlayById(elementId) {
          const overlayElement = document.getElementById(elementId);
          if (overlayElement) {
              console.log(`Showing overlay for ID: ${elementId}`);
@@ -78,12 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
      }
 
      function hideLoadingOverlayById(elementId) {
+         // Tenta encontrar o elemento *no momento* em que a função é chamada
          const overlayElement = document.getElementById(elementId);
          if (overlayElement) {
               console.log(`Hiding overlay for ID: ${elementId}`);
              overlayElement.classList.add('hidden');
          } else {
-              console.error(`hideLoadingOverlayById: Overlay element with ID '${elementId}' NOT FOUND!`);
+              // Loga o erro, mas não impede a continuação
+              console.error(`hideLoadingOverlayById: Overlay element with ID '${elementId}' NOT FOUND when trying to hide!`);
          }
      }
 
@@ -101,6 +104,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchFranchiseConfigs() {
         const overlayId = 'register-section-loader';
+        const overlayElementDirect = document.getElementById(overlayId); // Tenta pegar a referência agora
+
+        if (!overlayElementDirect) {
+             console.error(`CRITICAL: Overlay element with ID '${overlayId}' not found during initialization! Check HTML.`);
+             registeredFranchisesListElement.innerHTML = `<p class="p-4 text-red-600">Error: UI component missing (loader). Cannot proceed.</p>`;
+             return;
+        }
+
         showLoadingOverlayById(overlayId);
         registeredFranchisesListElement.innerHTML = `<p class="p-4 text-muted-foreground italic">Loading configurations...</p>`;
         console.log("[fetchFranchiseConfigs] Attempting to fetch...");
@@ -151,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             populateFranchiseSelect();
         } finally {
             console.log("[fetchFranchiseConfigs] Entering finally block...");
-            // Tenta esconder o overlay usando o ID diretamente aqui
+            // Chama a função para esconder usando o ID novamente, de forma mais direta
             hideLoadingOverlayById(overlayId);
             console.log("[fetchFranchiseConfigs] Finished fetch attempt (finally executed).");
         }
