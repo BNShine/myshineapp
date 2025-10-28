@@ -89,7 +89,20 @@
                              </div>
                              <div>
                                  <h4 class="text-sub-title mb-2 border-t pt-4">Fee Values</h4>
-                                 <div class="config-grid"> <div> <label for="new-royalty-rate" class="text-label">Royalty Rate (%)</label> <input type="number" step="0.1" id="new-royalty-rate" value="6.0" class="input-base h-9"> </div> <div> <label for="new-marketing-rate" class="text-label">Marketing Rate (%)</label> <input type="number" step="0.1" id="new-marketing-rate" value="1.0" class="input-base h-9"> </div> <div> <label for="new-software-fee" class="text-label">Software Fee ($)</label> <input type="number" step="0.01" id="new-software-fee" value="350.00" class="input-base h-9"> </div> <div> <label for="new-callcenter-fee" class="text-label">Call Center Fee ($)</label> <input type="number" step="0.01" id="new-callcenter-fee" value="1200.00" class="input-base h-9"> </div> <div> <label for="new-callcenter-extra" class="text-label">Call C. Extra ($)</label> <input type="number" step="0.01" id="new-callcenter-extra" value="600.00" class="input-base h-9"> </div> </div>
+                                 <div class="config-grid items-end">
+                                     <div>
+                                         <div class="flex items-center mb-1">
+                                             <input type="checkbox" id="new-has-min-royalty" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2">
+                                             <label for="new-has-min-royalty" class="text-label">Minimum Royalty Fee ($)</label>
+                                         </div>
+                                         <input type="number" step="0.01" id="new-min-royalty-value" value="0" class="input-base h-9" disabled>
+                                     </div>
+                                     <div> <label for="new-royalty-rate" class="text-label">Royalty Rate (%)</label> <input type="number" step="0.1" id="new-royalty-rate" value="6.0" class="input-base h-9"> </div>
+                                     <div> <label for="new-marketing-rate" class="text-label">Marketing Rate (%)</label> <input type="number" step="0.1" id="new-marketing-rate" value="1.0" class="input-base h-9"> </div>
+                                     <div> <label for="new-software-fee" class="text-label">Software Fee ($)</label> <input type="number" step="0.01" id="new-software-fee" value="350.00" class="input-base h-9"> </div>
+                                     <div> <label for="new-callcenter-fee" class="text-label">Call Center Fee ($)</label> <input type="number" step="0.01" id="new-callcenter-fee" value="1200.00" class="input-base h-9"> </div>
+                                     <div> <label for="new-callcenter-extra" class="text-label">Call C. Extra ($)</label> <input type="number" step="0.01" id="new-callcenter-extra" value="600.00" class="input-base h-9"> </div>
+                                 </div>
                              </div>
                              <div>
                                  <h4 class="text-sub-title mb-2 border-t pt-4">Custom Fees</h4>
@@ -134,7 +147,20 @@
                  </div>
                  <div>
                     <h4 class="text-sub-title mb-2 border-t pt-4">Fee Values</h4>
-                    <div class="config-grid"> <div> <label for="edit-royalty-rate" class="text-label">Royalty Rate (%)</label> <input type="number" step="0.1" id="edit-royalty-rate" class="input-base h-9"> </div> <div> <label for="edit-marketing-rate" class="text-label">Marketing Rate (%)</label> <input type="number" step="0.1" id="edit-marketing-rate" class="input-base h-9"> </div> <div> <label for="edit-software-fee" class="text-label">Software Fee ($)</label> <input type="number" step="0.01" id="edit-software-fee" class="input-base h-9"> </div> <div> <label for="edit-callcenter-fee" class="text-label">Call Center Fee ($)</label> <input type="number" step="0.01" id="edit-callcenter-fee" class="input-base h-9"> </div> <div> <label for="edit-callcenter-extra" class="text-label">Call C. Extra ($)</label> <input type="number" step="0.01" id="edit-callcenter-extra" class="input-base h-9"> </div> </div>
+                    <div class="config-grid items-end">
+                        <div>
+                             <div class="flex items-center mb-1">
+                                 <input type="checkbox" id="edit-has-min-royalty" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2">
+                                 <label for="edit-has-min-royalty" class="text-label">Minimum Royalty Fee ($)</label>
+                             </div>
+                             <input type="number" step="0.01" id="edit-min-royalty-value" value="0" class="input-base h-9" disabled>
+                         </div>
+                        <div> <label for="edit-royalty-rate" class="text-label">Royalty Rate (%)</label> <input type="number" step="0.1" id="edit-royalty-rate" class="input-base h-9"> </div>
+                        <div> <label for="edit-marketing-rate" class="text-label">Marketing Rate (%)</label> <input type="number" step="0.1" id="edit-marketing-rate" class="input-base h-9"> </div>
+                        <div> <label for="edit-software-fee" class="text-label">Software Fee ($)</label> <input type="number" step="0.01" id="edit-software-fee" class="input-base h-9"> </div>
+                        <div> <label for="edit-callcenter-fee" class="text-label">Call Center Fee ($)</label> <input type="number" step="0.01" id="edit-callcenter-fee" class="input-base h-9"> </div>
+                        <div> <label for="edit-callcenter-extra" class="text-label">Call C. Extra ($)</label> <input type="number" step="0.01" id="edit-callcenter-extra" class="input-base h-9"> </div>
+                    </div>
                  </div>
                  <div>
                      <h4 class="text-sub-title mb-2 border-t pt-4">Custom Fees</h4>
