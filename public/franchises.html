@@ -93,32 +93,18 @@
                              </div>
                              <div>
                                  <h4 class="text-sub-title mb-2 border-t pt-4">Custom Fees</h4>
-                                 <div id="new-custom-fees-container" class="space-y-3 mb-3">
-                                 </div>
+                                 <div id="new-custom-fees-container" class="space-y-3 mb-3"> </div>
                                  <button type="button" id="add-new-custom-fee-button" class="btn-outline text-xs">+ Add Custom Fee</button>
                              </div>
                              <div>
                                  <h4 class="text-sub-title mb-2 border-t pt-4">Loan Configuration</h4>
-                                 <div class="flex items-center mb-3">
-                                     <input type="checkbox" id="new-has-loan" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2">
-                                     <label for="new-has-loan" class="text-sm">Include Loan Payment</label>
-                                 </div>
-                                 <div id="new-loan-details-wrapper" class="config-grid hidden">
-                                     <div>
-                                         <label for="new-loan-installment" class="text-label">Installment #</label>
-                                         <input type="number" step="1" min="0" id="new-loan-installment" value="0" class="input-base h-9">
-                                     </div>
-                                     <div>
-                                         <label for="new-loan-value" class="text-label">Value per Installment ($)</label>
-                                         <input type="number" step="0.01" id="new-loan-value" value="0" class="input-base h-9">
-                                     </div>
-                                 </div>
+                                 <div class="flex items-center mb-3"> <input type="checkbox" id="new-has-loan" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2"> <label for="new-has-loan" class="text-sm">Include Loan Payment</label> </div>
+                                 <div id="new-loan-details-wrapper" class="config-grid hidden"> <div> <label for="new-loan-installment" class="text-label">Installment #</label> <input type="number" step="1" min="0" id="new-loan-installment" value="0" class="input-base h-9"> </div> <div> <label for="new-loan-value" class="text-label">Value per Installment ($)</label> <input type="number" step="0.01" id="new-loan-value" value="0" class="input-base h-9"> </div> </div>
                              </div>
                              <div>
                                 <h4 class="text-sub-title mb-2 border-t pt-4">Service Value Adjustment Rules</h4>
                                 <p class="text-xs text-muted-foreground mb-3">Define minimum/fixed values. Add custom rules as needed.</p>
-                                <div id="new-service-rules-container" class="space-y-3 mb-3">
-                                </div>
+                                <div id="new-service-rules-container" class="space-y-3 mb-3"> </div>
                                 <button type="button" id="add-new-service-rule-button" class="btn-outline text-xs">+ Add Service Rule</button>
                             </div>
                             <div class="flex justify-end pt-4"> <button type="submit" class="btn-primary h-10 px-6">Register Franchise</button> </div>
@@ -133,7 +119,7 @@
     </div>
 
      <div id="edit-franchise-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
-         <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-lg relative overflow-y-auto max-h-[90vh]">
+         <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-[90rem] relative overflow-y-auto max-h-[90vh]">
             <h3 class="text-xl font-bold text-foreground mb-4">Edit Franchise Configuration</h3>
             <input type="hidden" id="edit-original-franchise-name">
             <form id="edit-franchise-form" class="space-y-4">
@@ -148,32 +134,18 @@
                  </div>
                  <div>
                      <h4 class="text-sub-title mb-2 border-t pt-4">Custom Fees</h4>
-                     <div id="edit-custom-fees-container" class="space-y-3 mb-3">
-                     </div>
+                     <div id="edit-custom-fees-container" class="space-y-3 mb-3"> </div>
                      <button type="button" id="add-edit-custom-fee-button" class="btn-outline text-xs">+ Add Custom Fee</button>
                  </div>
                  <div>
                      <h4 class="text-sub-title mb-2 border-t pt-4">Loan Configuration</h4>
-                     <div class="flex items-center mb-3">
-                         <input type="checkbox" id="edit-has-loan" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2">
-                         <label for="edit-has-loan" class="text-sm">Include Loan Payment</label>
-                     </div>
-                     <div id="edit-loan-details-wrapper" class="config-grid hidden">
-                         <div>
-                             <label for="edit-loan-installment" class="text-label">Installment #</label>
-                             <input type="number" step="1" min="0" id="edit-loan-installment" value="0" class="input-base h-9">
-                         </div>
-                         <div>
-                             <label for="edit-loan-value" class="text-label">Value per Installment ($)</label>
-                             <input type="number" step="0.01" id="edit-loan-value" value="0" class="input-base h-9">
-                         </div>
-                     </div>
+                     <div class="flex items-center mb-3"> <input type="checkbox" id="edit-has-loan" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2"> <label for="edit-has-loan" class="text-sm">Include Loan Payment</label> </div>
+                     <div id="edit-loan-details-wrapper" class="config-grid hidden"> <div> <label for="edit-loan-installment" class="text-label">Installment #</label> <input type="number" step="1" min="0" id="edit-loan-installment" value="0" class="input-base h-9"> </div> <div> <label for="edit-loan-value" class="text-label">Value per Installment ($)</label> <input type="number" step="0.01" id="edit-loan-value" value="0" class="input-base h-9"> </div> </div>
                  </div>
                  <div class="border-t pt-4 mt-4">
                      <h4 class="text-sub-title mb-2">Service Value Adjustment Rules</h4>
                      <p class="text-xs text-muted-foreground mb-3">Define minimum/fixed values for services.</p>
-                     <div id="edit-service-rules-container" class="space-y-3 mb-3">
-                     </div>
+                     <div id="edit-service-rules-container" class="space-y-3 mb-3"> </div>
                      <button type="button" id="add-edit-service-rule-button" class="btn-outline text-xs">+ Add Service Rule</button>
                  </div>
             </form>
