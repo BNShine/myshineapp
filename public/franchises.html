@@ -23,8 +23,7 @@
         .fee-checkbox { @apply h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary; }
         .franchise-list-item { @apply flex justify-between items-center p-3 border-b border-border; }
         .franchise-list-item:last-child { @apply border-b-0; }
-        .loading-overlay { position: absolute; inset: 0; background-color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .dark .loading-overlay { background-color: rgba(0, 0, 0, 0.7); }
+        /* .loading-overlay styles removidos se não forem mais usados em outros lugares */
     </style>
 </head>
 <body class="min-h-screen bg-background text-foreground">
@@ -66,10 +65,7 @@
             <main class="flex-1 p-4 sm:p-6 space-y-6">
                 <h1 class="text-page-title">Franchise Management & Royalty Calculation</h1>
 
-                <section id="franchise-register-section" class="card-base relative">
-                    <div id="register-section-loader" class="loading-overlay hidden absolute inset-0 bg-background/70 dark:bg-background/50 flex items-center justify-center z-10">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
-                    </div>
+                <section id="franchise-register-section" class="card-base">
                     <div class="p-6 border-b">
                         <h2 class="text-section-title">Franchise Register</h2>
                         <p class="text-body mt-1">Add, edit, or remove franchise configurations.</p>
