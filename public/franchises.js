@@ -27,7 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addNewCustomFeeButton = document.getElementById('add-new-custom-fee-button');
     const newHasLoanCheckbox = document.getElementById('new-has-loan');
     const newLoanDetailsWrapper = document.getElementById('new-loan-details-wrapper');
-    const newLoanInstallmentInputElement = document.getElementById('new-loan-installment');
+    const newLoanCurrentInstallmentInputElement = document.getElementById('new-loan-current-installment');
+    const newLoanTotalInstallmentsInputElement = document.getElementById('new-loan-total-installments');
     const newLoanValueInputElement = document.getElementById('new-loan-value');
     const newServiceRulesContainer = document.getElementById('new-service-rules-container');
     const addNewServiceRuleButton = document.getElementById('add-new-service-rule-button');
@@ -52,7 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addEditCustomFeeButton = document.getElementById('add-edit-custom-fee-button');
     const editHasLoanCheckbox = document.getElementById('edit-has-loan');
     const editLoanDetailsWrapper = document.getElementById('edit-loan-details-wrapper');
-    const editLoanInstallmentInputElement = document.getElementById('edit-loan-installment');
+    const editLoanCurrentInstallmentInputElement = document.getElementById('edit-loan-current-installment');
+    const editLoanTotalInstallmentsInputElement = document.getElementById('edit-loan-total-installments');
     const editLoanValueInputElement = document.getElementById('edit-loan-value');
     const editServiceRulesContainer = document.getElementById('edit-service-rules-container');
     const addEditServiceRuleButton = document.getElementById('add-edit-service-rule-button');
@@ -83,7 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
         extraVehicles: 0,
         customFeesConfig: [],
         hasLoan: false,
-        loanInstallment: 0,
+        loanCurrentInstallment: 0,
+        loanTotalInstallments: 0,
         loanValue: 0
     };
 
@@ -194,7 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
                           config.customFeesConfig = config.customFeesConfig && Array.isArray(config.customFeesConfig) ? config.customFeesConfig : [];
                           config.extraVehicles = config.extraVehicles !== undefined ? config.extraVehicles : defaultRatesAndFees.extraVehicles;
                           config.hasLoan = config.hasLoan !== undefined ? config.hasLoan : defaultRatesAndFees.hasLoan;
-                          config.loanInstallment = config.loanInstallment !== undefined ? config.loanInstallment : defaultRatesAndFees.loanInstallment;
+                          config.loanCurrentInstallment = config.loanCurrentInstallment !== undefined ? config.loanCurrentInstallment : defaultRatesAndFees.loanCurrentInstallment;
+                          config.loanTotalInstallments = config.loanTotalInstallments !== undefined ? config.loanTotalInstallments : defaultRatesAndFees.loanTotalInstallments;
                           config.loanValue = config.loanValue !== undefined ? config.loanValue : defaultRatesAndFees.loanValue;
                       });
                  }
@@ -333,12 +337,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function populateCustomFeeInputs(containerElement, fees) {
         if (!containerElement) return;
         containerElement.innerHTML = '';
-        fees.forEach(fee => {
-            appendCustomFeeInputRow(containerElement, fee);
-        });
+        if (fees.length === 0) {
+             appendCustomFeeInputRow(containerElement); // Adiciona uma linha em branco se não houver nenhuma
+        } else {
+            fees.forEach(fee => {
+                appendCustomFeeInputRow(containerElement, fee);
+            });
+        }
     }
 
-    function appendCustomFeeInputRow(containerElement, fee = { id: `new_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, name: '', type: 'percentage', value: 0, enabled: true }) {
+    function appendCustomFeeInputRow(containerElement, fee = { id: `new_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, name: '', type: 'percentage', value: 0, enabled: false }) {
          if (!containerElement) return;
          const feeDiv = document.createElement('div');
          feeDiv.className = 'custom-fee-row';
@@ -405,8 +413,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         franchisesConfiguration.sort((a, b) => a.franchiseName.localeCompare(b.franchiseName)).forEach(config => {
             const includedItems = Object.entries(config) .filter(([key, value]) => key.startsWith('Include') && value === true) .map(([key]) => apiFieldToFeeItemMap[key] || key.replace('Include', '')) .join(', ');
-            const customFeesSummary = (config.customFeesConfig || []).filter(f => f.enabled).map(f => f.name).join(', ');
-            const loanSummary = config.hasLoan ? ` | Loan Payment` : '';
+            const customFeesSummary = (config.customFeesConfig || []).filter(f => f.enabled && f.name).map(f => f.name).join(', ');
+            const loanSummary = config.hasLoan ? ` | Loan (${config.loanCurrentInstallment}/${config.loanTotalInstallments})` : '';
             const listItem = document.createElement('div');
             listItem.className = 'franchise-list-item';
             listItem.innerHTML = `
@@ -456,8 +464,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  rowsToShow.push({ Item: customFee.name, Description: "Custom Fee", Qty: customQuantity, Unit_price: customUnitPrice, Amount: 0, verified: false, fixed: true, isRate: isCustomRate });
              }
          });
-         if (config.hasLoan && config.loanValue > 0) {
-             rowsToShow.push({ Item: "Loan Payment", Description: `Installment ${config.loanInstallment}`, Qty: 1, Unit_price: config.loanValue, Amount: 0, verified: false, fixed: true, isRate: false });
+         if (config.hasLoan && config.loanValue > 0 && config.loanTotalInstallments > 0 && config.loanCurrentInstallment > 0 && config.loanCurrentInstallment <= config.loanTotalInstallments) {
+             rowsToShow.push({ Item: "Loan Payment", Description: `Installment ${config.loanCurrentInstallment} of ${config.loanTotalInstallments}`, Qty: 1, Unit_price: config.loanValue, Amount: 0, verified: false, fixed: true, isRate: false });
          }
          return rowsToShow;
      }
@@ -570,7 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
          if(newCallCenterExtraInputElement) newCallCenterExtraInputElement.value = defaultRatesAndFees.callCenterExtraFeeValue.toFixed(2);
          if(newExtraVehiclesInputElement) newExtraVehiclesInputElement.value = defaultRatesAndFees.extraVehicles;
          if(newHasLoanCheckbox) newHasLoanCheckbox.checked = defaultRatesAndFees.hasLoan;
-         if(newLoanInstallmentInputElement) newLoanInstallmentInputElement.value = defaultRatesAndFees.loanInstallment;
+         if(newLoanCurrentInstallmentInputElement) newLoanCurrentInstallmentInputElement.value = defaultRatesAndFees.loanCurrentInstallment;
+         if(newLoanTotalInstallmentsInputElement) newLoanTotalInstallmentsInputElement.value = defaultRatesAndFees.loanTotalInstallments;
          if(newLoanValueInputElement) newLoanValueInputElement.value = defaultRatesAndFees.loanValue.toFixed(2);
          if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden');
          if(newLoanDetailsWrapper) newLoanDetailsWrapper.classList.add('hidden');
@@ -677,7 +686,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const customFees = configToEdit.customFeesConfig || [];
         populateCustomFeeInputs(editCustomFeesContainer, customFees);
         editHasLoanCheckbox.checked = configToEdit.hasLoan || false;
-        editLoanInstallmentInputElement.value = configToEdit.loanInstallment || 0;
+        editLoanCurrentInstallmentInputElement.value = configToEdit.loanCurrentInstallment || 0;
+        editLoanTotalInstallmentsInputElement.value = configToEdit.loanTotalInstallments || 0;
         editLoanValueInputElement.value = (configToEdit.loanValue || 0).toFixed(2);
         if(editExtraVehiclesWrapper) editExtraVehiclesWrapper.classList.toggle('hidden', !editIncludeCallCenterExtraCheckbox.checked);
         if(editLoanDetailsWrapper) editLoanDetailsWrapper.classList.toggle('hidden', !editHasLoanCheckbox.checked);
@@ -711,7 +721,8 @@ document.addEventListener('DOMContentLoaded', () => {
             callCenterExtraFeeValue: parseNumberInput(editCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
             extraVehicles: parseIntInput(editExtraVehiclesInputElement.value, 0),
             hasLoan: editHasLoanCheckbox.checked,
-            loanInstallment: parseIntInput(editLoanInstallmentInputElement.value, 0),
+            loanCurrentInstallment: parseIntInput(editLoanCurrentInstallmentInputElement.value, 0),
+            loanTotalInstallments: parseIntInput(editLoanTotalInstallmentsInputElement.value, 0),
             loanValue: parseNumberInput(editLoanValueInputElement.value, 0),
             customFeesConfig: customFeesConfig, serviceValueRules: serviceValueRules
         };
@@ -735,7 +746,8 @@ document.addEventListener('DOMContentLoaded', () => {
             callCenterExtraFeeValue: parseNumberInput(newCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
             extraVehicles: parseIntInput(newExtraVehiclesInputElement.value, 0),
             hasLoan: newHasLoanCheckbox.checked,
-            loanInstallment: parseIntInput(newLoanInstallmentInputElement.value, 0),
+            loanCurrentInstallment: parseIntInput(newLoanCurrentInstallmentInputElement.value, 0),
+            loanTotalInstallments: parseIntInput(newLoanTotalInstallmentsInputElement.value, 0),
             loanValue: parseNumberInput(newLoanValueInputElement.value, 0),
             customFeesConfig: customFeesConfig, serviceValueRules: serviceValueRules
         };
@@ -774,6 +786,20 @@ document.addEventListener('DOMContentLoaded', () => {
         addCalculationRowButtonElement.addEventListener('click', addCalculationRowUI);
     }
 
+    // Delegação de eventos unificada para cliques em botões delete
+    document.body.addEventListener('click', (event) => {
+        const deleteRuleButton = event.target.closest('.delete-rule-btn');
+        const deleteFeeButton = event.target.closest('.delete-fee-btn');
+        const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
+
+        if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
+        else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
+        else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) {
+            const tableRowElement = deleteRowButton.closest('.calculation-row');
+            if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
+        }
+    });
+
     if (calculationTbodyElement) {
         calculationTbodyElement.addEventListener('change', (event) => {
             const targetElement = event.target;
@@ -788,20 +814,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (targetElement.classList.contains('verified')) { rowData.verified = targetElement.checked; }
             calculateAndDisplayTotals();
         });
-
-        // Delegação de eventos para botões delete (regras, taxas custom, linhas tabela)
-        document.body.addEventListener('click', (event) => {
-             const deleteRuleButton = event.target.closest('.delete-rule-btn');
-             const deleteFeeButton = event.target.closest('.delete-fee-btn');
-             const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
-
-             if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
-             else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
-             else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) { // Garante que é da tabela de cálculo
-                 const tableRowElement = deleteRowButton.closest('.calculation-row');
-                 if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
-             }
-         });
     }
 
     if(editModalSaveButtonElement) editModalSaveButtonElement.addEventListener('click', handleSaveEdit);
@@ -828,7 +840,8 @@ document.addEventListener('DOMContentLoaded', () => {
          newHasLoanCheckbox.addEventListener('change', (event) => {
              newLoanDetailsWrapper.classList.toggle('hidden', !event.target.checked);
              if(!event.target.checked) {
-                 if(newLoanInstallmentInputElement) newLoanInstallmentInputElement.value = 0;
+                 if(newLoanCurrentInstallmentInputElement) newLoanCurrentInstallmentInputElement.value = 0;
+                 if(newLoanTotalInstallmentsInputElement) newLoanTotalInstallmentsInputElement.value = 0;
                  if(newLoanValueInputElement) newLoanValueInputElement.value = 0;
              }
          });
@@ -837,7 +850,8 @@ document.addEventListener('DOMContentLoaded', () => {
          editHasLoanCheckbox.addEventListener('change', (event) => {
              editLoanDetailsWrapper.classList.toggle('hidden', !event.target.checked);
              if(!event.target.checked) {
-                 if(editLoanInstallmentInputElement) editLoanInstallmentInputElement.value = 0;
+                 if(editLoanCurrentInstallmentInputElement) editLoanCurrentInstallmentInputElement.value = 0;
+                 if(editLoanTotalInstallmentsInputElement) editLoanTotalInstallmentsInputElement.value = 0;
                  if(editLoanValueInputElement) editLoanValueInputElement.value = 0;
              }
          });
