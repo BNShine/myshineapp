@@ -65,6 +65,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const editModalSaveButtonElement = document.getElementById('edit-modal-save-btn');
     const editModalCancelButtonElement = document.getElementById('edit-modal-cancel-btn');
 
+    const editLoanModalElement = document.getElementById('edit-loan-modal');
+    const editLoanFormElement = document.getElementById('edit-loan-form');
+    const editLoanFranchiseNameHiddenInput = document.getElementById('edit-loan-franchise-name');
+    const modalLoanCurrentInstallmentInput = document.getElementById('modal-loan-current-installment');
+    const modalLoanTotalInstallmentsInput = document.getElementById('modal-loan-total-installments');
+    const modalLoanValueInput = document.getElementById('modal-loan-value');
+    const editLoanSaveButton = document.getElementById('edit-loan-save-btn');
+    const editLoanCancelButton = document.getElementById('edit-loan-cancel-btn');
+    const editLoanRemoveButton = document.getElementById('edit-loan-remove-btn');
+
     const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const BASE_FEE_ITEMS = ["Royalty Fee", "Marketing Fee", "Software Fee", "Call Center Fee", "Call Center Fee Extra"];
     const feeItemToApiFieldMap = { "Royalty Fee": "IncludeRoyalty", "Marketing Fee": "IncludeMarketing", "Software Fee": "IncludeSoftware", "Call Center Fee": "IncludeCallCenter", "Call Center Fee Extra": "IncludeCallCenterExtra" };
@@ -207,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
                           config.loanTotalInstallments = config.loanTotalInstallments !== undefined ? config.loanTotalInstallments : defaultRatesAndFees.loanTotalInstallments;
                           config.loanValue = config.loanValue !== undefined ? config.loanValue : defaultRatesAndFees.loanValue;
                           config.hasMinRoyaltyFee = config.hasMinRoyaltyFee !== undefined ? config.hasMinRoyaltyFee : defaultRatesAndFees.hasMinRoyaltyFee;
-                          config.minRoyaltyFeeValue = config.minRoyaltyFeeValue !== undefined ? config.minRoyaltyFeeValue : defaultRatesAndFees.minRoyaltyFeeValue;
+                          config.minRoyaltyFeeValue = config.minRoyaltyFeeValue !== undefined && config.minRoyaltyFeeValue > 0 ? config.minRoyaltyFeeValue : defaultRatesAndFees.minRoyaltyFeeValue;
                       });
                  }
             } catch (parseError) {
@@ -254,20 +264,50 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateFranchiseConfig(configData) {
          const overlayId = 'register-section-loader';
          showLoadingOverlayById(overlayId);
-         editModalSaveButtonElement.disabled = true;
+         if(editModalSaveButtonElement) editModalSaveButtonElement.disabled = true;
+         if(editLoanSaveButton) editLoanSaveButton.disabled = true;
+         if(editLoanRemoveButton) editLoanRemoveButton.disabled = true;
+
          try {
              const response = await fetch('/api/manage-franchise-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configData) });
              const result = await response.json();
              if (!result.success) throw new Error(result.message);
              showToast(result.message, 'success');
+
+             // Atualiza a configuração local imediatamente para refletir na UI
+             const index = franchisesConfiguration.findIndex(f => f.franchiseName === configData.originalFranchiseName);
+             if (index > -1) {
+                // Junta a config antiga com a nova, para o caso de a API não retornar tudo
+                franchisesConfiguration[index] = { ...franchisesConfiguration[index], ...configData, franchiseName: configData.newFranchiseName };
+                // Se a franquia editada for a selecionada atualmente, atualiza o estado de cálculo
+                if(currentCalculationState.selectedFranchiseName === configData.originalFranchiseName || currentCalculationState.selectedFranchiseName === configData.newFranchiseName) {
+                    currentCalculationState.selectedFranchiseName = configData.newFranchiseName;
+                    currentCalculationState.config = franchisesConfiguration[index];
+                    // Regenera as linhas da tabela com a nova config
+                    currentCalculationState.calculationRows = generateCalculationRows();
+                    updateCalculationTableDOM();
+                }
+             }
+
+             // Fecha qualquer modal aberto
              closeEditModal();
-             await fetchFranchiseConfigs();
+             closeEditLoanModal();
+
+             // Re-renderiza a lista e o select
+             renderRegisteredFranchises();
+             populateFranchiseSelect();
+
+             // Opcional: Recarregar tudo da API para garantir consistência total
+             // await fetchFranchiseConfigs();
+
          } catch (error) {
              console.error("Error updating franchise:", error);
              showToast(`Error updating franchise: ${error.message}`, 'error');
          } finally {
              hideLoadingOverlayById(overlayId);
-             editModalSaveButtonElement.disabled = false;
+             if(editModalSaveButtonElement) editModalSaveButtonElement.disabled = false;
+             if(editLoanSaveButton) editLoanSaveButton.disabled = false;
+             if(editLoanRemoveButton) editLoanRemoveButton.disabled = false;
          }
      }
 
@@ -281,6 +321,11 @@ document.addEventListener('DOMContentLoaded', () => {
              if (!result.success) throw new Error(result.message);
              showToast(result.message, 'success');
              await fetchFranchiseConfigs();
+             // Se a franquia deletada era a selecionada, reseta a secção de cálculo
+             if(currentCalculationState.selectedFranchiseName === name) {
+                 franchiseSelectElement.value = "";
+                 resetCalculationSection();
+             }
          } catch (error) {
              console.error("Error deleting franchise:", error);
              showToast(`Error deleting franchise: ${error.message}`, 'error');
@@ -483,6 +528,9 @@ document.addEventListener('DOMContentLoaded', () => {
          calculationRows.forEach((rowData, rowIndex) => {
             const tableRow = document.createElement('tr');
             tableRow.className = 'border-b border-border calculation-row';
+            if (rowData.Item === "Loan Payment") {
+                tableRow.classList.add('loan-payment-row');
+            }
             tableRow.dataset.index = rowIndex;
             const isFixedRow = rowData.fixed || false;
             const isRateFee = rowData.isRate || false;
@@ -493,7 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let amount = 0;
             if (isRateFee) { amount = (parseFloat(quantityValue) / 100) * parseFloat(unitPriceValue); }
             else { amount = parseFloat(quantityValue) * parseFloat(unitPriceValue); }
-            if (rowData.Item === "Royalty Fee" && currentCalculationState.config.hasMinRoyaltyFee) {
+            if (rowData.Item === "Royalty Fee" && currentCalculationState.config?.hasMinRoyaltyFee) {
                  if (amount < currentCalculationState.config.minRoyaltyFeeValue) {
                      amount = currentCalculationState.config.minRoyaltyFeeValue;
                      rowData.Description = `(Minimum applied. Original: ${formatCurrency( (parseFloat(quantityValue) / 100) * parseFloat(unitPriceValue) )})`;
@@ -502,8 +550,13 @@ document.addEventListener('DOMContentLoaded', () => {
             quantityValue = isNaN(quantityValue) ? 0 : quantityValue;
             unitPriceValue = isNaN(unitPriceValue) ? 0 : unitPriceValue;
             amount = isNaN(amount) ? 0 : amount;
+
+            const itemCellContent = (rowData.Item === "Loan Payment")
+                 ? `<span class="edit-loan-link">${rowData.Item}</span>`
+                 : `<input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixedRow ? 'disabled' : ''}>`;
+
             tableRow.innerHTML = `
-                <td class="p-2"><input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixedRow ? 'disabled' : ''}></td>
+                <td class="p-2 item-cell">${itemCellContent}</td>
                 <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}" ${isFixedRow ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${quantityValue === 0 && !isFixedRow ? 'red-text' : ''}" value="${isRateFee ? quantityValue.toFixed(1) : quantityValue}" ${!isEditableQuantity ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${!isEditableUnitPrice ? 'disabled' : ''}></td>
@@ -550,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  if(!rowData.fixed) { rowData.Unit_price = unitPrice; }
                 currentAmount = quantity * unitPrice;
             }
-             if (rowData.Item === "Royalty Fee" && currentCalculationState.config.hasMinRoyaltyFee) {
+             if (rowData.Item === "Royalty Fee" && currentCalculationState.config?.hasMinRoyaltyFee) {
                  if (currentAmount < currentCalculationState.config.minRoyaltyFeeValue) {
                      const originalAmount = currentAmount;
                      currentAmount = currentCalculationState.config.minRoyaltyFeeValue;
@@ -631,66 +684,52 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
     async function handleFileUpload(event) {
-         console.log("[handleFileUpload] Change event detected.");
          if (!currentCalculationState.selectedFranchiseName) {
-             console.warn("[handleFileUpload] No franchise selected."); showToast("Please select a franchise first.", "warning"); if(fileInputElement) fileInputElement.value = ''; return;
+             showToast("Please select a franchise first.", "warning"); if(fileInputElement) fileInputElement.value = ''; return;
          }
          const files = event.target.files;
-         console.log(`[handleFileUpload] Files selected: ${files ? files.length : 'null'}`);
-         if (!files || files.length === 0) { console.log("[handleFileUpload] No files selected."); return; }
+         if (!files || files.length === 0) { return; }
          if(loadingSpinnerElement) { loadingSpinnerElement.classList.remove('hidden'); }
-         else { console.error("[handleFileUpload] loadingSpinnerElement not found!"); }
-
+         else { console.error("loadingSpinnerElement not found!"); }
          let combinedJsonData = [];
          try {
              await Promise.all(Array.from(files).map(async (file) => {
-                 console.log(`[handleFileUpload] Processing file: ${file.name}`);
                  try {
                      const data = await file.arrayBuffer(); const workbook = XLSX.read(data);
-                     const firstSheetName = workbook.SheetNames[0]; if(!firstSheetName) { throw new Error("No sheets in file."); }
+                     const firstSheetName = workbook.SheetNames[0]; if(!firstSheetName) { throw new Error("No sheets."); }
                      const worksheet = workbook.Sheets[firstSheetName]; if(!worksheet) { throw new Error(`Sheet invalid.`); }
                      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: null });
                      combinedJsonData.push(...jsonData);
-                     console.log(`[handleFileUpload] Read ${jsonData.length} rows from ${file.name}`);
-                 } catch (error) { console.error(`[handleFileUpload] Error processing ${file.name}:`, error); showToast(`Error reading ${file.name}: ${error.message}`, 'error'); }
+                 } catch (error) { console.error(`Error processing ${file.name}:`, error); showToast(`Error reading ${file.name}: ${error.message}`, 'error'); }
              }));
          } finally {
              if(loadingSpinnerElement) { loadingSpinnerElement.classList.add('hidden'); }
              currentCalculationState.fileData = combinedJsonData;
-             console.log(`[handleFileUpload] Read complete. Total rows: ${combinedJsonData.length}. Processing...`);
              processUploadedData();
              if(fileInputElement) fileInputElement.value = '';
-             console.log("[handleFileUpload] Input cleared.");
          }
      }
 
     function processUploadedData() {
-         console.log("[processUploadedData] Starting...");
          const fileData = currentCalculationState.fileData;
          const config = currentCalculationState.config;
          currentCalculationState.metrics = { pets: 0, services: 0 };
          currentCalculationState.totalValue = 0;
-
-         if (!config) { console.warn("[processUploadedData] No config."); showToast("Error: No config loaded.", "error"); updateCalculationTableDOM(); return; }
-         if (!fileData || fileData.length === 0) { console.log("[processUploadedData] No file data."); currentCalculationState.calculationRows = generateCalculationRows(); updateMetrics(); updateCalculationTableDOM(); showToast("No valid data found.", 'warning'); return; }
-
-         console.log(`[processUploadedData] Processing ${fileData.length} rows...`);
+         if (!config) { showToast("Error: No config loaded.", "error"); updateCalculationTableDOM(); return; }
+         if (!fileData || fileData.length === 0) { currentCalculationState.calculationRows = generateCalculationRows(); updateMetrics(); updateCalculationTableDOM(); showToast("No valid data found.", 'warning'); return; }
          let petsServicedCount = 0; let servicesPerformedCount = 0; let totalAdjustedRevenue = 0;
-         fileData.forEach((row, index) => {
+         fileData.forEach((row) => {
              if (row['Ticket ID'] === 'Grand Total' || String(row['Description']).includes('Grand Total') || !row['Description']) return;
-             const description = row['Description'];
-             const originalTotalValue = parseCurrency(row['Total']);
+             const description = row['Description']; const originalTotalValue = parseCurrency(row['Total']);
              if (description && originalTotalValue >= 0) {
                  const adjustedServiceValue = calculateServiceValue(description, originalTotalValue);
                  totalAdjustedRevenue += adjustedServiceValue; servicesPerformedCount++; petsServicedCount++;
              }
          });
-         console.log(`[processUploadedData] Complete. Pets=${petsServicedCount}, Services=${servicesPerformedCount}, TotalValue=${totalAdjustedRevenue}`);
          currentCalculationState.metrics = { pets: petsServicedCount, services: servicesPerformedCount };
          currentCalculationState.totalValue = totalAdjustedRevenue;
          currentCalculationState.calculationRows = generateCalculationRows();
          updateMetrics(); updateCalculationTableDOM();
-         console.log("[processUploadedData] UI Updated.");
     }
 
     function openEditModal(franchiseName) {
@@ -705,11 +744,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         editRoyaltyRateInputElement.value = configToEdit.royaltyRate;
         editMarketingRateInputElement.value = configToEdit.marketingRate;
-        
         editHasMinRoyaltyCheckbox.checked = configToEdit.hasMinRoyaltyFee || false;
         editMinRoyaltyValueInputElement.value = (configToEdit.hasMinRoyaltyFee ? configToEdit.minRoyaltyFeeValue : defaultRatesAndFees.minRoyaltyFeeValue).toFixed(2);
         editMinRoyaltyValueInputElement.disabled = !configToEdit.hasMinRoyaltyFee;
-        
         editSoftwareFeeInputElement.value = configToEdit.softwareFeeValue.toFixed(2);
         editCallCenterFeeInputElement.value = configToEdit.callCenterFeeValue.toFixed(2);
         editCallCenterExtraInputElement.value = configToEdit.callCenterExtraFeeValue.toFixed(2);
@@ -763,6 +800,75 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         updateFranchiseConfig(configData);
     }
+
+    function openEditLoanModal() {
+        if (!currentCalculationState.config) return;
+        const config = currentCalculationState.config;
+        editLoanFranchiseNameHiddenInput.value = config.franchiseName;
+        modalLoanCurrentInstallmentInput.value = config.loanCurrentInstallment || 0;
+        modalLoanTotalInstallmentsInput.value = config.loanTotalInstallments || 0;
+        modalLoanValueInput.value = (config.loanValue || 0).toFixed(2);
+        editLoanModalElement.classList.remove('hidden');
+    }
+
+    function closeEditLoanModal() {
+        editLoanModalElement.classList.add('hidden');
+        editLoanFormElement.reset();
+    }
+
+    function handleSaveLoanChanges() {
+        const franchiseNameToUpdate = editLoanFranchiseNameHiddenInput.value;
+        const configToUpdate = franchisesConfiguration.find(f => f.franchiseName === franchiseNameToUpdate);
+        if (!configToUpdate) {
+            showToast("Error: Could not find franchise to update loan.", "error");
+            return;
+        }
+
+        const newCurrent = parseIntInput(modalLoanCurrentInstallmentInput.value, 0);
+        const newTotal = parseIntInput(modalLoanTotalInstallmentsInput.value, 0);
+        const newValue = parseNumberInput(modalLoanValueInput.value, 0);
+
+        // Cria uma cópia completa da configuração para enviar à API
+        const updatedConfigData = {
+             ...configToUpdate, // Inclui todos os campos existentes
+             originalFranchiseName: franchiseNameToUpdate, // Necessário para o PUT
+             newFranchiseName: franchiseNameToUpdate, // Nome não muda aqui
+             hasLoan: true, // Mantém o loan ativo
+             loanCurrentInstallment: newCurrent,
+             loanTotalInstallments: newTotal,
+             loanValue: newValue
+        };
+
+        // Chama a função de atualização geral da API
+        updateFranchiseConfig(updatedConfigData);
+    }
+
+     function handleRemoveLoan() {
+         const franchiseNameToUpdate = editLoanFranchiseNameHiddenInput.value;
+         const configToUpdate = franchisesConfiguration.find(f => f.franchiseName === franchiseNameToUpdate);
+         if (!configToUpdate) {
+             showToast("Error: Could not find franchise to remove loan.", "error");
+             return;
+         }
+         if (!confirm(`Are you sure you want to remove the loan configuration for ${franchiseNameToUpdate}?`)) {
+             return;
+         }
+
+         // Cria uma cópia completa da configuração para enviar à API
+         const updatedConfigData = {
+              ...configToUpdate, // Inclui todos os campos existentes
+              originalFranchiseName: franchiseNameToUpdate, // Necessário para o PUT
+              newFranchiseName: franchiseNameToUpdate, // Nome não muda aqui
+              hasLoan: false, // Desativa o loan
+              loanCurrentInstallment: 0, // Reseta valores
+              loanTotalInstallments: 0,
+              loanValue: 0
+         };
+
+         // Chama a função de atualização geral da API
+         updateFranchiseConfig(updatedConfigData);
+     }
+
 
     addFranchiseFormElement.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -828,12 +934,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const deleteRuleButton = event.target.closest('.delete-rule-btn');
         const deleteFeeButton = event.target.closest('.delete-fee-btn');
         const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
+        const editLoanLink = event.target.closest('.edit-loan-link');
+
         if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
         else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
         else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) {
             const tableRowElement = deleteRowButton.closest('.calculation-row');
             if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
         }
+        else if (editLoanLink) { openEditLoanModal(); }
     });
 
     if (calculationTbodyElement) {
@@ -904,15 +1013,29 @@ document.addEventListener('DOMContentLoaded', () => {
          editHasMinRoyaltyCheckbox.addEventListener('change', (event) => {
              const isChecked = event.target.checked;
              editMinRoyaltyValueInputElement.disabled = !isChecked;
-             if (!isChecked) { 
-                 editMinRoyaltyValueInputElement.value = '0.00'; 
+             if (!isChecked) {
+                 editMinRoyaltyValueInputElement.value = '0.00';
              } else {
-                 if (parseNumberInput(editMinRoyaltyValueInputElement.value, 0) === 0) {
-                    editMinRoyaltyValueInputElement.value = defaultRatesAndFees.minRoyaltyFeeValue.toFixed(2);
+                 // Preenche com o valor guardado ou o padrão se estiver a habilitar
+                 const config = franchisesConfiguration.find(f => f.franchiseName === editOriginalNameInputElement.value);
+                 let valueToSet = defaultRatesAndFees.minRoyaltyFeeValue;
+                 if (config && config.minRoyaltyFeeValue > 0) {
+                     valueToSet = config.minRoyaltyFeeValue;
+                 } else if (config && config.hasMinRoyaltyFee && config.minRoyaltyFeeValue === 0) {
+                     // Se estava habilitado mas com 0, usa o padrão ao re-habilitar
+                     valueToSet = defaultRatesAndFees.minRoyaltyFeeValue;
+                 } else if (parseNumberInput(editMinRoyaltyValueInputElement.value, 0) > 0) {
+                     // Se já tinha um valor no campo (antes de desabilitar/reabilitar), mantém
+                     valueToSet = parseNumberInput(editMinRoyaltyValueInputElement.value, defaultRatesAndFees.minRoyaltyFeeValue);
                  }
+                 editMinRoyaltyValueInputElement.value = valueToSet.toFixed(2);
              }
          });
      }
+
+     if(editLoanSaveButton) editLoanSaveButton.addEventListener('click', handleSaveLoanChanges);
+     if(editLoanCancelButton) editLoanCancelButton.addEventListener('click', closeEditLoanModal);
+     if(editLoanRemoveButton) editLoanRemoveButton.addEventListener('click', handleRemoveLoan);
 
     console.log("Initializing page...");
     populateMonthSelect();
