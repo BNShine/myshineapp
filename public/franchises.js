@@ -542,7 +542,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const quantity = parseFloat(quantityInputElement.value) || 0;
             let unitPrice = parseFloat(unitPriceInputElement.value) || 0;
             let currentAmount = 0;
-
             if (rowData.isRate) {
                 unitPrice = currentCalculationState.totalValue;
                 if (!unitPriceInputElement.disabled) unitPriceInputElement.value = unitPrice.toFixed(2);
@@ -551,8 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  if(!rowData.fixed) { rowData.Unit_price = unitPrice; }
                 currentAmount = quantity * unitPrice;
             }
-             
-            if (rowData.Item === "Royalty Fee" && currentCalculationState.config.hasMinRoyaltyFee) {
+             if (rowData.Item === "Royalty Fee" && currentCalculationState.config.hasMinRoyaltyFee) {
                  if (currentAmount < currentCalculationState.config.minRoyaltyFeeValue) {
                      const originalAmount = currentAmount;
                      currentAmount = currentCalculationState.config.minRoyaltyFeeValue;
@@ -563,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
                      if (descriptionInputElement && descriptionInputElement.disabled) descriptionInputElement.value = "";
                  }
             }
-
              if(!rowData.fixed) { rowData.Qty = quantity; }
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
@@ -708,9 +705,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         editRoyaltyRateInputElement.value = configToEdit.royaltyRate;
         editMarketingRateInputElement.value = configToEdit.marketingRate;
+        
         editHasMinRoyaltyCheckbox.checked = configToEdit.hasMinRoyaltyFee || false;
-        editMinRoyaltyValueInputElement.value = (configToEdit.minRoyaltyFeeValue || defaultRatesAndFees.minRoyaltyFeeValue).toFixed(2);
-        editMinRoyaltyValueInputElement.disabled = !editHasMinRoyaltyCheckbox.checked;
+        editMinRoyaltyValueInputElement.value = (configToEdit.hasMinRoyaltyFee ? configToEdit.minRoyaltyFeeValue : defaultRatesAndFees.minRoyaltyFeeValue).toFixed(2);
+        editMinRoyaltyValueInputElement.disabled = !configToEdit.hasMinRoyaltyFee;
+        
         editSoftwareFeeInputElement.value = configToEdit.softwareFeeValue.toFixed(2);
         editCallCenterFeeInputElement.value = configToEdit.callCenterFeeValue.toFixed(2);
         editCallCenterExtraInputElement.value = configToEdit.callCenterExtraFeeValue.toFixed(2);
@@ -751,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
             royaltyRate: parseNumberInput(editRoyaltyRateInputElement.value, defaultRatesAndFees.royaltyRate),
             marketingRate: parseNumberInput(editMarketingRateInputElement.value, defaultRatesAndFees.marketingRate),
             hasMinRoyaltyFee: hasMinRoyalty,
-            minRoyaltyFeeValue: hasMinRoyalty ? parseNumberInput(editMinRoyaltyValueInputElement.value, 0) : 0,
+            minRoyaltyFeeValue: hasMinRoyalty ? parseNumberInput(editMinRoyaltyValueInputElement.value, defaultRatesAndFees.minRoyaltyFeeValue) : 0,
             softwareFeeValue: parseNumberInput(editSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(editCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(editCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
@@ -779,7 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
             royaltyRate: parseNumberInput(newRoyaltyRateInputElement.value, defaultRatesAndFees.royaltyRate),
             marketingRate: parseNumberInput(newMarketingRateInputElement.value, defaultRatesAndFees.marketingRate),
             hasMinRoyaltyFee: hasMinRoyaltyNew,
-            minRoyaltyFeeValue: hasMinRoyaltyNew ? parseNumberInput(newMinRoyaltyValueInputElement.value, 0) : 0,
+            minRoyaltyFeeValue: hasMinRoyaltyNew ? parseNumberInput(newMinRoyaltyValueInputElement.value, defaultRatesAndFees.minRoyaltyFeeValue) : 0,
             softwareFeeValue: parseNumberInput(newSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(newCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(newCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
@@ -905,15 +904,12 @@ document.addEventListener('DOMContentLoaded', () => {
          editHasMinRoyaltyCheckbox.addEventListener('change', (event) => {
              const isChecked = event.target.checked;
              editMinRoyaltyValueInputElement.disabled = !isChecked;
-             if (!isChecked) {
-                 editMinRoyaltyValueInputElement.value = '0.00';
+             if (!isChecked) { 
+                 editMinRoyaltyValueInputElement.value = '0.00'; 
              } else {
-                 const config = franchisesConfiguration.find(f => f.franchiseName === editOriginalNameInputElement.value);
-                 let valueToSet = defaultRatesAndFees.minRoyaltyFeeValue;
-                 if (config && config.minRoyaltyFeeValue > 0) {
-                     valueToSet = config.minRoyaltyFeeValue;
+                 if (parseNumberInput(editMinRoyaltyValueInputElement.value, 0) === 0) {
+                    editMinRoyaltyValueInputElement.value = defaultRatesAndFees.minRoyaltyFeeValue.toFixed(2);
                  }
-                 editMinRoyaltyValueInputElement.value = valueToSet.toFixed(2);
              }
          });
      }
