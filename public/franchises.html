@@ -35,6 +35,11 @@
         .custom-fee-row label { font-size: 0.8rem; }
         .custom-fee-row input, .custom-fee-row select { height: 2rem; font-size: 0.875rem; padding: 0.2rem 0.4rem;}
         .custom-fee-row .delete-fee-btn { background: none; border: none; color: hsl(0 84.2% 60.2%); cursor: pointer; padding: 0.25rem; }
+        /* Nova Classe para a linha do Loan */
+        .loan-payment-row { background-color: #e6ffed; /* Verde claro */ }
+        .dark .loan-payment-row { background-color: #1c3d26; /* Verde escuro para dark mode */ }
+        .edit-loan-link { cursor: pointer; color: hsl(var(--brand-primary)); text-decoration: underline; }
+        .edit-loan-link:hover { color: hsl(var(--brand-primary-hover)); }
     </style>
 </head>
 <body class="min-h-screen bg-background text-foreground">
@@ -95,7 +100,7 @@
                                              <input type="checkbox" id="new-has-min-royalty" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2">
                                              <label for="new-has-min-royalty" class="text-label">Minimum Royalty Fee ($)</label>
                                          </div>
-                                         <input type="number" step="0.01" id="new-min-royalty-value" value="0" class="input-base h-9" disabled>
+                                         <input type="number" step="0.01" id="new-min-royalty-value" value="1000.00" class="input-base h-9" disabled>
                                      </div>
                                      <div> <label for="new-royalty-rate" class="text-label">Royalty Rate (%)</label> <input type="number" step="0.1" id="new-royalty-rate" value="6.0" class="input-base h-9"> </div>
                                      <div> <label for="new-marketing-rate" class="text-label">Marketing Rate (%)</label> <input type="number" step="0.1" id="new-marketing-rate" value="1.0" class="input-base h-9"> </div>
@@ -184,6 +189,36 @@
                  </div>
             </form>
             <div class="mt-6 flex justify-end gap-3"> <button id="edit-modal-cancel-btn" type="button" class="btn-outline h-10 px-6 text-sm">Cancel</button> <button id="edit-modal-save-btn" type="button" class="btn-primary h-10 px-6 text-sm">Save Changes</button> </div>
+        </div>
+    </div>
+
+    <div id="edit-loan-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[60] hidden">
+         <div class="bg-card p-6 rounded-lg shadow-2xl w-full max-w-md relative">
+            <h3 class="text-xl font-bold text-foreground mb-4">Edit Loan Details</h3>
+            <input type="hidden" id="edit-loan-franchise-name">
+            <form id="edit-loan-form" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="modal-loan-current-installment" class="text-label">Current Installment #</label>
+                        <input type="number" step="1" min="0" id="modal-loan-current-installment" value="0" class="input-base h-9">
+                    </div>
+                    <div>
+                        <label for="modal-loan-total-installments" class="text-label">Total Installments #</label>
+                        <input type="number" step="1" min="0" id="modal-loan-total-installments" value="0" class="input-base h-9">
+                    </div>
+                </div>
+                <div>
+                     <label for="modal-loan-value" class="text-label">Value per Installment ($)</label>
+                     <input type="number" step="0.01" id="modal-loan-value" value="0" class="input-base h-9">
+                 </div>
+            </form>
+            <div class="mt-6 flex justify-between gap-3">
+                <button id="edit-loan-remove-btn" type="button" class="btn-destructive h-10 px-6 text-sm">Remove Loan</button>
+                <div>
+                     <button id="edit-loan-cancel-btn" type="button" class="btn-outline h-10 px-6 text-sm mr-2">Cancel</button>
+                     <button id="edit-loan-save-btn" type="button" class="btn-primary h-10 px-6 text-sm">Save Loan</button>
+                </div>
+            </div>
         </div>
     </div>
 
