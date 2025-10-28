@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const addFranchiseFormElement = document.getElementById('add-franchise-form');
     const newFranchiseNameInputElement = document.getElementById('new-franchise-name');
     const newFeeCheckboxElements = document.querySelectorAll('.new-fee-checkbox');
+    const newIncludeCallCenterExtraCheckbox = document.getElementById('new-include-callcenter-extra-fee');
+    const newExtraVehiclesWrapper = document.getElementById('new-extra-vehicles-wrapper');
+    const newExtraVehiclesInputElement = document.getElementById('new-extra-vehicles');
     const newRoyaltyRateInputElement = document.getElementById('new-royalty-rate');
     const newMarketingRateInputElement = document.getElementById('new-marketing-rate');
     const newSoftwareFeeInputElement = document.getElementById('new-software-fee');
@@ -35,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const editOriginalNameInputElement = document.getElementById('edit-original-franchise-name');
     const editNameInputElement = document.getElementById('edit-franchise-name');
     const editFeeCheckboxElements = document.querySelectorAll('.edit-fee-checkbox');
+    const editIncludeCallCenterExtraCheckbox = document.getElementById('edit-include-callcenter-extra-fee');
+    const editExtraVehiclesWrapper = document.getElementById('edit-extra-vehicles-wrapper');
+    const editExtraVehiclesInputElement = document.getElementById('edit-extra-vehicles');
     const editRoyaltyRateInputElement = document.getElementById('edit-royalty-rate');
     const editMarketingRateInputElement = document.getElementById('edit-marketing-rate');
     const editSoftwareFeeInputElement = document.getElementById('edit-software-fee');
@@ -70,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         softwareFeeValue: 350.00,
         callCenterFeeValue: 1200.00,
         callCenterExtraFeeValue: 600.00,
+        extraVehicles: 0,
         customFeeConfig: { name: "", type: "percentage", value: 0, enabled: false }
     };
 
@@ -96,6 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const num = parseFloat(value);
         return isNaN(num) ? defaultValue : num;
     }
+
+    function parseIntInput(value, defaultValue = 0) {
+        const num = parseInt(value, 10);
+        return isNaN(num) ? defaultValue : num;
+    }
+
 
     function showToast(message, type = 'info', duration = 4000) {
         if (!toastContainerElement) return;
@@ -177,6 +190,8 @@ document.addEventListener('DOMContentLoaded', () => {
                       franchisesConfiguration.forEach(config => {
                           config.serviceValueRules = config.serviceValueRules && Array.isArray(config.serviceValueRules) ? config.serviceValueRules : JSON.parse(JSON.stringify(defaultServiceValueRules));
                           config.customFeeConfig = config.customFeeConfig && typeof config.customFeeConfig === 'object' ? config.customFeeConfig : { ...defaultRatesAndFees.customFeeConfig };
+                          // Garante que extraVehicles existe
+                          config.extraVehicles = config.extraVehicles !== undefined ? config.extraVehicles : defaultRatesAndFees.extraVehicles;
                       });
                  }
             } catch (parseError) {
@@ -208,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
             resetNewFeeInputs();
             newFeeCheckboxElements.forEach(checkboxElement => checkboxElement.checked = (checkboxElement.dataset.feeItem !== 'Call Center Fee Extra'));
+            if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden'); // Esconde campo extra vehicles
         } catch (error) {
             console.error("Error adding franchise:", error);
             showToast(`Error adding franchise: ${error.message}`, 'error');
@@ -297,11 +313,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const keyword = keywordInput ? keywordInput.value.trim() : '';
 
             if (enabledInput && keyword && thresholdInput && adjustedInput) {
-                if(ruleId.startsWith('new_')) { // Generate a more stable ID based on keyword for new rules
-                    ruleId = keyword.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20);
+                if(ruleId.startsWith('new_')) {
+                    ruleId = keyword.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20) || `custom_${Date.now()}`;
                 }
                 rules.push({
-                    id: ruleId || `custom_${Date.now()}`, // Fallback ID
+                    id: ruleId,
                     keyword: keyword,
                     threshold: parseInt(thresholdInput.value, 10) || 0,
                     adjusted: parseInt(adjustedInput.value, 10) || 0,
@@ -392,7 +408,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     case "Marketing Fee": unitPrice = currentCalculationState.totalValue; quantity = config.marketingRate; isRate = true; break;
                     case "Software Fee": unitPrice = config.softwareFeeValue; break;
                     case "Call Center Fee": unitPrice = config.callCenterFeeValue; break;
-                    case "Call Center Fee Extra": unitPrice = config.callCenterExtraFeeValue; quantity = 0; break;
+                    case "Call Center Fee Extra":
+                        unitPrice = config.callCenterExtraFeeValue;
+                        quantity = config.extraVehicles; // Usa o número de veículos extra como quantidade
+                        break;
                  }
                  rowsToShow.push({ Item: itemName, Description: "", Qty: quantity, Unit_price: unitPrice, Amount: 0, verified: false, fixed: true, isRate: isRate });
              }
@@ -419,20 +438,26 @@ document.addEventListener('DOMContentLoaded', () => {
             tableRow.dataset.index = rowIndex;
             const isFixedRow = rowData.fixed || false;
             const isRateFee = rowData.isRate || false;
-            const isEditableQuantity = rowData.Item === "Call Center Fee Extra" || !isFixedRow;
+            // Quantidade NUNCA é editável para linhas configuradas (fixed=true)
+            const isEditableQuantity = !isFixedRow;
+            // Preço Unitário NUNCA é editável para linhas configuradas (fixed=true)
+            const isEditableUnitPrice = !isFixedRow;
+
             let quantityValue = rowData.Qty;
             let unitPriceValue = rowData.Unit_price;
             let amount = 0;
+
             if (isRateFee) { amount = (parseFloat(quantityValue) / 100) * parseFloat(unitPriceValue); }
             else { amount = parseFloat(quantityValue) * parseFloat(unitPriceValue); }
             quantityValue = isNaN(quantityValue) ? 0 : quantityValue;
             unitPriceValue = isNaN(unitPriceValue) ? 0 : unitPriceValue;
             amount = isNaN(amount) ? 0 : amount;
+
             tableRow.innerHTML = `
                 <td class="p-2"><input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixedRow ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}" ${!isFixedRow ? 'placeholder="Optional description"' : 'disabled'}></td>
                 <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${quantityValue === 0 && !isFixedRow ? 'red-text' : ''}" value="${isRateFee ? quantityValue.toFixed(1) : quantityValue}" ${!isEditableQuantity ? 'disabled' : ''}></td>
-                <td class="p-2"><input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${isFixedRow ? 'disabled' : ''}></td>
+                <td class="p-2"><input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${!isEditableUnitPrice ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="text" class="w-full text-right amount" value="${formatCurrency(amount)}" disabled title="${formatCurrency(amount)}"></td>
                 <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''}></td>
                 <td class="p-2 text-center"> ${!isFixedRow ? '<button class="delete-calculation-row-btn text-red-600 hover:text-red-800 p-1" title="Delete row">🗑️</button>' : ''} </td>
@@ -479,7 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
                  if(!rowData.fixed) { rowData.Unit_price = unitPrice; }
                 currentAmount = quantity * unitPrice;
             }
-             if(rowData.Item === "Call Center Fee Extra" || !rowData.fixed) { rowData.Qty = quantity; }
+             if(!rowData.fixed) { // Atualiza Qty apenas para linhas custom
+                 rowData.Qty = quantity;
+             }
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
             amountInputElement.title = formatCurrency(currentAmount);
@@ -515,27 +542,26 @@ document.addEventListener('DOMContentLoaded', () => {
          if(newSoftwareFeeInputElement) newSoftwareFeeInputElement.value = defaultRatesAndFees.softwareFeeValue.toFixed(2);
          if(newCallCenterFeeInputElement) newCallCenterFeeInputElement.value = defaultRatesAndFees.callCenterFeeValue.toFixed(2);
          if(newCallCenterExtraInputElement) newCallCenterExtraInputElement.value = defaultRatesAndFees.callCenterExtraFeeValue.toFixed(2);
+         if(newExtraVehiclesInputElement) newExtraVehiclesInputElement.value = defaultRatesAndFees.extraVehicles;
          if(newCustomFeeNameInputElement) newCustomFeeNameInputElement.value = defaultRatesAndFees.customFeeConfig.name;
          if(newCustomFeeTypeElement) newCustomFeeTypeElement.value = defaultRatesAndFees.customFeeConfig.type;
          if(newCustomFeeValueInputElement) newCustomFeeValueInputElement.value = defaultRatesAndFees.customFeeConfig.value;
          if(newCustomFeeEnabledCheckbox) newCustomFeeEnabledCheckbox.checked = defaultRatesAndFees.customFeeConfig.enabled;
+         if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden');
      }
 
     function toggleCalculationFields(enabled) {
-         console.log(`[toggleCalculationFields] Setting enabled state to: ${enabled}`);
          if (fileInputElement) {
              fileInputElement.disabled = !enabled;
-             console.log(`[toggleCalculationFields] fileInputElement.disabled set to: ${fileInputElement.disabled}`);
          } else {
-             console.error("[toggleCalculationFields] fileInputElement not found!");
+             console.error("fileInputElement not found!");
          }
          if (addCalculationRowButtonElement) {
              addCalculationRowButtonElement.disabled = !enabled;
          } else {
-             console.error("[toggleCalculationFields] addCalculationRowButtonElement not found!");
+             console.error("addCalculationRowButtonElement not found!");
          }
          if (!enabled && franchiseSelectElement && franchiseSelectElement.value !== "") {
-              console.log("[toggleCalculationFields] Resetting calculation section.");
               resetCalculationSection();
          }
      }
@@ -551,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
     async function handleFileUpload(event) {
-         console.log("[handleFileUpload] Event triggered.");
+         console.log("[handleFileUpload] Change event detected on file input.");
          if (!currentCalculationState.selectedFranchiseName) {
              console.warn("[handleFileUpload] No franchise selected.");
              showToast("Please select a franchise before uploading a file.", "warning");
@@ -561,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
          const files = event.target.files;
          console.log(`[handleFileUpload] Files selected: ${files ? files.length : 'null'}`);
          if (!files || files.length === 0) {
-              console.log("[handleFileUpload] No files selected.");
+              console.log("[handleFileUpload] No files selected or FileList empty.");
               return;
          }
          if(loadingSpinnerElement) {
@@ -573,21 +599,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
          let combinedJsonData = [];
          try {
-             for (const file of files) {
+             // Usar Promise.all para processar ficheiros em paralelo (ligeiramente mais eficiente)
+             await Promise.all(Array.from(files).map(async (file) => {
                  console.log(`[handleFileUpload] Processing file: ${file.name}`);
                  try {
                      const data = await file.arrayBuffer();
                      const workbook = XLSX.read(data);
                      const firstSheetName = workbook.SheetNames[0];
+                     if(!firstSheetName) { throw new Error("Spreadsheet has no sheets."); }
                      const worksheet = workbook.Sheets[firstSheetName];
+                     if(!worksheet) { throw new Error(`Sheet "${firstSheetName}" not found or invalid.`); }
                      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: null });
                      combinedJsonData.push(...jsonData);
                      console.log(`[handleFileUpload] Successfully read ${jsonData.length} rows from ${file.name}`);
                  } catch (error) {
                      console.error(`[handleFileUpload] Error processing file ${file.name}:`, error);
-                     showToast(`Error reading file ${file.name}.`, 'error');
+                     showToast(`Error reading file ${file.name}: ${error.message}`, 'error');
                  }
-             }
+             }));
          } finally {
              if(loadingSpinnerElement) {
                  console.log("[handleFileUpload] Hiding file processing spinner.");
@@ -596,8 +625,8 @@ document.addEventListener('DOMContentLoaded', () => {
              currentCalculationState.fileData = combinedJsonData;
              console.log(`[handleFileUpload] Finished reading files. Total rows: ${combinedJsonData.length}. Processing data...`);
              processUploadedData();
-             if(fileInputElement) fileInputElement.value = '';
-             console.log("[handleFileUpload] File input cleared.");
+             if(fileInputElement) fileInputElement.value = ''; // Limpa para permitir re-upload do mesmo ficheiro
+             console.log("[handleFileUpload] File input value cleared.");
          }
      }
 
@@ -609,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
          currentCalculationState.totalValue = 0;
 
          if (!config) {
-             console.warn("[processUploadedData] No franchise config selected. Aborting.");
+             console.warn("[processUploadedData] No franchise config selected.");
              showToast("Processing error: No franchise configuration loaded.", "error");
              updateCalculationTableDOM(); return;
          }
@@ -654,11 +683,14 @@ document.addEventListener('DOMContentLoaded', () => {
         editSoftwareFeeInputElement.value = configToEdit.softwareFeeValue.toFixed(2);
         editCallCenterFeeInputElement.value = configToEdit.callCenterFeeValue.toFixed(2);
         editCallCenterExtraInputElement.value = configToEdit.callCenterExtraFeeValue.toFixed(2);
+        editExtraVehiclesInputElement.value = configToEdit.extraVehicles || 0;
         const customFee = configToEdit.customFeeConfig || defaultRatesAndFees.customFeeConfig;
         editCustomFeeNameInputElement.value = customFee.name;
         editCustomFeeTypeElement.value = customFee.type;
         editCustomFeeValueInputElement.value = customFee.value;
         editCustomFeeEnabledCheckbox.checked = customFee.enabled;
+        // Mostra/Esconde campo Extra Vehicles baseado no checkbox
+        if(editExtraVehiclesWrapper) editExtraVehiclesWrapper.classList.toggle('hidden', !editIncludeCallCenterExtraCheckbox.checked);
         populateServiceRuleInputs(editServiceRulesContainer, configToEdit.serviceValueRules || defaultServiceValueRules);
         editModalElement.classList.remove('hidden');
     }
@@ -667,6 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editModalElement.classList.add('hidden');
         editFormElement.reset();
         populateServiceRuleInputs(editServiceRulesContainer, []);
+        if(editExtraVehiclesWrapper) editExtraVehiclesWrapper.classList.add('hidden');
     }
 
     function handleSaveEdit() {
@@ -687,11 +720,13 @@ document.addEventListener('DOMContentLoaded', () => {
             softwareFeeValue: parseNumberInput(editSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(editCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(editCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
+            extraVehicles: parseIntInput(editExtraVehiclesInputElement.value, 0), // Envia extra vehicles
             customFeeConfig: customFeeConfig, serviceValueRules: serviceValueRules
         };
         updateFranchiseConfig(configData);
     }
 
+    // --- Event Listeners ---
     addFranchiseFormElement.addEventListener('submit', (event) => {
         event.preventDefault();
         const franchiseName = newFranchiseNameInputElement.value.trim();
@@ -710,6 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
             softwareFeeValue: parseNumberInput(newSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(newCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(newCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
+            extraVehicles: parseIntInput(newExtraVehiclesInputElement.value, 0), // Envia extra vehicles
             customFeeConfig: customFeeConfig, serviceValueRules: serviceValueRules
         };
         addFranchiseConfig(configData);
@@ -739,9 +775,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (fileInputElement) {
         fileInputElement.addEventListener('change', handleFileUpload);
-        console.log("File input event listener attached.");
     } else {
-        console.error("Initialization Error: File input element with ID 'file-input' not found!");
+        console.error("Initialization Error: File input element not found!");
     }
 
     if (addCalculationRowButtonElement) {
@@ -756,7 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rowIndex = parseInt(tableRowElement.dataset.index);
             if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= currentCalculationState.calculationRows.length) return;
             const rowData = currentCalculationState.calculationRows[rowIndex];
-            if (targetElement.classList.contains('qty') && (rowData.Item === "Call Center Fee Extra" || !rowData.fixed)) { rowData.Qty = targetElement.value; targetElement.classList.toggle('red-text', (parseFloat(targetElement.value) || 0) === 0); }
+            if (targetElement.classList.contains('qty') && (!rowData.fixed)) { rowData.Qty = targetElement.value; targetElement.classList.toggle('red-text', (parseFloat(targetElement.value) || 0) === 0); }
             else if (targetElement.classList.contains('description') && !rowData.fixed) { rowData.Description = targetElement.value; }
             else if (targetElement.classList.contains('unit-price') && !rowData.fixed) { rowData.Unit_price = targetElement.value; }
             else if (targetElement.classList.contains('verified')) { rowData.verified = targetElement.checked; }
@@ -764,13 +799,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         calculationTbodyElement.addEventListener('click', (event) => {
-            if (event.target.closest('.delete-rule-btn')) { // Listener para apagar regras nos forms (delegado aqui)
-                event.target.closest('.rule-grid').remove();
-            } else if (event.target.closest('.delete-calculation-row-btn')) { // Listener para apagar linhas na tabela de cálculo
-                const tableRowElement = event.target.closest('.calculation-row');
-                if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
-            }
-        });
+             const deleteRuleButton = event.target.closest('.delete-rule-btn');
+             const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
+
+             if (deleteRuleButton) {
+                 deleteRuleButton.closest('.rule-grid').remove();
+             } else if (deleteRowButton) {
+                 const tableRowElement = deleteRowButton.closest('.calculation-row');
+                 if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
+             }
+         });
     }
 
     if(editModalSaveButtonElement) editModalSaveButtonElement.addEventListener('click', handleSaveEdit);
@@ -782,6 +820,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if(addEditServiceRuleButton) {
         addEditServiceRuleButton.addEventListener('click', () => appendServiceRuleInputRow(editServiceRulesContainer));
     }
+
+    // Listeners para mostrar/esconder Extra Vehicles
+    if (newIncludeCallCenterExtraCheckbox && newExtraVehiclesWrapper) {
+        newIncludeCallCenterExtraCheckbox.addEventListener('change', (event) => {
+            newExtraVehiclesWrapper.classList.toggle('hidden', !event.target.checked);
+            if (!event.target.checked && newExtraVehiclesInputElement) {
+                 newExtraVehiclesInputElement.value = 0; // Reseta se desmarcado
+            }
+        });
+    }
+     if (editIncludeCallCenterExtraCheckbox && editExtraVehiclesWrapper) {
+         editIncludeCallCenterExtraCheckbox.addEventListener('change', (event) => {
+             editExtraVehiclesWrapper.classList.toggle('hidden', !event.target.checked);
+              if (!event.target.checked && editExtraVehiclesInputElement) {
+                  editExtraVehiclesInputElement.value = 0; // Reseta se desmarcado
+              }
+         });
+     }
+
 
     console.log("Initializing page...");
     populateMonthSelect();
