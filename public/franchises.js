@@ -267,7 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
          if(editModalSaveButtonElement) editModalSaveButtonElement.disabled = true;
          if(editLoanSaveButton) editLoanSaveButton.disabled = true;
          if(editLoanRemoveButton) editLoanRemoveButton.disabled = true;
-
          try {
              const response = await fetch('/api/manage-franchise-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configData) });
              const result = await response.json();
@@ -511,13 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
               calculationTbodyElement.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-muted-foreground italic">Select franchise and upload file.</td></tr>`;
               calculateAndDisplayTotals(); return;
          }
-        const headerRow = calculationTbodyElement.closest('table').querySelector('thead tr');
-         if (headerRow) {
-             const headers = headerRow.querySelectorAll('th');
-             if (headers.length >= 7) {
-                 headers[headers.length - 2].textContent = "Disable";
-             }
-         }
          calculationRows.forEach((rowData, rowIndex) => {
             const tableRow = document.createElement('tr');
             tableRow.className = 'border-b border-border calculation-row';
@@ -543,18 +535,16 @@ document.addEventListener('DOMContentLoaded', () => {
             quantityValue = isNaN(quantityValue) ? 0 : quantityValue;
             unitPriceValue = isNaN(unitPriceValue) ? 0 : unitPriceValue;
             amount = isNaN(amount) ? 0 : amount;
-
             const itemCellContent = (rowData.Item === "Loan Payment")
-                 ? `<span class="edit-loan-link">${rowData.Item}</span>`
+                 ? `<span class="edit-loan-link font-semibold">${rowData.Item}</span>`
                  : `<input type="text" class="w-full item-name" value="${rowData.Item}" ${isFixedRow ? 'disabled' : ''}>`;
-
             tableRow.innerHTML = `
                 <td class="p-2 item-cell">${itemCellContent}</td>
                 <td class="p-2"><input type="text" class="w-full description" value="${rowData.Description}" ${isFixedRow ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="number" step="${isRateFee ? 0.1 : 1}" class="w-full text-center qty ${quantityValue === 0 && !isFixedRow ? 'red-text' : ''}" value="${isRateFee ? quantityValue.toFixed(1) : quantityValue}" ${!isEditableQuantity ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="number" step="0.01" class="w-full text-right unit-price" value="${unitPriceValue.toFixed(2)}" ${!isEditableUnitPrice ? 'disabled' : ''}></td>
                 <td class="p-2"><input type="text" class="w-full text-right amount" value="${formatCurrency(amount)}" disabled title="${formatCurrency(amount)}"></td>
-                <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''} title="Check to disable this fee from total calculation"></td>
+                <td class="p-2 checkbox-cell"><input type="checkbox" class="verified" ${rowData.verified ? 'checked' : ''}></td>
                 <td class="p-2 text-center"> ${!isFixedRow ? '<button class="delete-calculation-row-btn text-red-600 hover:text-red-800 p-1" title="Delete row">🗑️</button>' : ''} </td>
             `;
             calculationTbodyElement.appendChild(tableRow);
@@ -586,6 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const amountInputElement = tableRowElement.querySelector('.amount');
             const descriptionInputElement = tableRowElement.querySelector('.description');
             const disableCheckboxElement = tableRowElement.querySelector('.verified');
+            const isDisabled = disableCheckboxElement ? disableCheckboxElement.checked : false;
+            rowData.verified = isDisabled;
             const quantity = parseFloat(quantityInputElement.value) || 0;
             let unitPrice = parseFloat(unitPriceInputElement.value) || 0;
             let currentAmount = 0;
@@ -612,9 +604,9 @@ document.addEventListener('DOMContentLoaded', () => {
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
             amountInputElement.title = formatCurrency(currentAmount);
-             if (!disableCheckboxElement.checked) {
+            if (!isDisabled) {
                 totalAmountSum += currentAmount;
-             }
+            }
         });
         calculationTotalDisplayElement.textContent = formatCurrency(totalAmountSum);
         metricTotalFeesElement.textContent = formatCurrency(totalAmountSum);
@@ -815,78 +807,38 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleSaveLoanChanges() {
         const franchiseNameToUpdate = editLoanFranchiseNameHiddenInput.value;
         const configToUpdate = franchisesConfiguration.find(f => f.franchiseName === franchiseNameToUpdate);
-        if (!configToUpdate) {
-            showToast("Error: Could not find franchise to update loan.", "error");
-            return;
-        }
-
+        if (!configToUpdate) { showToast("Error: Could not find franchise to update loan.", "error"); return; }
         const newCurrent = parseIntInput(modalLoanCurrentInstallmentInput.value, 0);
         const newTotal = parseIntInput(modalLoanTotalInstallmentsInput.value, 0);
         const newValue = parseNumberInput(modalLoanValueInput.value, 0);
-
-        const includedFeesMap = {};
-        Object.keys(feeItemToApiFieldMap).forEach(feeItem => {
-            const apiField = feeItemToApiFieldMap[feeItem];
-            includedFeesMap[feeItem] = configToUpdate[apiField] || false;
-        });
-
         const updatedConfigData = {
              ...configToUpdate,
              originalFranchiseName: franchiseNameToUpdate,
              newFranchiseName: franchiseNameToUpdate,
-             includedFees: includedFeesMap,
              hasLoan: true,
              loanCurrentInstallment: newCurrent,
              loanTotalInstallments: newTotal,
-             loanValue: newValue,
-             serviceValueRules: configToUpdate.serviceValueRules || [],
-             customFeesConfig: configToUpdate.customFeesConfig || []
+             loanValue: newValue
         };
-
-        Object.values(feeItemToApiFieldMap).forEach(apiField => {
-            delete updatedConfigData[apiField];
-        });
-
         updateFranchiseConfig(updatedConfigData);
     }
 
      function handleRemoveLoan() {
          const franchiseNameToUpdate = editLoanFranchiseNameHiddenInput.value;
          const configToUpdate = franchisesConfiguration.find(f => f.franchiseName === franchiseNameToUpdate);
-         if (!configToUpdate) {
-             showToast("Error: Could not find franchise to remove loan.", "error");
-             return;
-         }
-         if (!confirm(`Are you sure you want to remove the loan configuration for ${franchiseNameToUpdate}?`)) {
-             return;
-         }
-
-        const includedFeesMap = {};
-        Object.keys(feeItemToApiFieldMap).forEach(feeItem => {
-            const apiField = feeItemToApiFieldMap[feeItem];
-            includedFeesMap[feeItem] = configToUpdate[apiField] || false;
-        });
-
+         if (!configToUpdate) { showToast("Error: Could not find franchise to remove loan.", "error"); return; }
+         if (!confirm(`Are you sure you want to remove the loan configuration for ${franchiseNameToUpdate}?`)) { return; }
          const updatedConfigData = {
               ...configToUpdate,
               originalFranchiseName: franchiseNameToUpdate,
               newFranchiseName: franchiseNameToUpdate,
-              includedFees: includedFeesMap,
               hasLoan: false,
               loanCurrentInstallment: 0,
               loanTotalInstallments: 0,
-              loanValue: 0,
-              serviceValueRules: configToUpdate.serviceValueRules || [],
-              customFeesConfig: configToUpdate.customFeesConfig || []
+              loanValue: 0
          };
-
-        Object.values(feeItemToApiFieldMap).forEach(apiField => {
-            delete updatedConfigData[apiField];
-        });
-
          updateFranchiseConfig(updatedConfigData);
      }
-
 
     addFranchiseFormElement.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -953,7 +905,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const deleteFeeButton = event.target.closest('.delete-fee-btn');
         const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
         const editLoanLink = event.target.closest('.edit-loan-link');
-
         if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
         else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
         else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) {
@@ -981,6 +932,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if(editModalSaveButtonElement) editModalSaveButtonElement.addEventListener('click', handleSaveEdit);
     if(editModalCancelButtonElement) editModalCancelButtonElement.addEventListener('click', closeEditModal);
+
+    if(editLoanSaveButton) editLoanSaveButton.addEventListener('click', handleSaveLoanChanges);
+    if(editLoanCancelButton) editLoanCancelButton.addEventListener('click', closeEditLoanModal);
+    if(editLoanRemoveButton) editLoanRemoveButton.addEventListener('click', handleRemoveLoan);
 
     if(addNewServiceRuleButton) { addNewServiceRuleButton.addEventListener('click', () => appendServiceRuleInputRow(newServiceRulesContainer)); }
     if(addEditServiceRuleButton) { addEditServiceRuleButton.addEventListener('click', () => appendServiceRuleInputRow(editServiceRulesContainer)); }
@@ -1034,29 +989,20 @@ document.addEventListener('DOMContentLoaded', () => {
              if (!isChecked) {
                  editMinRoyaltyValueInputElement.value = '0.00';
              } else {
-                 const config = franchisesConfiguration.find(f => f.franchiseName === editOriginalNameInputElement.value);
-                 let valueToSet = defaultRatesAndFees.minRoyaltyFeeValue;
-                 if (config && config.minRoyaltyFeeValue > 0) {
-                     valueToSet = config.minRoyaltyFeeValue;
-                 } else if (config && config.hasMinRoyaltyFee && config.minRoyaltyFeeValue === 0) {
-                     valueToSet = defaultRatesAndFees.minRoyaltyFeeValue;
-                 } else if (parseNumberInput(editMinRoyaltyValueInputElement.value, 0) > 0) {
-                     valueToSet = parseNumberInput(editMinRoyaltyValueInputElement.value, defaultRatesAndFees.minRoyaltyFeeValue);
+                 if (parseNumberInput(editMinRoyaltyValueInputElement.value, 0) === 0) {
+                    editMinRoyaltyValueInputElement.value = defaultRatesAndFees.minRoyaltyFeeValue.toFixed(2);
                  }
-                 editMinRoyaltyValueInputElement.value = valueToSet.toFixed(2);
              }
          });
      }
 
-     if(editLoanSaveButton) editLoanSaveButton.addEventListener('click', handleSaveLoanChanges);
-     if(editLoanCancelButton) editLoanCancelButton.addEventListener('click', closeEditLoanModal);
-     if(editLoanRemoveButton) editLoanRemoveButton.addEventListener('click', handleRemoveLoan);
-
+    console.log("Initializing page...");
     populateMonthSelect();
     populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
     populateCustomFeeInputs(newCustomFeesContainer, []);
     fetchFranchiseConfigs();
     resetCalculationSection();
     resetNewFeeInputs();
+    console.log("Page initialization scripts running.");
 
 });
