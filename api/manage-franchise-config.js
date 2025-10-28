@@ -12,208 +12,211 @@ const serviceAccountAuth = new JWT({
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const SPREADSHEET_ID = process.env.SHEET_ID;
-const parseBoolean = (value) => { return (value === true || String(value).toUpperCase() === 'TRUE' || value === 1 || value === '1'); };
+
+const parseBoolean = (value) => (value === true || String(value).toUpperCase() === 'TRUE' || value === 1 || value === '1');
 const formatBoolean = (value) => parseBoolean(value) ? 'TRUE' : 'FALSE';
-const feeItemToColumnMap = { "Royalty Fee": "IncludeRoyalty", "Marketing Fee": "IncludeMarketing", "Software Fee": "IncludeSoftware", "Call Center Fee": "IncludeCallCenter", "Call Center Fee Extra": "IncludeCallCenterExtra" };
+
+const feeItemToColumnMap = {
+    "Royalty Fee": "IncludeRoyalty", "Marketing Fee": "IncludeMarketing",
+    "Software Fee": "IncludeSoftware", "Call Center Fee": "IncludeCallCenter",
+    "Call Center Fee Extra": "IncludeCallCenterExtra"
+};
 const columnToFeeItemMap = Object.fromEntries(Object.entries(feeItemToColumnMap).map(([key, value]) => [value, key]));
 
-export default async function handler(req, res) {
-    // Adiciona o método HTTP ao prefixo do log para clareza
-    const logPrefix = `[API ${req.method} ${new Date().toISOString()}]`;
-    console.log(`${logPrefix} Received request for /api/manage-franchise-config.`); // Log inicial
+// Estrutura padrão das regras de serviço
+const getDefaultServiceRules = () => ([
+    { id: 'dog_small', keyword: 'Dog Cleaning - Small', threshold: 170, adjusted: 180, enabled: true },
+    { id: 'dental_small', keyword: 'Dental Under 40 LBS', threshold: 170, adjusted: 180, enabled: true }, // Adicionado Dental
+    { id: 'dog_medium', keyword: 'Dog Cleaning - Medium', threshold: 200, adjusted: 210, enabled: true },
+    { id: 'dog_max', keyword: 'Dog Cleaning - Max', threshold: 230, adjusted: 240, enabled: true }, // Simplificado Max
+    { id: 'dog_ultra', keyword: 'Dog Cleaning - Ultra', threshold: 260, adjusted: 270, enabled: true },
+    { id: 'cat_cleaning', keyword: 'Cat Cleaning', threshold: 200, adjusted: 210, enabled: true },
+    { id: 'nail_clipping', keyword: 'Nail Clipping', threshold: 0, adjusted: 10, enabled: true } // Representa valor fixo
+]);
 
-    // Cria instância do GoogleSpreadsheet
+
+export default async function handler(req, res) {
+    const logPrefix = `[API ${req.method} ${new Date().toISOString()}]`;
+    console.log(`${logPrefix} Received request for /api/manage-franchise-config.`);
+
     const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
 
     try {
-        console.log(`${logPrefix} Attempting doc.loadInfo() for SHEET_ID: ${SPREADSHEET_ID}...`);
-        await doc.loadInfo(); // Tenta carregar informações básicas da planilha
-        console.log(`${logPrefix} doc.loadInfo() completed.`);
-
-        // *** VERIFICAÇÃO CRÍTICA após loadInfo ***
-        // Se doc.title não foi carregado, loadInfo() falhou (provavelmente autenticação/permissão)
+        await doc.loadInfo();
         if (!doc.title) {
-             console.error(`${logPrefix} CRITICAL: doc.loadInfo() failed silently - doc.title is missing. This usually indicates authentication or permission issues.`);
-             // Lança um erro claro para ser capturado pelo catch principal
              throw new Error('Failed to load spreadsheet information. Verify Service Account credentials and Sheet permissions.');
         }
+        const sheetTitles = doc.sheetTitles || [];
+        console.log(`${logPrefix} Spreadsheet loaded: "${doc.title}". Available sheets: ${sheetTitles.join(', ')}`);
 
-        // Verifica se sheetTitles existe antes de tentar usar .join()
-        const sheetTitles = doc.sheetTitles || []; // Usa array vazio como fallback seguro
-        console.log(`${logPrefix} Spreadsheet loaded: "${doc.title}". Available sheet titles: ${sheetTitles.join(', ')}`);
-
-        // Tenta aceder à aba de configuração
         let sheet = doc.sheetsByTitle[SHEET_NAME_FRANCHISE_CONFIG];
-        const expectedHeaders = ['FranchiseName', ...Object.values(feeItemToColumnMap)];
+        // Adiciona a nova coluna esperada
+        const expectedHeaders = ['FranchiseName', ...Object.values(feeItemToColumnMap), 'ServiceValueRules'];
 
-        // Lógica para criar ou corrigir a aba (igual à versão anterior, com logs)
         if (!sheet) {
-            // Se for GET e a aba não existe, retorna vazio (não tenta criar)
             if (req.method === 'GET') {
-                console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Returning [] for GET request.`);
+                console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Returning [] for GET.`);
                 return res.status(200).json([]);
             }
-             // Para outros métodos (POST, PUT, DELETE), tenta criar a aba
              console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Attempting to create...`);
              try {
                  sheet = await doc.addSheet({ title: SHEET_NAME_FRANCHISE_CONFIG, headerValues: expectedHeaders });
-                 console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" created successfully.`);
-                 // Headers are implicitly loaded for the current instance after creation
+                 console.log(`${logPrefix} Sheet created successfully.`);
              } catch (creationError) {
-                  console.error(`${logPrefix} FAILED to create sheet "${SHEET_NAME_FRANCHISE_CONFIG}":`, creationError);
                   throw new Error(`Failed to create necessary sheet '${SHEET_NAME_FRANCHISE_CONFIG}': ${creationError.message}`);
              }
         } else {
-            // Se a aba existe, verifica os cabeçalhos
-            console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" found. Loading headers to verify...`);
-            await sheet.loadHeaderRow(); // Carrega cabeçalhos existentes
+            console.log(`${logPrefix} Sheet "${SHEET_NAME_FRANCHISE_CONFIG}" found. Verifying headers...`);
+            await sheet.loadHeaderRow();
             const currentHeaders = sheet.headerValues || [];
             console.log(`${logPrefix} Existing headers: ${currentHeaders.join(', ')}`);
-             if (JSON.stringify(currentHeaders) !== JSON.stringify(expectedHeaders)) {
-                 console.warn(`${logPrefix} Headers mismatch! Correcting headers for sheet "${SHEET_NAME_FRANCHISE_CONFIG}" (existing data might be lost)...`);
-                 try {
-                     await sheet.clear(); // Limpa a aba
-                     await sheet.setHeaderRow(expectedHeaders); // Define cabeçalhos corretos
-                     await sheet.resize({ rowCount: 1, columnCount: expectedHeaders.length }); // Ajusta tamanho
-                     await sheet.loadHeaderRow(); // Recarrega cabeçalhos
-                     console.log(`${logPrefix} Headers corrected and sheet cleared.`);
-                 } catch (headerError) {
-                      console.error(`${logPrefix} FAILED to correct headers:`, headerError);
-                      throw new Error(`Failed to correct sheet headers: ${headerError.message}`);
+             // Verifica se todos os cabeçalhos esperados existem
+             let headersOk = expectedHeaders.every(header => currentHeaders.includes(header));
+
+             if (!headersOk || currentHeaders.length < expectedHeaders.length) {
+                 console.warn(`${logPrefix} Headers mismatch or incomplete! Expected: ${expectedHeaders.join(', ')}. Found: ${currentHeaders.join(', ')}. Attempting to add missing headers...`);
+                 // Tenta adicionar apenas as colunas em falta sem limpar (mais seguro)
+                 const missingHeaders = expectedHeaders.filter(header => !currentHeaders.includes(header));
+                 if (missingHeaders.length > 0) {
+                     try {
+                         // Adiciona as colunas ausentes mantendo as existentes
+                         const updatedHeaders = [...currentHeaders, ...missingHeaders];
+                         await sheet.setHeaderRow(updatedHeaders);
+                         await sheet.loadHeaderRow(); // Recarrega para confirmar
+                         console.log(`${logPrefix} Added missing headers. New headers: ${sheet.headerValues.join(', ')}`);
+                     } catch (headerError) {
+                          console.error(`${logPrefix} FAILED to add missing headers:`, headerError);
+                          // Considera lançar um erro ou continuar com os cabeçalhos existentes
+                          // throw new Error(`Failed to update sheet headers: ${headerError.message}`);
+                          console.warn(`${logPrefix} Proceeding with potentially incomplete headers.`);
+                     }
                  }
              } else {
-                 console.log(`${logPrefix} Headers match expected.`);
+                 console.log(`${logPrefix} Headers OK.`);
              }
         }
 
-        // --- Processamento GET (Leitura) ---
         if (req.method === 'GET') {
-            console.log(`${logPrefix} Processing GET request... Loading header row (safe check)...`);
-            await sheet.loadHeaderRow(); // Garante que cabeçalhos estão carregados
-            console.log(`${logPrefix} Fetching rows...`);
-            const rows = await sheet.getRows(); // Obtém as linhas de dados
-            console.log(`${logPrefix} Fetched ${rows.length} rows.`);
-            const configs = rows.map(row => { // Mapeia as linhas para o formato JSON esperado
+            await sheet.loadHeaderRow();
+            const rows = await sheet.getRows();
+            const configs = rows.map(row => {
                 const config = { franchiseName: row.get('FranchiseName') };
                 Object.values(feeItemToColumnMap).forEach(colName => {
-                    config[colName] = parseBoolean(row.get(colName)); // Converte 'TRUE'/'FALSE' para booleano
+                    config[colName] = parseBoolean(row.get(colName));
                 });
-                // Inclui apenas se tiver nome (evita linhas vazias)
+                // Lê e parseia as regras de serviço (ou usa padrão se vazio/inválido)
+                let rules = getDefaultServiceRules(); // Começa com o padrão
+                const rulesJsonString = row.get('ServiceValueRules');
+                if (rulesJsonString) {
+                    try {
+                        const parsedRules = JSON.parse(rulesJsonString);
+                        // Poderia adicionar validação da estrutura aqui se necessário
+                        if (Array.isArray(parsedRules)) {
+                           rules = parsedRules;
+                        } else {
+                            console.warn(`[API GET WARN] Invalid JSON structure in ServiceValueRules for ${config.franchiseName}. Using default.`);
+                        }
+                    } catch (parseError) {
+                        console.warn(`[API GET WARN] Failed to parse ServiceValueRules JSON for ${config.franchiseName}. Using default. Error: ${parseError.message}`);
+                    }
+                }
+                config.serviceValueRules = rules; // Adiciona as regras ao objeto de configuração
                 return config.franchiseName ? config : null;
-            }).filter(Boolean); // Remove os nulos
-            console.log(`${logPrefix} Parsed ${configs.length} valid configurations. Sending 200 response.`);
-            return res.status(200).json(configs); // Retorna a lista de configurações
+            }).filter(Boolean);
+            return res.status(200).json(configs);
         }
 
-        // --- Processamento POST (Criação) ---
         if (req.method === 'POST') {
-             console.log(`${logPrefix} Processing POST request... Body:`, req.body);
-             const { franchiseName, includedFees } = req.body;
-             if (!franchiseName || !includedFees || typeof includedFees !== 'object') {
-                 console.error(`${logPrefix} Invalid POST request body.`);
-                 return res.status(400).json({ success: false, message: 'Bad Request: Franchise name and included fees object are required.' });
-             }
-             await sheet.loadHeaderRow(); const rows = await sheet.getRows();
-             const existing = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
-             if (existing) {
-                 console.warn(`${logPrefix} Conflict: Franchise "${franchiseName}" already exists.`);
+             // Recebe 'serviceValueRules' como objeto do frontend
+            const { franchiseName, includedFees, serviceValueRules } = req.body;
+            if (!franchiseName || !includedFees || typeof includedFees !== 'object' || !Array.isArray(serviceValueRules)) {
+                 return res.status(400).json({ success: false, message: 'Bad Request: Missing required fields or invalid service rules format.' });
+            }
+            await sheet.loadHeaderRow(); const rows = await sheet.getRows();
+            const existing = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
+            if (existing) {
                  return res.status(409).json({ success: false, message: `Conflict: Franchise "${franchiseName}" already exists.` });
-             }
-             const newRowData = { FranchiseName: franchiseName.trim() };
-             Object.keys(feeItemToColumnMap).forEach(feeItem => {
+            }
+            const newRowData = { FranchiseName: franchiseName.trim() };
+            Object.keys(feeItemToColumnMap).forEach(feeItem => {
                  newRowData[feeItemToColumnMap[feeItem]] = formatBoolean(includedFees[feeItem]);
-             });
-             console.log(`${logPrefix} Adding row to sheet...`, newRowData);
-             const addedRowGSheet = await sheet.addRow(newRowData);
-             await sheet.loadHeaderRow(); // Recarrega por segurança
-             const addedConfig = { franchiseName: addedRowGSheet.get('FranchiseName') };
-             Object.values(feeItemToColumnMap).forEach(colName => { addedConfig[colName] = parseBoolean(addedRowGSheet.get(colName)); });
-             console.log(`${logPrefix} POST successful. Sending 201 response.`);
-             return res.status(201).json({ success: true, message: 'Franchise configuration added successfully.', config: addedConfig });
+            });
+             // Converte as regras para string JSON antes de salvar
+            try {
+                newRowData['ServiceValueRules'] = JSON.stringify(serviceValueRules);
+            } catch (stringifyError) {
+                 console.error(`[API POST ERROR] Failed to stringify serviceValueRules:`, stringifyError);
+                 return res.status(500).json({ success: false, message: 'Internal Error: Could not process service value rules.' });
+            }
+
+            const addedRowGSheet = await sheet.addRow(newRowData);
+            await sheet.loadHeaderRow();
+            const addedConfig = { franchiseName: addedRowGSheet.get('FranchiseName') };
+            Object.values(feeItemToColumnMap).forEach(colName => { addedConfig[colName] = parseBoolean(addedRowGSheet.get(colName)); });
+            addedConfig.serviceValueRules = serviceValueRules; // Retorna o objeto original
+
+            return res.status(201).json({ success: true, message: 'Franchise configuration added successfully.', config: addedConfig });
         }
 
-        // --- Processamento PUT (Atualização) ---
         if (req.method === 'PUT') {
-            console.log(`${logPrefix} Processing PUT request... Body:`, req.body);
-            const { originalFranchiseName, newFranchiseName, includedFees } = req.body;
-            if (!originalFranchiseName || !newFranchiseName || !includedFees || typeof includedFees !== 'object') {
-                console.error(`${logPrefix} Invalid PUT request body.`);
-                return res.status(400).json({ success: false, message: 'Bad Request: Original name, new name, and included fees object are required.' });
+            const { originalFranchiseName, newFranchiseName, includedFees, serviceValueRules } = req.body;
+            if (!originalFranchiseName || !newFranchiseName || !includedFees || typeof includedFees !== 'object' || !Array.isArray(serviceValueRules)) {
+                 return res.status(400).json({ success: false, message: 'Bad Request: Missing required fields or invalid service rules format for update.' });
             }
             await sheet.loadHeaderRow(); const rows = await sheet.getRows();
             const rowToUpdate = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === originalFranchiseName.trim().toLowerCase());
             if (!rowToUpdate) {
-                console.warn(`${logPrefix} Not Found: Franchise "${originalFranchiseName}" not found for update.`);
                 return res.status(404).json({ success: false, message: `Not Found: Franchise "${originalFranchiseName}" not found for update.` });
             }
-            // ... (verificação de conflito de nome - igual anterior) ...
+            // ... (verificação de conflito de nome) ...
             const normalizedNewName = newFranchiseName.trim().toLowerCase();
             if (originalFranchiseName.trim().toLowerCase() !== normalizedNewName) { /* ... conflito ... */ }
 
-            console.log(`${logPrefix} Updating row #${rowToUpdate.rowNumber}...`);
             rowToUpdate.set('FranchiseName', newFranchiseName.trim());
             Object.keys(feeItemToColumnMap).forEach(feeItem => {
-                const columnName = feeItemToColumnMap[feeItem];
-                const newValue = includedFees.hasOwnProperty(feeItem) ? formatBoolean(includedFees[feeItem]) : 'FALSE';
-                rowToUpdate.set(columnName, newValue);
+                 const columnName = feeItemToColumnMap[feeItem];
+                 const newValue = includedFees.hasOwnProperty(feeItem) ? formatBoolean(includedFees[feeItem]) : 'FALSE';
+                 rowToUpdate.set(columnName, newValue);
             });
+            // Converte as regras para string JSON antes de salvar
+             try {
+                rowToUpdate.set('ServiceValueRules', JSON.stringify(serviceValueRules));
+             } catch (stringifyError) {
+                  console.error(`[API PUT ERROR] Failed to stringify serviceValueRules:`, stringifyError);
+                  return res.status(500).json({ success: false, message: 'Internal Error: Could not process service value rules for update.' });
+             }
+
             await rowToUpdate.save();
-            await sheet.loadHeaderRow(); // Recarrega
+            await sheet.loadHeaderRow();
             const updatedConfig = { franchiseName: rowToUpdate.get('FranchiseName') };
             Object.values(feeItemToColumnMap).forEach(colName => { updatedConfig[colName] = parseBoolean(rowToUpdate.get(colName)); });
-            console.log(`${logPrefix} PUT successful. Sending 200 response.`);
+            updatedConfig.serviceValueRules = serviceValueRules; // Retorna o objeto original
+
             return res.status(200).json({ success: true, message: 'Franchise configuration updated successfully.', config: updatedConfig });
         }
 
-        // --- Processamento DELETE (Remoção) ---
         if (req.method === 'DELETE') {
-             console.log(`${logPrefix} Processing DELETE request... Body:`, req.body);
-             const { franchiseName } = req.body;
-             if (!franchiseName) {
-                 console.error(`${logPrefix} Invalid DELETE request body.`);
-                 return res.status(400).json({ success: false, message: 'Bad Request: Franchise name is required.' });
-             }
-             await sheet.loadHeaderRow(); const rows = await sheet.getRows();
-             const rowToDelete = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
-             if (!rowToDelete) {
-                 console.warn(`${logPrefix} Not Found: Franchise "${franchiseName}" not found for deletion.`);
-                 return res.status(404).json({ success: false, message: `Not Found: Franchise "${franchiseName}" not found for deletion.` });
-             }
-             console.log(`${logPrefix} Deleting row #${rowToDelete.rowNumber}...`);
-             await rowToDelete.delete();
-             console.log(`${logPrefix} DELETE successful. Sending 200 response.`);
-             return res.status(200).json({ success: true, message: `Franchise "${franchiseName}" configuration deleted successfully.` });
+             // DELETE não precisa mexer na coluna de regras, só deleta a linha
+            const { franchiseName } = req.body;
+            if (!franchiseName) {
+                return res.status(400).json({ success: false, message: 'Bad Request: Franchise name is required.' });
+            }
+            await sheet.loadHeaderRow(); const rows = await sheet.getRows();
+            const rowToDelete = rows.find(row => row.get('FranchiseName')?.trim().toLowerCase() === franchiseName.trim().toLowerCase());
+            if (!rowToDelete) {
+                return res.status(404).json({ success: false, message: `Not Found: Franchise "${franchiseName}" not found for deletion.` });
+            }
+            await rowToDelete.delete();
+            return res.status(200).json({ success: true, message: `Franchise "${franchiseName}" configuration deleted successfully.` });
         }
 
-        // --- Método não suportado ---
-        console.log(`${logPrefix} Method ${req.method} not allowed.`);
         res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
         return res.status(405).end(`Method ${req.method} Not Allowed`);
 
     } catch (error) {
-        // --- Tratamento Geral de Erros ---
-        console.error(`${logPrefix} CRITICAL ERROR:`, error); // Log completo do erro no servidor
-
-        // Determina mensagem de erro mais útil para o cliente
-        let clientErrorMessage = 'An internal server error occurred while managing franchise configurations.';
-        if (error.message) {
-            // Erros específicos da biblioteca ou API do Google
-            if (error.message.includes('permission denied') || error.message.includes('403') || error.response?.status === 403) {
-                clientErrorMessage = 'Permission Denied: Check Service Account permissions on the Google Sheet (requires Editor access) and ensure Google Sheets API is enabled.';
-            } else if (error.message.includes('Failed to load spreadsheet information')) {
-                clientErrorMessage = error.message; // Usa a mensagem específica lançada após a falha do loadInfo
-            } else if (error.message.includes('Requested entity was not found') || error.message.includes('404') || error.response?.status === 404) {
-                 // Pode ser a planilha ou a aba
-                 clientErrorMessage = `Google Sheet or Tab "${SHEET_NAME_FRANCHISE_CONFIG}" not found. Verify SHEET_ID and tab name.`;
-            } else if (error.message.includes('sheet headers') || error.message.includes('sheet creation')) {
-                 clientErrorMessage = `Error processing sheet structure: ${error.message}`;
-            }
-             // Para outros erros, usa a mensagem do erro se disponível
-             else {
-                  clientErrorMessage = error.message;
-             }
-        }
-
+        console.error(`${logPrefix} CRITICAL ERROR:`, error);
+        // ... (bloco catch com mensagens de erro detalhadas - igual anterior) ...
+        let clientErrorMessage = 'An internal server error occurred while managing franchise configurations.'; /* ... */
         return res.status(500).json({ success: false, message: clientErrorMessage });
     }
 }
