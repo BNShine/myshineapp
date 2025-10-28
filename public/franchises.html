@@ -25,11 +25,13 @@
         .franchise-list-item:last-child { @apply border-b-0; }
         .loading-overlay { position: absolute; inset: 0; background-color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; justify-content: center; z-index: 10; }
         .dark .loading-overlay { background-color: rgba(0, 0, 0, 0.7); }
-        .rule-grid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 0.5rem 1rem; align-items: center; }
+        .rule-grid { display: grid; grid-template-columns: auto auto 1fr auto; gap: 0.5rem 1rem; align-items: center; border-bottom: 1px solid hsl(var(--border)); padding-bottom: 0.75rem; }
         .rule-grid label { font-size: 0.8rem; text-align: right; }
         .rule-grid input[type=number] { padding: 0.2rem 0.4rem; font-size: 0.8rem; max-width: 80px; }
-        .rule-grid .rule-keyword { font-size: 0.875rem; font-weight: 500;}
+        .rule-grid .rule-keyword-input { font-size: 0.875rem; font-weight: 500; padding: 0.2rem 0.4rem;}
         .rule-grid input[type=checkbox]{ margin-right: 0.5rem; }
+        .rule-grid .delete-rule-btn { background: none; border: none; color: hsl(0 84.2% 60.2%); cursor: pointer; padding: 0.25rem; }
+        .rule-grid .delete-rule-btn:hover { color: hsl(0 84.2% 40.2%); }
         .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
         .config-grid label { margin-bottom: 0.25rem; }
     </style>
@@ -37,7 +39,7 @@
 <body class="min-h-screen bg-background text-foreground">
     <div class="flex">
         <aside class="sidebar">
-            <div class="flex h-16 items-center justify-center border-b px-6">
+             <div class="flex h-16 items-center justify-center border-b px-6">
                 <a class="flex items-center gap-2 font-semibold" href="appointments.html">
                     <img src="https://i.imgur.com/bW695v3.png" alt="Logo" class="h-10 w-auto"/>
                     <span class="sr-only">Myshineapp</span>
@@ -94,7 +96,6 @@
                                 <div class="loading-spinner hidden mt-2 flex items-center"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-primary mr-2"></div> Processing...</div>
                             </div>
                         </div>
-
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t mt-4">
                              <div class="card-base p-3"> <p class="text-sm text-muted-foreground">Pets Serviced</p> <p class="text-xl font-bold metric-pets">0</p> </div>
                              <div class="card-base p-3"> <p class="text-sm text-muted-foreground">Services Count</p> <p class="text-xl font-bold metric-services-count">0</p> </div>
@@ -199,9 +200,10 @@
                              </div>
                             <div>
                                 <h4 class="text-sub-title mb-2 border-t pt-4">Service Value Adjustment Rules</h4>
-                                <p class="text-xs text-muted-foreground mb-3">Define minimum values. If original value is less than 'Threshold', it will be adjusted to 'Adjusted Value'. Set Threshold=0 for fixed values.</p>
-                                <div id="new-service-rules-container" class="space-y-3">
+                                <p class="text-xs text-muted-foreground mb-3">Define minimum/fixed values. Add custom rules as needed.</p>
+                                <div id="new-service-rules-container" class="space-y-3 mb-3">
                                 </div>
+                                <button type="button" id="add-new-service-rule-button" class="btn-outline text-xs">+ Add Service Rule</button>
                             </div>
                             <div class="flex justify-end pt-4">
                                 <button type="submit" class="btn-primary h-10 px-6">Register Franchise</button>
@@ -289,8 +291,9 @@
                  <div class="border-t pt-4 mt-4">
                      <h4 class="text-sub-title mb-2">Service Value Adjustment Rules</h4>
                      <p class="text-xs text-muted-foreground mb-3">Define minimum/fixed values for services.</p>
-                     <div id="edit-service-rules-container" class="space-y-3">
+                     <div id="edit-service-rules-container" class="space-y-3 mb-3">
                      </div>
+                     <button type="button" id="add-edit-service-rule-button" class="btn-outline text-xs">+ Add Service Rule</button>
                  </div>
             </form>
             <div class="mt-6 flex justify-end gap-3">
