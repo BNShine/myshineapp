@@ -35,9 +35,8 @@
         .custom-fee-row label { font-size: 0.8rem; }
         .custom-fee-row input, .custom-fee-row select { height: 2rem; font-size: 0.875rem; padding: 0.2rem 0.4rem;}
         .custom-fee-row .delete-fee-btn { background: none; border: none; color: hsl(0 84.2% 60.2%); cursor: pointer; padding: 0.25rem; }
-        /* Nova Classe para a linha do Loan */
-        .loan-payment-row { background-color: #e6ffed; /* Verde claro */ }
-        .dark .loan-payment-row { background-color: #1c3d26; /* Verde escuro para dark mode */ }
+        .loan-payment-row { background-color: #e6ffed; }
+        .dark .loan-payment-row { background-color: #1c3d26; }
         .edit-loan-link { cursor: pointer; color: hsl(var(--brand-primary)); text-decoration: underline; }
         .edit-loan-link:hover { color: hsl(var(--brand-primary-hover)); }
     </style>
@@ -45,8 +44,28 @@
 <body class="min-h-screen bg-background text-foreground">
     <div class="flex">
         <aside class="sidebar">
-             <div class="flex h-16 items-center justify-center border-b px-6"> <a class="flex items-center gap-2 font-semibold" href="appointments.html"> <img src="https://i.imgur.com/bW695v3.png" alt="Logo" class="h-10 w-auto"/> <span class="sr-only">Myshineapp</span> </a> </div>
-             <nav class="flex-1 overflow-auto p-4"> <ul class="grid items-start gap-1 text-sm font-medium"> <li><a class="sidebar-link" href="appointments.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>Sales</a></li> <li><a class="sidebar-link" href="customers.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Customers</a></li> <li><a class="sidebar-link" href="analytics.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Analytics</a></li> <li><a class="sidebar-link" href="calendar.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>Calendar</a></li> <li><a class="sidebar-link" href="quick-routes.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>Routes</a></li> <li><a class="sidebar-link" href="finance.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>Finance</a></li> <li><a class="sidebar-link active" href="franchises.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building h-4 w-4"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>Franchises</a></li> </ul> </nav>
+             <div class="flex h-16 items-center justify-center border-b px-6">
+                <a class="flex items-center gap-2 font-semibold" href="appointments.html">
+                    <img src="https://i.imgur.com/bW695v3.png" alt="Logo" class="h-10 w-auto"/>
+                    <span class="sr-only">Myshineapp</span>
+                </a>
+            </div>
+            <nav class="flex-1 overflow-auto p-4">
+                 <ul class="grid items-start gap-1 text-sm font-medium">
+                    <li>
+                        <a class="sidebar-link" href="cost-control.html">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M15 10A3 3 0 0 1 12 13A3 3 0 0 1 9 10A3 3 0 0 1 15 10Z"/><path d="M19.34 14.66A9 9 0 1 1 14.66 4.66"/></svg>
+                            Cost Control
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-link active" href="franchises.html">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building h-4 w-4"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+                            Franchises
+                        </a>
+                    </li>
+                 </ul>
+            </nav>
         </aside>
 
         <div class="main-content flex flex-col flex-1 relative">
@@ -158,7 +177,7 @@
                                  <input type="checkbox" id="edit-has-min-royalty" class="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary mr-2">
                                  <label for="edit-has-min-royalty" class="text-label">Minimum Royalty Fee ($)</label>
                              </div>
-                             <input type="number" step="0.01" id="edit-min-royalty-value" value="0" class="input-base h-9" disabled>
+                             <input type="number" step="0.01" id="edit-min-royalty-value" value="1000.00" class="input-base h-9" disabled>
                          </div>
                         <div> <label for="edit-royalty-rate" class="text-label">Royalty Rate (%)</label> <input type="number" step="0.1" id="edit-royalty-rate" class="input-base h-9"> </div>
                         <div> <label for="edit-marketing-rate" class="text-label">Marketing Rate (%)</label> <input type="number" step="0.1" id="edit-marketing-rate" class="input-base h-9"> </div>
