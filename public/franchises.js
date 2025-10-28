@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await fetchFranchiseConfigs();
             addFranchiseFormElement.reset();
             populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
-            populateCustomFeeInputs(newCustomFeesContainer, []); // Limpa custom fees
+            populateCustomFeeInputs(newCustomFeesContainer, []);
             resetNewFeeInputs();
             newFeeCheckboxElements.forEach(checkboxElement => checkboxElement.checked = (checkboxElement.dataset.feeItem !== 'Call Center Fee Extra'));
             if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden');
@@ -278,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
      }
 
     function populateServiceRuleInputs(containerElement, rules) {
+        if (!containerElement) return;
         containerElement.innerHTML = '';
         rules.forEach(rule => {
             appendServiceRuleInputRow(containerElement, rule);
@@ -285,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function appendServiceRuleInputRow(containerElement, rule = { id: `new_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, keyword: '', threshold: 0, adjusted: 0, enabled: true }) {
+         if (!containerElement) return;
          const ruleDiv = document.createElement('div');
          ruleDiv.className = 'rule-grid';
          ruleDiv.dataset.ruleId = rule.id;
@@ -309,6 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getServiceRulesFromInputs(containerElement) {
         const rules = [];
+        if (!containerElement) return rules;
         const ruleDivs = containerElement.querySelectorAll('.rule-grid');
         ruleDivs.forEach(ruleDiv => {
             const enabledInput = ruleDiv.querySelector('.rule-enabled');
@@ -321,18 +324,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(ruleId.startsWith('new_')) {
                     ruleId = keyword.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20) || `custom_${Date.now()}`;
                 }
-                rules.push({
-                    id: ruleId, keyword: keyword,
-                    threshold: parseInt(thresholdInput.value, 10) || 0,
-                    adjusted: parseInt(adjustedInput.value, 10) || 0,
-                    enabled: enabledInput.checked
-                });
+                rules.push({ id: ruleId, keyword: keyword, threshold: parseInt(thresholdInput.value, 10) || 0, adjusted: parseInt(adjustedInput.value, 10) || 0, enabled: enabledInput.checked });
             } else if (keyword){ console.warn("Could not find all inputs for a service rule row:", ruleDiv); }
         });
         return rules;
     }
 
     function populateCustomFeeInputs(containerElement, fees) {
+        if (!containerElement) return;
         containerElement.innerHTML = '';
         fees.forEach(fee => {
             appendCustomFeeInputRow(containerElement, fee);
@@ -340,6 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function appendCustomFeeInputRow(containerElement, fee = { id: `new_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, name: '', type: 'percentage', value: 0, enabled: true }) {
+         if (!containerElement) return;
          const feeDiv = document.createElement('div');
          feeDiv.className = 'custom-fee-row';
          feeDiv.dataset.feeId = fee.id;
@@ -363,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getCustomFeesFromInputs(containerElement) {
         const fees = [];
+        if (!containerElement) return fees;
         const feeDivs = containerElement.querySelectorAll('.custom-fee-row');
         feeDivs.forEach(feeDiv => {
             const enabledInput = feeDiv.querySelector('.custom-fee-enabled');
@@ -371,25 +372,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const valueInput = feeDiv.querySelector('.custom-fee-value');
             let feeId = feeDiv.dataset.feeId;
             const name = nameInput ? nameInput.value.trim() : '';
-
             if (enabledInput && name && typeSelect && valueInput) {
-                 if(feeId.startsWith('new_')) {
-                     feeId = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20) || `custom_${Date.now()}`;
-                 }
-                fees.push({
-                    id: feeId,
-                    name: name,
-                    type: typeSelect.value,
-                    value: parseNumberInput(valueInput.value, 0),
-                    enabled: enabledInput.checked
-                });
-            } else if (name) {
-                 console.warn("Could not find all inputs for a custom fee row:", feeDiv);
-            }
+                 if(feeId.startsWith('new_')) { feeId = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 20) || `custom_${Date.now()}`; }
+                fees.push({ id: feeId, name: name, type: typeSelect.value, value: parseNumberInput(valueInput.value, 0), enabled: enabledInput.checked });
+            } else if (name) { console.warn("Could not find all inputs for a custom fee row:", feeDiv); }
         });
         return fees;
     }
-
 
     function populateFranchiseSelect() {
          const currentSelection = franchiseSelectElement.value;
@@ -418,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const includedItems = Object.entries(config) .filter(([key, value]) => key.startsWith('Include') && value === true) .map(([key]) => apiFieldToFeeItemMap[key] || key.replace('Include', '')) .join(', ');
             const customFeesSummary = (config.customFeesConfig || []).filter(f => f.enabled).map(f => f.name).join(', ');
             const loanSummary = config.hasLoan ? ` | Loan Payment` : '';
-
             const listItem = document.createElement('div');
             listItem.className = 'franchise-list-item';
             listItem.innerHTML = `
@@ -487,8 +475,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tableRow.dataset.index = rowIndex;
             const isFixedRow = rowData.fixed || false;
             const isRateFee = rowData.isRate || false;
-            const isEditableQuantity = !isFixedRow; // Somente linhas customizadas
-            const isEditableUnitPrice = !isFixedRow; // Somente linhas customizadas
+            const isEditableQuantity = !isFixedRow;
+            const isEditableUnitPrice = !isFixedRow;
             let quantityValue = rowData.Qty;
             let unitPriceValue = rowData.Unit_price;
             let amount = 0;
@@ -544,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  if(!rowData.fixed) { rowData.Unit_price = unitPrice; }
                 currentAmount = quantity * unitPrice;
             }
-             if(!rowData.fixed) { rowData.Qty = quantity; } // Salva Qty apenas para linhas custom
+             if(!rowData.fixed) { rowData.Qty = quantity; }
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
             amountInputElement.title = formatCurrency(currentAmount);
@@ -586,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
          if(newLoanValueInputElement) newLoanValueInputElement.value = defaultRatesAndFees.loanValue.toFixed(2);
          if(newExtraVehiclesWrapper) newExtraVehiclesWrapper.classList.add('hidden');
          if(newLoanDetailsWrapper) newLoanDetailsWrapper.classList.add('hidden');
-         populateCustomFeeInputs(newCustomFeesContainer, []); // Limpa custom fees
+         populateCustomFeeInputs(newCustomFeesContainer, []);
      }
 
     function toggleCalculationFields(enabled) {
@@ -801,14 +789,15 @@ document.addEventListener('DOMContentLoaded', () => {
             calculateAndDisplayTotals();
         });
 
-        calculationTbodyElement.addEventListener('click', (event) => {
+        // Delegação de eventos para botões delete (regras, taxas custom, linhas tabela)
+        document.body.addEventListener('click', (event) => {
              const deleteRuleButton = event.target.closest('.delete-rule-btn');
              const deleteFeeButton = event.target.closest('.delete-fee-btn');
              const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
 
              if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
              else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
-             else if (deleteRowButton) {
+             else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) { // Garante que é da tabela de cálculo
                  const tableRowElement = deleteRowButton.closest('.calculation-row');
                  if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
              }
@@ -857,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Initializing page...");
     populateMonthSelect();
     populateServiceRuleInputs(newServiceRulesContainer, defaultServiceValueRules);
-    populateCustomFeeInputs(newCustomFeesContainer, []); // Começa vazio
+    populateCustomFeeInputs(newCustomFeesContainer, []);
     fetchFranchiseConfigs();
     resetCalculationSection();
     resetNewFeeInputs();
