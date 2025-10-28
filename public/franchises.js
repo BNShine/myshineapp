@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const newExtraVehiclesInputElement = document.getElementById('new-extra-vehicles');
     const newRoyaltyRateInputElement = document.getElementById('new-royalty-rate');
     const newMarketingRateInputElement = document.getElementById('new-marketing-rate');
+    const newHasMinRoyaltyCheckbox = document.getElementById('new-has-min-royalty'); // Novo Seletor
+    const newMinRoyaltyValueInputElement = document.getElementById('new-min-royalty-value'); // Novo Seletor
     const newSoftwareFeeInputElement = document.getElementById('new-software-fee');
     const newCallCenterFeeInputElement = document.getElementById('new-callcenter-fee');
     const newCallCenterExtraInputElement = document.getElementById('new-callcenter-extra');
@@ -46,6 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const editExtraVehiclesInputElement = document.getElementById('edit-extra-vehicles');
     const editRoyaltyRateInputElement = document.getElementById('edit-royalty-rate');
     const editMarketingRateInputElement = document.getElementById('edit-marketing-rate');
+    const editHasMinRoyaltyCheckbox = document.getElementById('edit-has-min-royalty'); // Novo Seletor
+    const editMinRoyaltyValueInputElement = document.getElementById('edit-min-royalty-value'); // Novo Seletor
     const editSoftwareFeeInputElement = document.getElementById('edit-software-fee');
     const editCallCenterFeeInputElement = document.getElementById('edit-callcenter-fee');
     const editCallCenterExtraInputElement = document.getElementById('edit-callcenter-extra');
@@ -79,6 +83,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultRatesAndFees = {
         royaltyRate: 6.0,
         marketingRate: 1.0,
+        hasMinRoyaltyFee: false,
+        minRoyaltyFeeValue: 0,
         softwareFeeValue: 350.00,
         callCenterFeeValue: 1200.00,
         callCenterExtraFeeValue: 600.00,
@@ -200,6 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
                           config.loanCurrentInstallment = config.loanCurrentInstallment !== undefined ? config.loanCurrentInstallment : defaultRatesAndFees.loanCurrentInstallment;
                           config.loanTotalInstallments = config.loanTotalInstallments !== undefined ? config.loanTotalInstallments : defaultRatesAndFees.loanTotalInstallments;
                           config.loanValue = config.loanValue !== undefined ? config.loanValue : defaultRatesAndFees.loanValue;
+                          config.hasMinRoyaltyFee = config.hasMinRoyaltyFee !== undefined ? config.hasMinRoyaltyFee : defaultRatesAndFees.hasMinRoyaltyFee;
+                          config.minRoyaltyFeeValue = config.minRoyaltyFeeValue !== undefined ? config.minRoyaltyFeeValue : defaultRatesAndFees.minRoyaltyFeeValue;
                       });
                  }
             } catch (parseError) {
@@ -337,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function populateCustomFeeInputs(containerElement, fees) {
         if (!containerElement) return;
         containerElement.innerHTML = '';
-        if (fees.length === 0) {
+        if (!fees || fees.length === 0) {
              appendCustomFeeInputRow(containerElement);
         } else {
             fees.forEach(fee => {
@@ -415,12 +423,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const includedItems = Object.entries(config) .filter(([key, value]) => key.startsWith('Include') && value === true) .map(([key]) => apiFieldToFeeItemMap[key] || key.replace('Include', '')) .join(', ');
             const customFeesSummary = (config.customFeesConfig || []).filter(f => f.enabled && f.name).map(f => f.name).join(', ');
             const loanSummary = config.hasLoan ? ` | Loan (${config.loanCurrentInstallment}/${config.loanTotalInstallments})` : '';
+            const minRoyaltySummary = config.hasMinRoyaltyFee ? ` | Min. Royalty ${formatCurrency(config.minRoyaltyFeeValue)}` : '';
             const listItem = document.createElement('div');
             listItem.className = 'franchise-list-item';
             listItem.innerHTML = `
                 <div>
                     <p class="font-semibold">${config.franchiseName}</p>
-                    <p class="text-xs text-muted-foreground">Fees: R ${config.royaltyRate}% | M ${config.marketingRate}% ${customFeesSummary ? `| ${customFeesSummary}` : ''}${loanSummary}</p>
+                    <p class="text-xs text-muted-foreground">Fees: R ${config.royaltyRate}% | M ${config.marketingRate}%${minRoyaltySummary} ${customFeesSummary ? `| ${customFeesSummary}` : ''}${loanSummary}</p>
                     <p class="text-xs text-muted-foreground">Included Base: ${includedItems || 'None'}</p>
                 </div>
                 <div class="space-x-2"> <button class="edit-franchise-btn text-blue-600 hover:text-blue-800 p-1" data-name="${config.franchiseName}" title="Edit"> <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> </button> <button class="delete-registered-franchise-btn text-red-600 hover:text-red-800 p-1" data-name="${config.franchiseName}" title="Delete"> <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg> </button> </div>
@@ -490,6 +499,16 @@ document.addEventListener('DOMContentLoaded', () => {
             let amount = 0;
             if (isRateFee) { amount = (parseFloat(quantityValue) / 100) * parseFloat(unitPriceValue); }
             else { amount = parseFloat(quantityValue) * parseFloat(unitPriceValue); }
+            
+            if (rowData.Item === "Royalty Fee" && currentCalculationState.config.hasMinRoyaltyFee) {
+                 if (amount < currentCalculationState.config.minRoyaltyFeeValue) {
+                     amount = currentCalculationState.config.minRoyaltyFeeValue;
+                     rowData.Description = `(Minimum applied. Original: ${formatCurrency( (parseFloat(quantityValue) / 100) * parseFloat(unitPriceValue) )})`;
+                 } else {
+                     rowData.Description = ""; // Limpa descrição se não aplicar
+                 }
+            }
+
             quantityValue = isNaN(quantityValue) ? 0 : quantityValue;
             unitPriceValue = isNaN(unitPriceValue) ? 0 : unitPriceValue;
             amount = isNaN(amount) ? 0 : amount;
@@ -529,9 +548,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const quantityInputElement = tableRowElement.querySelector('.qty');
             const unitPriceInputElement = tableRowElement.querySelector('.unit-price');
             const amountInputElement = tableRowElement.querySelector('.amount');
+            const descriptionInputElement = tableRowElement.querySelector('.description');
             const quantity = parseFloat(quantityInputElement.value) || 0;
             let unitPrice = parseFloat(unitPriceInputElement.value) || 0;
             let currentAmount = 0;
+
             if (rowData.isRate) {
                 unitPrice = currentCalculationState.totalValue;
                 if (!unitPriceInputElement.disabled) unitPriceInputElement.value = unitPrice.toFixed(2);
@@ -540,6 +561,19 @@ document.addEventListener('DOMContentLoaded', () => {
                  if(!rowData.fixed) { rowData.Unit_price = unitPrice; }
                 currentAmount = quantity * unitPrice;
             }
+             
+            if (rowData.Item === "Royalty Fee" && currentCalculationState.config.hasMinRoyaltyFee) {
+                 if (currentAmount < currentCalculationState.config.minRoyaltyFeeValue) {
+                     const originalAmount = currentAmount;
+                     currentAmount = currentCalculationState.config.minRoyaltyFeeValue;
+                     rowData.Description = `(Minimum applied. Original: ${formatCurrency(originalAmount)})`;
+                     if (descriptionInputElement && !descriptionInputElement.disabled) descriptionInputElement.value = rowData.Description;
+                 } else {
+                     rowData.Description = "";
+                     if (descriptionInputElement && !descriptionInputElement.disabled) descriptionInputElement.value = "";
+                 }
+            }
+
              if(!rowData.fixed) { rowData.Qty = quantity; }
             rowData.Amount = currentAmount;
             amountInputElement.value = formatCurrency(currentAmount);
@@ -573,6 +607,11 @@ document.addEventListener('DOMContentLoaded', () => {
      function resetNewFeeInputs() {
          if(newRoyaltyRateInputElement) newRoyaltyRateInputElement.value = defaultRatesAndFees.royaltyRate;
          if(newMarketingRateInputElement) newMarketingRateInputElement.value = defaultRatesAndFees.marketingRate;
+         if(newHasMinRoyaltyCheckbox) newHasMinRoyaltyCheckbox.checked = defaultRatesAndFees.hasMinRoyaltyFee;
+         if(newMinRoyaltyValueInputElement) {
+             newMinRoyaltyValueInputElement.value = defaultRatesAndFees.minRoyaltyFeeValue.toFixed(2);
+             newMinRoyaltyValueInputElement.disabled = !defaultRatesAndFees.hasMinRoyaltyFee;
+         }
          if(newSoftwareFeeInputElement) newSoftwareFeeInputElement.value = defaultRatesAndFees.softwareFeeValue.toFixed(2);
          if(newCallCenterFeeInputElement) newCallCenterFeeInputElement.value = defaultRatesAndFees.callCenterFeeValue.toFixed(2);
          if(newCallCenterExtraInputElement) newCallCenterExtraInputElement.value = defaultRatesAndFees.callCenterExtraFeeValue.toFixed(2);
@@ -679,6 +718,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         editRoyaltyRateInputElement.value = configToEdit.royaltyRate;
         editMarketingRateInputElement.value = configToEdit.marketingRate;
+        editHasMinRoyaltyCheckbox.checked = configToEdit.hasMinRoyaltyFee || false;
+        editMinRoyaltyValueInputElement.value = (configToEdit.minRoyaltyFeeValue || 0).toFixed(2);
+        editMinRoyaltyValueInputElement.disabled = !editHasMinRoyaltyCheckbox.checked;
         editSoftwareFeeInputElement.value = configToEdit.softwareFeeValue.toFixed(2);
         editCallCenterFeeInputElement.value = configToEdit.callCenterFeeValue.toFixed(2);
         editCallCenterExtraInputElement.value = configToEdit.callCenterExtraFeeValue.toFixed(2);
@@ -702,6 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
         populateCustomFeeInputs(editCustomFeesContainer, []);
         if(editExtraVehiclesWrapper) editExtraVehiclesWrapper.classList.add('hidden');
         if(editLoanDetailsWrapper) editLoanDetailsWrapper.classList.add('hidden');
+        if(editMinRoyaltyValueInputElement) editMinRoyaltyValueInputElement.disabled = true;
     }
 
     function handleSaveEdit() {
@@ -716,6 +759,8 @@ document.addEventListener('DOMContentLoaded', () => {
             originalFranchiseName: originalName, newFranchiseName: newName, includedFees: includedFeesMap,
             royaltyRate: parseNumberInput(editRoyaltyRateInputElement.value, defaultRatesAndFees.royaltyRate),
             marketingRate: parseNumberInput(editMarketingRateInputElement.value, defaultRatesAndFees.marketingRate),
+            hasMinRoyaltyFee: editHasMinRoyaltyCheckbox.checked,
+            minRoyaltyFeeValue: parseNumberInput(editMinRoyaltyValueInputElement.value, 0),
             softwareFeeValue: parseNumberInput(editSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(editCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(editCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
@@ -741,6 +786,8 @@ document.addEventListener('DOMContentLoaded', () => {
             franchiseName: franchiseName, includedFees: includedFeesMap,
             royaltyRate: parseNumberInput(newRoyaltyRateInputElement.value, defaultRatesAndFees.royaltyRate),
             marketingRate: parseNumberInput(newMarketingRateInputElement.value, defaultRatesAndFees.marketingRate),
+            hasMinRoyaltyFee: newHasMinRoyaltyCheckbox.checked,
+            minRoyaltyFeeValue: parseNumberInput(newMinRoyaltyValueInputElement.value, 0),
             softwareFeeValue: parseNumberInput(newSoftwareFeeInputElement.value, defaultRatesAndFees.softwareFeeValue),
             callCenterFeeValue: parseNumberInput(newCallCenterFeeInputElement.value, defaultRatesAndFees.callCenterFeeValue),
             callCenterExtraFeeValue: parseNumberInput(newCallCenterExtraInputElement.value, defaultRatesAndFees.callCenterExtraFeeValue),
@@ -786,6 +833,18 @@ document.addEventListener('DOMContentLoaded', () => {
         addCalculationRowButtonElement.addEventListener('click', addCalculationRowUI);
     }
 
+    document.body.addEventListener('click', (event) => {
+        const deleteRuleButton = event.target.closest('.delete-rule-btn');
+        const deleteFeeButton = event.target.closest('.delete-fee-btn');
+        const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
+        if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
+        else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
+        else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) {
+            const tableRowElement = deleteRowButton.closest('.calculation-row');
+            if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
+        }
+    });
+
     if (calculationTbodyElement) {
         calculationTbodyElement.addEventListener('change', (event) => {
             const targetElement = event.target;
@@ -801,18 +860,6 @@ document.addEventListener('DOMContentLoaded', () => {
             calculateAndDisplayTotals();
         });
     }
-
-    document.body.addEventListener('click', (event) => {
-        const deleteRuleButton = event.target.closest('.delete-rule-btn');
-        const deleteFeeButton = event.target.closest('.delete-fee-btn');
-        const deleteRowButton = event.target.closest('.delete-calculation-row-btn');
-        if (deleteRuleButton) { deleteRuleButton.closest('.rule-grid').remove(); }
-        else if (deleteFeeButton) { deleteFeeButton.closest('.custom-fee-row').remove(); }
-        else if (deleteRowButton && deleteRowButton.closest('#royalty-calculation-section')) {
-            const tableRowElement = deleteRowButton.closest('.calculation-row');
-            if (tableRowElement) { const rowIndex = parseInt(tableRowElement.dataset.index); deleteCalculationRowUI(rowIndex); }
-        }
-    });
 
     if(editModalSaveButtonElement) editModalSaveButtonElement.addEventListener('click', handleSaveEdit);
     if(editModalCancelButtonElement) editModalCancelButtonElement.addEventListener('click', closeEditModal);
@@ -852,6 +899,18 @@ document.addEventListener('DOMContentLoaded', () => {
                  if(editLoanTotalInstallmentsInputElement) editLoanTotalInstallmentsInputElement.value = 0;
                  if(editLoanValueInputElement) editLoanValueInputElement.value = 0;
              }
+         });
+     }
+     if(newHasMinRoyaltyCheckbox && newMinRoyaltyValueInputElement) {
+         newHasMinRoyaltyCheckbox.addEventListener('change', (event) => {
+             newMinRoyaltyValueInputElement.disabled = !event.target.checked;
+             if(!event.target.checked) { newMinRoyaltyValueInputElement.value = 0; }
+         });
+     }
+     if(editHasMinRoyaltyCheckbox && editMinRoyaltyValueInputElement) {
+         editHasMinRoyaltyCheckbox.addEventListener('change', (event) => {
+             editMinRoyaltyValueInputElement.disabled = !event.target.checked;
+             if(!event.target.checked) { editMinRoyaltyValueInputElement.value = 0; }
          });
      }
 
